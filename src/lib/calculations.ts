@@ -114,15 +114,21 @@ export function calculateCPM(project: Project): Project {
 /** Generate real Curva S data based on task weights and progress */
 export function generateCurvaS(project: Project): { day: string; planejado: number; realizado: number }[] {
   const tasks = getAllTasks(project);
-  const projectStart = new Date(Math.min(...tasks.map(t => new Date(t.startDate).getTime())));
-  const projectEnd = new Date(Math.max(...tasks.map(t => {
+  if (tasks.length === 0) return [];
+
+  const validTasks = tasks.filter(t => t.startDate && !isNaN(new Date(t.startDate).getTime()));
+  if (validTasks.length === 0) return [];
+
+  const projectStart = new Date(Math.min(...validTasks.map(t => new Date(t.startDate).getTime())));
+  const projectEnd = new Date(Math.max(...validTasks.map(t => {
     const d = new Date(t.startDate);
     d.setDate(d.getDate() + t.duration);
     return d.getTime();
   })));
 
-  const totalDays = Math.ceil((projectEnd.getTime() - projectStart.getTime()) / 86400000) + 1;
-  const totalWeight = tasks.reduce((s, t) => s + t.duration, 0);
+  const totalDays = Math.max(1, Math.ceil((projectEnd.getTime() - projectStart.getTime()) / 86400000) + 1);
+  const totalWeight = validTasks.reduce((s, t) => s + t.duration, 0);
+  if (totalWeight === 0) return [];
 
   // Distribute weight per day
   const plannedPerDay = new Array(totalDays).fill(0);
