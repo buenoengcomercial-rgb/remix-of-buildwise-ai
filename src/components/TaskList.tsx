@@ -253,12 +253,20 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
           <h2 className="text-2xl font-bold text-foreground">Estrutura Analítica (EAP)</h2>
           <p className="text-sm text-muted-foreground mt-1">Tarefas com cálculo RUP e composição de mão de obra</p>
         </div>
-        <button
-          onClick={() => setImportOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors shadow-sm"
-        >
-          <Upload className="w-4 h-4" /> Importar PDF/Excel
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setImportOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors shadow-sm"
+          >
+            <Upload className="w-4 h-4" /> Importar PDF/Excel
+          </button>
+          <button
+            onClick={addPhase}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border bg-card text-foreground font-medium text-sm hover:bg-muted/50 transition-colors shadow-sm"
+          >
+            <FolderPlus className="w-4 h-4" /> Novo Capítulo
+          </button>
+        </div>
       </div>
 
       <ImportTasksDialog
