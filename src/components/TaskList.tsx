@@ -1,6 +1,7 @@
 import { Project, Task, LaborComposition } from '@/types/project';
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, User, Zap, Users, AlertTriangle, Plus, Copy, Trash2, Edit3, Check, X } from 'lucide-react';
+import { ChevronDown, ChevronRight, User, Zap, Users, AlertTriangle, Plus, Copy, Trash2, Edit3, Check, X, Upload } from 'lucide-react';
+import ImportTasksDialog from '@/components/ImportTasksDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { calculateRupDuration } from '@/lib/calculations';
 
@@ -38,6 +39,7 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
   const [expandedRup, setExpandedRup] = useState<string | null>(null);
   const [simulating, setSimulating] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const togglePhase = (id: string) => {
     setExpandedPhases(prev => {
@@ -210,12 +212,25 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
 
   return (
     <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-bold text-foreground">Estrutura Analítica (EAP)</h2>
           <p className="text-sm text-muted-foreground mt-1">Tarefas com cálculo RUP e composição de mão de obra</p>
         </div>
+        <button
+          onClick={() => setImportOpen(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors shadow-sm"
+        >
+          <Upload className="w-4 h-4" /> Importar PDF/Excel
+        </button>
       </div>
+
+      <ImportTasksDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        project={project}
+        onProjectChange={onProjectChange}
+      />
 
       <div className="space-y-3">
         {project.phases.map((phase, pi) => {
