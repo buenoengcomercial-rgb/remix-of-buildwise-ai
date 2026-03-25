@@ -43,8 +43,8 @@ export function parseStructuredExcel(data: ArrayBuffer): ParseResult {
   const rootChapters: ParsedChapter[] = [];
   const flatCompositions: ParsedComposition[] = [];
 
-  // Stack for hierarchy: [chapter at depth 0, subchapter at depth 1, ...]
-  const chapterStack: ParsedChapter[] = [];
+  // Map from code → chapter node for code-based hierarchy lookup
+  const codeToChapter = new Map<string, ParsedChapter>();
   let lastComposition: ParsedComposition | null = null;
 
   // Skip header row if detected
@@ -73,9 +73,18 @@ export function parseStructuredExcel(data: ArrayBuffer): ParseResult {
     const desc = colC || colB || colA;
     if (!desc && !hasD && !hasE && !hasF && !hasG && !hasH) continue;
 
+    // Skip rows with empty code (except labor lines which attach to previous composition)
+    if (!colA && !hasD && !hasE && !hasF && !hasG && !hasH) continue;
+
     // ── RULE 1: Chapter/Subchapter ──
     // D, E, F, G, H all empty → it's a grouping header
+    // Hierarchy is defined EXCLUSIVELY by column A code structure
     if (!hasD && !hasE && !hasF && !hasG && !hasH && desc) {
+      if (!colA) {
+        warnings.push(`Linha ${i + 1}: capítulo sem código na coluna A, ignorado`);
+        continue;
+      }
+
       const chapter: ParsedChapter = {
         code: colA,
         name: (colC || colB || colA).trim(),
@@ -83,19 +92,19 @@ export function parseStructuredExcel(data: ArrayBuffer): ParseResult {
         compositions: [],
       };
 
-      // Determine depth from code structure (e.g., "1" = depth 0, "1.1" = depth 1, "1.1.1" = depth 2)
-      const depth = getCodeDepth(colA);
+      // NEVER group by name — each code creates a unique node
+      // Find parent by looking up the parent code from column A
+      const parentCode = getParentCode(colA);
+      const parent = parentCode ? codeToChapter.get(parentCode) : null;
 
-      // Pop stack to appropriate level
-      while (chapterStack.length > depth) chapterStack.pop();
-
-      if (chapterStack.length > 0) {
-        chapterStack[chapterStack.length - 1].children.push(chapter);
+      if (parent) {
+        parent.children.push(chapter);
       } else {
         rootChapters.push(chapter);
       }
 
-      chapterStack.push(chapter);
+      // Register this chapter by its unique code
+      codeToChapter.set(colA, chapter);
       lastComposition = null;
       continue;
     }
@@ -112,9 +121,10 @@ export function parseStructuredExcel(data: ArrayBuffer): ParseResult {
         needsReview: false,
       };
 
-      // Add to current chapter
-      if (chapterStack.length > 0) {
-        chapterStack[chapterStack.length - 1].compositions.push(comp);
+      // Find parent chapter by code hierarchy
+      const parentChapter = findParentChapter(colA, codeToChapter);
+      if (parentChapter) {
+        parentChapter.compositions.push(comp);
       }
       flatCompositions.push(comp);
       lastComposition = comp;
@@ -141,8 +151,7 @@ export function parseStructuredExcel(data: ArrayBuffer): ParseResult {
       continue;
     }
 
-    // ── Fallback: try to detect based on content ──
-    // If has description + unit + quantity + RUP data → treat as composition with inline labor
+    // ── Fallback: composition with inline labor ──
     if (desc && hasD && hasE && (hasF || hasG || hasH)) {
       const comp: ParsedComposition = {
         code: colA,
@@ -160,8 +169,9 @@ export function parseStructuredExcel(data: ArrayBuffer): ParseResult {
         needsReview: false,
       };
 
-      if (chapterStack.length > 0) {
-        chapterStack[chapterStack.length - 1].compositions.push(comp);
+      const parentChapter = findParentChapter(colA, codeToChapter);
+      if (parentChapter) {
+        parentChapter.compositions.push(comp);
       }
       flatCompositions.push(comp);
       lastComposition = comp;
