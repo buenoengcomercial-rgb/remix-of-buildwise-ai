@@ -569,6 +569,27 @@ function getCodeDepth(code: string): number {
   return Math.max(0, parts.length - 1);
 }
 
+// Get parent code by removing the last segment (e.g., "1.1.1" → "1.1", "1.1" → "1")
+function getParentCode(code: string): string | null {
+  if (!code) return null;
+  const clean = code.replace(/\s/g, '');
+  const lastDot = clean.lastIndexOf('.');
+  if (lastDot <= 0) return null;
+  return clean.substring(0, lastDot);
+}
+
+// Find the closest parent chapter by walking up the code hierarchy
+function findParentChapter(code: string, codeMap: Map<string, ParsedChapter>): ParsedChapter | null {
+  if (!code) return null;
+  let parentCode = getParentCode(code);
+  while (parentCode) {
+    const parent = codeMap.get(parentCode);
+    if (parent) return parent;
+    parentCode = getParentCode(parentCode);
+  }
+  return null;
+}
+
 function cellStr(val: any): string {
   if (val == null) return '';
   return String(val).trim();
