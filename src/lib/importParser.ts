@@ -1,6 +1,203 @@
 import { Task, LaborComposition } from '@/types/project';
 import * as XLSX from 'xlsx';
 
+export interface ParsedLabor {
+  role: string;
+  unit: string;
+  rup: number;
+  hours: number;
+  days: number;
+  workerCount: number;
+}
+
+export interface ParsedComposition {
+  code: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  labor: ParsedLabor[];
+  needsReview: boolean;
+  reviewReason?: string;
+}
+
+export interface ParsedChapter {
+  code: string;
+  name: string;
+  children: ParsedChapter[];
+  compositions: ParsedComposition[];
+}
+
+export interface ParseResult {
+  chapters: ParsedChapter[];
+  flatCompositions: ParsedComposition[];
+  warnings: string[];
+}
+
+// ─── Excel structured parsing (column-based rules) ────────────
+export function parseStructuredExcel(data: ArrayBuffer): ParseResult {
+  const wb = XLSX.read(data, { type: 'array' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+  const warnings: string[] = [];
+  const rootChapters: ParsedChapter[] = [];
+  const flatCompositions: ParsedComposition[] = [];
+
+  // Stack for hierarchy: [chapter at depth 0, subchapter at depth 1, ...]
+  const chapterStack: ParsedChapter[] = [];
+  let lastComposition: ParsedComposition | null = null;
+
+  // Skip header row if detected
+  const startRow = detectHeaderRow(rows);
+
+  for (let i = startRow; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length === 0) continue;
+
+    const colA = cellStr(row[0]); // Código
+    const colB = cellStr(row[1]); // Tipo
+    const colC = cellStr(row[2]); // Resumo/Descrição
+    const colD = cellStr(row[3]); // Unidade
+    const colE = cellNum(row[4]); // Quantidade
+    const colF = cellNum(row[5]); // Coeficiente (RUP)
+    const colG = cellNum(row[6]); // Horas
+    const colH = cellNum(row[7]); // Dias
+
+    const hasD = colD !== '';
+    const hasE = colE > 0;
+    const hasF = colF > 0;
+    const hasG = colG > 0;
+    const hasH = colH > 0;
+
+    // Skip completely empty rows
+    const desc = colC || colB || colA;
+    if (!desc && !hasD && !hasE && !hasF && !hasG && !hasH) continue;
+
+    // ── RULE 1: Chapter/Subchapter ──
+    // D, E, F, G, H all empty → it's a grouping header
+    if (!hasD && !hasE && !hasF && !hasG && !hasH && desc) {
+      const chapter: ParsedChapter = {
+        code: colA,
+        name: (colC || colB || colA).trim(),
+        children: [],
+        compositions: [],
+      };
+
+      // Determine depth from code structure (e.g., "1" = depth 0, "1.1" = depth 1, "1.1.1" = depth 2)
+      const depth = getCodeDepth(colA);
+
+      // Pop stack to appropriate level
+      while (chapterStack.length > depth) chapterStack.pop();
+
+      if (chapterStack.length > 0) {
+        chapterStack[chapterStack.length - 1].children.push(chapter);
+      } else {
+        rootChapters.push(chapter);
+      }
+
+      chapterStack.push(chapter);
+      lastComposition = null;
+      continue;
+    }
+
+    // ── RULE 2: Composition (Service) ──
+    // D and E have data, F/G/H empty → it's a task/service
+    if (hasD && hasE && !hasF && !hasG && !hasH) {
+      const comp: ParsedComposition = {
+        code: colA,
+        name: (colC || colB || '').trim(),
+        unit: colD,
+        quantity: colE,
+        labor: [],
+        needsReview: false,
+      };
+
+      // Add to current chapter
+      if (chapterStack.length > 0) {
+        chapterStack[chapterStack.length - 1].compositions.push(comp);
+      }
+      flatCompositions.push(comp);
+      lastComposition = comp;
+      continue;
+    }
+
+    // ── RULE 3: Analytical Composition (Labor) ──
+    // D has data, E empty, F/G/H have data → labor line
+    if (hasD && !hasE && (hasF || hasG || hasH)) {
+      const labor: ParsedLabor = {
+        role: (colC || colB || colD).trim(),
+        unit: colD,
+        rup: colF,
+        hours: colG,
+        days: colH,
+        workerCount: 1,
+      };
+
+      if (lastComposition) {
+        lastComposition.labor.push(labor);
+      } else {
+        warnings.push(`Linha ${i + 1}: mão de obra "${labor.role}" sem composição associada`);
+      }
+      continue;
+    }
+
+    // ── Fallback: try to detect based on content ──
+    // If has description + unit + quantity + RUP data → treat as composition with inline labor
+    if (desc && hasD && hasE && (hasF || hasG || hasH)) {
+      const comp: ParsedComposition = {
+        code: colA,
+        name: (colC || colB || '').trim(),
+        unit: colD,
+        quantity: colE,
+        labor: [{
+          role: colB || 'Trabalhador',
+          unit: colD,
+          rup: colF,
+          hours: colG,
+          days: colH,
+          workerCount: 1,
+        }],
+        needsReview: false,
+      };
+
+      if (chapterStack.length > 0) {
+        chapterStack[chapterStack.length - 1].compositions.push(comp);
+      }
+      flatCompositions.push(comp);
+      lastComposition = comp;
+      continue;
+    }
+  }
+
+  // ── Validation ──
+  flatCompositions.forEach((comp, idx) => {
+    if (comp.labor.length === 0) {
+      comp.needsReview = true;
+      comp.reviewReason = 'Sem composição analítica (mão de obra)';
+      warnings.push(`Composição "${comp.name}" (${comp.code}) sem mão de obra`);
+    }
+    comp.labor.forEach(l => {
+      if (l.rup <= 0) {
+        comp.needsReview = true;
+        comp.reviewReason = (comp.reviewReason ? comp.reviewReason + '; ' : '') + `RUP ausente para ${l.role}`;
+      }
+    });
+  });
+
+  // If no chapters were detected, create a default one
+  if (rootChapters.length === 0 && flatCompositions.length > 0) {
+    rootChapters.push({
+      code: '1',
+      name: 'Importados',
+      children: [],
+      compositions: flatCompositions,
+    });
+  }
+
+  return { chapters: rootChapters, flatCompositions, warnings };
+}
+
+// ─── Legacy flat parsing (CSV/simple Excel) ───────────────────
 export interface ParsedTask {
   code: string;
   name: string;
@@ -12,19 +209,17 @@ export interface ParsedTask {
   reviewReason?: string;
 }
 
-// ─── Excel / CSV parsing ───────────────────────────────────────
 export function parseExcel(data: ArrayBuffer): ParsedTask[] {
   const wb = XLSX.read(data, { type: 'array' });
   const sheet = wb.Sheets[wb.SheetNames[0]];
   const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
   if (rows.length < 2) return [];
 
-  // Try to auto-detect column mapping from header
   const header = rows[0].map((h: any) => String(h ?? '').toLowerCase().trim());
 
   const colMap = {
     code: findCol(header, ['código', 'codigo', 'cod', 'code', 'id']),
-    name: findCol(header, ['descrição', 'descricao', 'description', 'nome', 'name', 'serviço', 'servico', 'tarefa']),
+    name: findCol(header, ['descrição', 'descricao', 'description', 'nome', 'name', 'serviço', 'servico', 'tarefa', 'resumo']),
     unit: findCol(header, ['unidade', 'unit', 'und', 'un']),
     quantity: findCol(header, ['quantidade', 'qty', 'qtd', 'quant']),
     role: findCol(header, ['profissional', 'mão de obra', 'mao de obra', 'trabalhador', 'role', 'tipo', 'função', 'funcao']),
@@ -32,7 +227,6 @@ export function parseExcel(data: ArrayBuffer): ParsedTask[] {
     group: findCol(header, ['grupo', 'group', 'capítulo', 'capitulo', 'fase', 'phase', 'categoria']),
   };
 
-  // Group rows by composition code
   const taskMap = new Map<string, ParsedTask>();
   let currentGroup = 'Importados';
 
@@ -40,7 +234,6 @@ export function parseExcel(data: ArrayBuffer): ParsedTask[] {
     const row = rows[i];
     if (!row || row.length === 0) continue;
 
-    // Check if it's a group header (only has text in first column, rest empty)
     const nonEmpty = row.filter((c: any) => c != null && String(c).trim() !== '').length;
     if (nonEmpty === 1 && colMap.name >= 0) {
       const potentialGroup = String(row[colMap.name] ?? row[0] ?? '').trim();
@@ -60,27 +253,15 @@ export function parseExcel(data: ArrayBuffer): ParsedTask[] {
     const rup = getNum(row, colMap.rup);
     const group = getStr(row, colMap.group) || currentGroup;
 
-    const key = code;
-    if (!taskMap.has(key)) {
-      taskMap.set(key, {
-        code,
-        name,
-        unit,
-        quantity: qty,
-        group,
-        labor: [],
-        needsReview: false,
-      });
+    if (!taskMap.has(code)) {
+      taskMap.set(code, { code, name, unit, quantity: qty, group, labor: [], needsReview: false });
     }
 
-    const task = taskMap.get(key)!;
+    const task = taskMap.get(code)!;
     if (role && rup > 0) {
       const existing = task.labor.find(l => l.role === role);
-      if (existing) {
-        existing.rup = rup; // update
-      } else {
-        task.labor.push({ role, rup, workerCount: 1 });
-      }
+      if (existing) existing.rup = rup;
+      else task.labor.push({ role, rup, workerCount: 1 });
     }
 
     if (task.labor.length === 0) {
@@ -112,15 +293,10 @@ export async function parsePDF(data: ArrayBuffer): Promise<ParsedTask[]> {
 function parseSinapiText(text: string): ParsedTask[] {
   const tasks: ParsedTask[] = [];
   let currentGroup = 'Importados';
-
-  // Normalize line breaks
   const lines = text.split(/\n/);
 
-  // Pattern: code - description (SINAPI style)
   const compositionPattern = /(\d{4,6})\s*[-–]\s*(.+?)(?:\s*[-–]\s*(.+?))?$/i;
-  // Pattern for labor: role → rup h/unit or role coef h/unit
   const laborPattern = /(?:^|\s)(servente|pedreiro|encanador|eletricista|ajudante|bombeiro\s*hidráulico|topógrafo|operador|mestre|carpinteiro|armador|pintor|soldador|serralheiro|vidraceiro|gesseiro|azulejista|ladrilheiro|impermeabilizador|calceteiro|marmorista|montador)[\s:→\-]+(\d+[.,]\d+)\s*(?:h\/?(?:un|m[²³]?|kg|l|vb)?)?/gi;
-  // Group header patterns
   const groupPattern = /^(?:cap[ií]tulo|grupo|fase|servi[çc]os?\s+(?:de\s+)?|instala[çc][ãa]o\s+(?:de\s+)?)\s*[:–-]?\s*(.+)/i;
   const uppercaseGroupPattern = /^([A-ZÀÁÂÃÉÊÍÓÔÕÚÇ\s]{5,50})$/;
 
@@ -130,83 +306,133 @@ function parseSinapiText(text: string): ParsedTask[] {
     const line = rawLine.trim();
     if (!line) continue;
 
-    // Check for group headers
     const groupMatch = line.match(groupPattern);
-    if (groupMatch) {
-      currentGroup = cleanGroupName(groupMatch[1]);
-      continue;
-    }
+    if (groupMatch) { currentGroup = cleanGroupName(groupMatch[1]); continue; }
     if (uppercaseGroupPattern.test(line) && !compositionPattern.test(line)) {
       const cleaned = cleanGroupName(line);
-      if (cleaned.length >= 4 && cleaned.length <= 50) {
-        currentGroup = cleaned;
-        continue;
-      }
+      if (cleaned.length >= 4 && cleaned.length <= 50) { currentGroup = cleaned; continue; }
     }
 
-    // Check for composition
     const compMatch = line.match(compositionPattern);
     if (compMatch) {
       if (currentTask) tasks.push(currentTask);
-
       const fullName = (compMatch[2] + (compMatch[3] ? ' - ' + compMatch[3] : '')).trim();
       const unitMatch = fullName.match(/\b(m[²³]?|un|kg|l|vb|cj|gl)\b/i);
-
-      currentTask = {
-        code: compMatch[1],
-        name: fullName,
-        unit: unitMatch ? unitMatch[1] : 'un',
-        quantity: 1,
-        group: currentGroup,
-        labor: [],
-        needsReview: false,
-      };
+      currentTask = { code: compMatch[1], name: fullName, unit: unitMatch ? unitMatch[1] : 'un', quantity: 1, group: currentGroup, labor: [], needsReview: false };
       continue;
     }
 
-    // Check for labor entries
     let laborMatch;
     laborPattern.lastIndex = 0;
     while ((laborMatch = laborPattern.exec(line)) !== null) {
       const role = capitalizeFirst(laborMatch[1].trim());
       const rup = parseFloat(laborMatch[2].replace(',', '.'));
-
       if (currentTask && rup > 0) {
-        const existing = currentTask.labor.find(l => l.role.toLowerCase() === role.toLowerCase());
-        if (!existing) {
+        if (!currentTask.labor.find(l => l.role.toLowerCase() === role.toLowerCase())) {
           currentTask.labor.push({ role, rup, workerCount: 1 });
         }
       }
     }
 
-    // Try quantity extraction
     if (currentTask) {
       const qtyMatch = line.match(/(?:quantidade|qtd\.?|quant\.?)\s*[:=]?\s*(\d+[.,]?\d*)/i);
-      if (qtyMatch) {
-        currentTask.quantity = parseFloat(qtyMatch[1].replace(',', '.'));
-      }
+      if (qtyMatch) currentTask.quantity = parseFloat(qtyMatch[1].replace(',', '.'));
     }
   }
 
   if (currentTask) tasks.push(currentTask);
-
-  // Mark tasks that need review
   tasks.forEach(t => {
-    if (t.labor.length === 0) {
-      t.needsReview = true;
-      t.reviewReason = 'Sem mão de obra identificada';
-    }
-    if (t.quantity <= 0) {
-      t.needsReview = true;
-      t.reviewReason = (t.reviewReason ? t.reviewReason + '; ' : '') + 'Quantidade não identificada';
-    }
+    if (t.labor.length === 0) { t.needsReview = true; t.reviewReason = 'Sem mão de obra identificada'; }
+    if (t.quantity <= 0) { t.needsReview = true; t.reviewReason = (t.reviewReason ? t.reviewReason + '; ' : '') + 'Quantidade não identificada'; }
   });
 
   return tasks;
 }
 
-// ─── Convert parsed tasks to project tasks ─────────────────────
-export function convertToProjectTasks(parsed: ParsedTask[], startDate: string): { groups: Map<string, Task[]> } {
+// ─── Convert structured result to project phases ──────────────
+export function convertStructuredToProject(result: ParseResult, startDate: string) {
+  const phases: { id: string; name: string; color: string; tasks: Task[] }[] = [];
+  const COLORS = [
+    'hsl(var(--primary))', 'hsl(var(--info))', 'hsl(var(--warning))',
+    'hsl(var(--success))', 'hsl(var(--destructive))', 'hsl(210, 60%, 50%)',
+    'hsl(280, 50%, 55%)', 'hsl(160, 50%, 45%)',
+  ];
+
+  let dayOffset = 0;
+  let colorIdx = 0;
+
+  function processChapter(chapter: ParsedChapter, parentName?: string) {
+    const phaseName = parentName ? `${parentName} > ${chapter.name}` : chapter.name;
+
+    if (chapter.compositions.length > 0) {
+      const tasks: Task[] = chapter.compositions.map(comp => {
+        const laborComps: LaborComposition[] = comp.labor.map((l, i) => ({
+          id: `lc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}-${i}`,
+          role: l.role,
+          rup: l.rup,
+          workerCount: l.workerCount,
+        }));
+
+        let duration = 5;
+        if (laborComps.length > 0 && comp.quantity > 0) {
+          let maxH = 0;
+          for (const c of laborComps) {
+            const eff = (comp.quantity * c.rup) / c.workerCount;
+            if (eff > maxH) maxH = eff;
+          }
+          duration = Math.max(1, Math.ceil(maxH / 8));
+        }
+        // If labor has pre-calculated days, use the max
+        const maxDays = Math.max(0, ...comp.labor.map(l => l.days));
+        if (maxDays > 0) duration = Math.ceil(maxDays);
+
+        const taskStart = new Date(startDate);
+        taskStart.setDate(taskStart.getDate() + dayOffset);
+
+        const task: Task = {
+          id: `t-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          name: comp.name,
+          phase: phaseName,
+          startDate: taskStart.toISOString().split('T')[0],
+          duration,
+          dependencies: [],
+          responsible: '',
+          percentComplete: 0,
+          level: 0,
+          quantity: comp.quantity,
+          unit: comp.unit,
+          laborCompositions: laborComps,
+          materials: [],
+          observations: comp.code ? `Código: ${comp.code}` : undefined,
+        };
+
+        dayOffset += duration;
+        return task;
+      });
+
+      phases.push({
+        id: `phase-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        name: chapter.name,
+        color: COLORS[colorIdx % COLORS.length],
+        tasks,
+      });
+      colorIdx++;
+    }
+
+    for (const child of chapter.children) {
+      processChapter(child, chapter.name);
+    }
+  }
+
+  for (const ch of result.chapters) {
+    processChapter(ch);
+  }
+
+  return phases;
+}
+
+// ─── Legacy convert (flat tasks) ──────────────────────────────
+export function convertToProjectTasks(parsed: ParsedTask[], startDate: string) {
   const groups = new Map<string, Task[]>();
   const baseDate = new Date(startDate);
   let dayOffset = 0;
@@ -224,8 +450,7 @@ export function convertToProjectTasks(parsed: ParsedTask[], startDate: string): 
       workerCount: l.workerCount,
     }));
 
-    // Calculate duration from RUP
-    let duration = 5; // default
+    let duration = 5;
     if (laborComps.length > 0 && p.quantity > 0) {
       let maxH = 0;
       for (const c of laborComps) {
@@ -262,47 +487,89 @@ export function convertToProjectTasks(parsed: ParsedTask[], startDate: string): 
 // ─── Standardize SINAPI names ──────────────────────────────────
 export function standardizeSinapi(tasks: ParsedTask[]): ParsedTask[] {
   const roleMap: Record<string, string> = {
-    'servente': 'Servente',
-    'pedreiro': 'Pedreiro',
-    'encanador': 'Encanador',
-    'eletricista': 'Eletricista',
-    'ajudante': 'Ajudante',
-    'bombeiro hidráulico': 'Bombeiro Hidráulico',
-    'topógrafo': 'Topógrafo',
-    'operador': 'Operador',
-    'mestre': 'Mestre de Obra',
-    'carpinteiro': 'Carpinteiro',
-    'armador': 'Armador',
-    'pintor': 'Pintor',
-    'soldador': 'Soldador',
+    'servente': 'Servente', 'pedreiro': 'Pedreiro', 'encanador': 'Encanador',
+    'eletricista': 'Eletricista', 'ajudante': 'Ajudante', 'bombeiro hidráulico': 'Bombeiro Hidráulico',
+    'topógrafo': 'Topógrafo', 'operador': 'Operador', 'mestre': 'Mestre de Obra',
+    'carpinteiro': 'Carpinteiro', 'armador': 'Armador', 'pintor': 'Pintor', 'soldador': 'Soldador',
   };
 
   const unitMap: Record<string, string> = {
-    'm²': 'm²', 'm2': 'm²', 'metro quadrado': 'm²',
-    'm³': 'm³', 'm3': 'm³', 'metro cúbico': 'm³',
-    'm': 'm', 'ml': 'm', 'metro': 'm', 'metro linear': 'm',
-    'un': 'un', 'und': 'un', 'unid': 'un', 'unidade': 'un',
-    'kg': 'kg', 'quilo': 'kg',
-    'l': 'L', 'litro': 'L',
-    'vb': 'vb', 'verba': 'vb',
+    'm²': 'm²', 'm2': 'm²', 'metro quadrado': 'm²', 'm³': 'm³', 'm3': 'm³', 'metro cúbico': 'm³',
+    'm': 'm', 'ml': 'm', 'metro': 'm', 'metro linear': 'm', 'un': 'un', 'und': 'un', 'unid': 'un',
+    'unidade': 'un', 'kg': 'kg', 'quilo': 'kg', 'l': 'L', 'litro': 'L', 'vb': 'vb', 'verba': 'vb',
     'cj': 'cj', 'conjunto': 'cj',
   };
 
   return tasks.map(t => ({
     ...t,
-    name: t.name
-      .replace(/\s+/g, ' ')
-      .replace(/^\d{4,6}\s*[-–]\s*/, '')
-      .trim(),
+    name: t.name.replace(/\s+/g, ' ').replace(/^\d{4,6}\s*[-–]\s*/, '').trim(),
     unit: unitMap[t.unit.toLowerCase()] || t.unit,
-    labor: t.labor.map(l => ({
-      ...l,
-      role: roleMap[l.role.toLowerCase()] || capitalizeFirst(l.role),
-    })),
+    labor: t.labor.map(l => ({ ...l, role: roleMap[l.role.toLowerCase()] || capitalizeFirst(l.role) })),
   }));
 }
 
+// ─── Auto-detect format ───────────────────────────────────────
+export function detectExcelFormat(data: ArrayBuffer): 'structured' | 'flat' {
+  const wb = XLSX.read(data, { type: 'array' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+  if (rows.length < 2) return 'flat';
+
+  // Check if it matches the structured pattern (8 columns: A-H)
+  // Look for rows where D-H are empty (chapter pattern)
+  let chapterLikeRows = 0;
+  let laborLikeRows = 0;
+
+  for (let i = 0; i < Math.min(rows.length, 50); i++) {
+    const row = rows[i];
+    if (!row || row.length === 0) continue;
+
+    const hasDesc = row[2] != null && String(row[2]).trim() !== '';
+    const hasD = row[3] != null && String(row[3]).trim() !== '';
+    const hasE = row[4] != null && parseFloat(String(row[4])) > 0;
+    const hasF = row[5] != null && parseFloat(String(row[5])) > 0;
+    const hasG = row[6] != null && parseFloat(String(row[6])) > 0;
+    const hasH = row[7] != null && parseFloat(String(row[7])) > 0;
+
+    if (hasDesc && !hasD && !hasE && !hasF && !hasG && !hasH) chapterLikeRows++;
+    if (hasD && !hasE && (hasF || hasG || hasH)) laborLikeRows++;
+  }
+
+  // If we find chapter-like and labor-like patterns, it's structured
+  if (chapterLikeRows >= 1 && laborLikeRows >= 1) return 'structured';
+  return 'flat';
+}
+
 // ─── Helpers ───────────────────────────────────────────────────
+function detectHeaderRow(rows: any[][]): number {
+  if (rows.length === 0) return 0;
+  const first = rows[0];
+  if (!first) return 0;
+  const textCells = first.filter((c: any) => typeof c === 'string' && c.trim().length > 0).length;
+  const numCells = first.filter((c: any) => typeof c === 'number').length;
+  // If first row is mostly text, it's a header
+  return textCells > numCells && textCells >= 2 ? 1 : 0;
+}
+
+function getCodeDepth(code: string): number {
+  if (!code) return 0;
+  const clean = code.replace(/\s/g, '');
+  const parts = clean.split(/[.\-\/]/);
+  return Math.max(0, parts.length - 1);
+}
+
+function cellStr(val: any): string {
+  if (val == null) return '';
+  return String(val).trim();
+}
+
+function cellNum(val: any): number {
+  if (val == null) return 0;
+  if (typeof val === 'number') return val;
+  return parseFloat(String(val).replace(',', '.')) || 0;
+}
+
 function findCol(header: string[], keys: string[]): number {
   for (const key of keys) {
     const idx = header.findIndex(h => h.includes(key));
@@ -328,11 +595,6 @@ function capitalizeFirst(s: string): string {
 }
 
 function cleanGroupName(s: string): string {
-  return s
-    .replace(/[:\-–]+$/, '')
-    .replace(/^\d+[\s.)\-]*/, '')
-    .trim()
-    .split(' ')
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(' ');
+  return s.replace(/[:\-–]+$/, '').replace(/^\d+[\s.)\-]*/, '').trim()
+    .split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
