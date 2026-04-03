@@ -43,6 +43,55 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
   const [editingPhase, setEditingPhase] = useState<string | null>(null);
   const [phaseNameDraft, setPhaseNameDraft] = useState('');
 
+  // Drag-and-drop state
+  const [dragPhaseId, setDragPhaseId] = useState<string | null>(null);
+  const [dragTaskId, setDragTaskId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+
+  const handleDragStart = useCallback((phaseId: string, taskId: string) => {
+    setDragPhaseId(phaseId);
+    setDragTaskId(taskId);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, targetTaskId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropTargetId(targetTaskId);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetPhaseId: string, targetTaskId: string) => {
+    e.preventDefault();
+    if (!dragPhaseId || !dragTaskId || dragTaskId === targetTaskId) {
+      setDragPhaseId(null);
+      setDragTaskId(null);
+      setDropTargetId(null);
+      return;
+    }
+
+    const newPhases = [...project.phases];
+    const srcPhase = newPhases.find(p => p.id === dragPhaseId);
+    const dstPhase = newPhases.find(p => p.id === targetPhaseId);
+    if (!srcPhase || !dstPhase) return;
+
+    const srcIdx = srcPhase.tasks.findIndex(t => t.id === dragTaskId);
+    if (srcIdx === -1) return;
+    const [movedTask] = srcPhase.tasks.splice(srcIdx, 1);
+
+    const dstIdx = dstPhase.tasks.findIndex(t => t.id === targetTaskId);
+    dstPhase.tasks.splice(dstIdx, 0, movedTask);
+
+    onProjectChange({ ...project, phases: newPhases });
+    setDragPhaseId(null);
+    setDragTaskId(null);
+    setDropTargetId(null);
+  }, [dragPhaseId, dragTaskId, project, onProjectChange]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragPhaseId(null);
+    setDragTaskId(null);
+    setDropTargetId(null);
+  }, []);
+
   const PHASE_COLORS = [
     'hsl(var(--primary))', 'hsl(var(--info))', 'hsl(var(--warning))',
     'hsl(var(--success))', 'hsl(var(--destructive))', 'hsl(210, 60%, 50%)',
