@@ -427,7 +427,15 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                         const isEditing = editingTask === task.id;
 
                         return (
-                          <div key={task.id}>
+                          <div
+                            key={task.id}
+                            draggable
+                            onDragStart={() => handleDragStart(phase.id, task.id)}
+                            onDragOver={(e) => handleDragOver(e, task.id)}
+                            onDrop={(e) => handleDrop(e, phase.id, task.id)}
+                            onDragEnd={handleDragEnd}
+                            className={`${dropTargetId === task.id && dragTaskId !== task.id ? 'border-t-2 border-t-primary' : ''} ${dragTaskId === task.id ? 'opacity-40' : ''}`}
+                          >
                             <div
                               className={`grid grid-cols-12 gap-2 px-5 py-3 border-t border-border hover:bg-muted/20 transition-colors items-center ${
                                 isDelayed ? 'bg-destructive/5' : task.isCritical ? 'bg-destructive/[0.03]' : ''
@@ -435,6 +443,7 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                             >
                               {/* Nome */}
                               <div className="col-span-2 flex items-center gap-1 min-w-0">
+                                <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 cursor-grab active:cursor-grabbing flex-shrink-0" />
                                 {task.isCritical && <div className="w-1.5 h-1.5 rounded-full bg-destructive flex-shrink-0" />}
                                 {isEditing ? (
                                   <InlineInput
