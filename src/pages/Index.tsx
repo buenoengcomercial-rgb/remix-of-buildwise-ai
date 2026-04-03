@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { AppView, Project } from '@/types/project';
 import { sampleProject } from '@/data/sampleProject';
 import AppSidebar from '@/components/AppSidebar';
@@ -23,13 +23,12 @@ export default function Index() {
   const [currentView, setCurrentView] = useState<AppView>('dashboard');
   const [rawProject, setRawProject] = useState<Project>(loadProject);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Persist project to localStorage on every change
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rawProject));
   }, [rawProject]);
 
-  // Compute RUP durations + CPM on every project change
   const project = useMemo(() => calculateCPM(applyRupToProject(rawProject)), [rawProject]);
 
   const renderView = () => {
@@ -63,6 +62,8 @@ export default function Index() {
           currentView={currentView}
           onViewChange={(v) => { setCurrentView(v); setSidebarOpen(false); }}
           projectName={project.name}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(c => !c)}
         />
       </div>
 
