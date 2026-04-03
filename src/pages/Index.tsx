@@ -24,6 +24,11 @@ export default function Index() {
   const [rawProject, setRawProject] = useState<Project>(loadProject);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Persist project to localStorage on every change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(rawProject));
+  }, [rawProject]);
+
   // Compute RUP durations + CPM on every project change
   const project = useMemo(() => calculateCPM(applyRupToProject(rawProject)), [rawProject]);
 
