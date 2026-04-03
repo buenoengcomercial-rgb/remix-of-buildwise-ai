@@ -1,6 +1,6 @@
 import { Project, Task, LaborComposition } from '@/types/project';
-import { useState } from 'react';
-import { ChevronDown, ChevronRight, User, Zap, Users, AlertTriangle, Plus, Copy, Trash2, Edit3, Check, X, Upload, FolderPlus } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import { ChevronDown, ChevronRight, User, Zap, Users, AlertTriangle, Plus, Copy, Trash2, Edit3, Check, X, Upload, FolderPlus, GripVertical } from 'lucide-react';
 import ImportTasksDialog from '@/components/ImportTasksDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { calculateRupDuration } from '@/lib/calculations';
@@ -42,6 +42,55 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
   const [importOpen, setImportOpen] = useState(false);
   const [editingPhase, setEditingPhase] = useState<string | null>(null);
   const [phaseNameDraft, setPhaseNameDraft] = useState('');
+
+  // Drag-and-drop state
+  const [dragPhaseId, setDragPhaseId] = useState<string | null>(null);
+  const [dragTaskId, setDragTaskId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+
+  const handleDragStart = useCallback((phaseId: string, taskId: string) => {
+    setDragPhaseId(phaseId);
+    setDragTaskId(taskId);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, targetTaskId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDropTargetId(targetTaskId);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetPhaseId: string, targetTaskId: string) => {
+    e.preventDefault();
+    if (!dragPhaseId || !dragTaskId || dragTaskId === targetTaskId) {
+      setDragPhaseId(null);
+      setDragTaskId(null);
+      setDropTargetId(null);
+      return;
+    }
+
+    const newPhases = [...project.phases];
+    const srcPhase = newPhases.find(p => p.id === dragPhaseId);
+    const dstPhase = newPhases.find(p => p.id === targetPhaseId);
+    if (!srcPhase || !dstPhase) return;
+
+    const srcIdx = srcPhase.tasks.findIndex(t => t.id === dragTaskId);
+    if (srcIdx === -1) return;
+    const [movedTask] = srcPhase.tasks.splice(srcIdx, 1);
+
+    const dstIdx = dstPhase.tasks.findIndex(t => t.id === targetTaskId);
+    dstPhase.tasks.splice(dstIdx, 0, movedTask);
+
+    onProjectChange({ ...project, phases: newPhases });
+    setDragPhaseId(null);
+    setDragTaskId(null);
+    setDropTargetId(null);
+  }, [dragPhaseId, dragTaskId, project, onProjectChange]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragPhaseId(null);
+    setDragTaskId(null);
+    setDropTargetId(null);
+  }, []);
 
   const PHASE_COLORS = [
     'hsl(var(--primary))', 'hsl(var(--info))', 'hsl(var(--warning))',
@@ -378,7 +427,15 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                         const isEditing = editingTask === task.id;
 
                         return (
-                          <div key={task.id}>
+                          <div
+                            key={task.id}
+                            draggable
+                            onDragStart={() => handleDragStart(phase.id, task.id)}
+                            onDragOver={(e) => handleDragOver(e, task.id)}
+                            onDrop={(e) => handleDrop(e, phase.id, task.id)}
+                            onDragEnd={handleDragEnd}
+                            className={`${dropTargetId === task.id && dragTaskId !== task.id ? 'border-t-2 border-t-primary' : ''} ${dragTaskId === task.id ? 'opacity-40' : ''}`}
+                          >
                             <div
                               className={`grid grid-cols-12 gap-2 px-5 py-3 border-t border-border hover:bg-muted/20 transition-colors items-center ${
                                 isDelayed ? 'bg-destructive/5' : task.isCritical ? 'bg-destructive/[0.03]' : ''
@@ -386,6 +443,7 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                             >
                               {/* Nome */}
                               <div className="col-span-2 flex items-center gap-1 min-w-0">
+                                <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 cursor-grab active:cursor-grabbing flex-shrink-0" />
                                 {task.isCritical && <div className="w-1.5 h-1.5 rounded-full bg-destructive flex-shrink-0" />}
                                 {isEditing ? (
                                   <InlineInput
