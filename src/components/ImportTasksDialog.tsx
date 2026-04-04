@@ -158,7 +158,8 @@ export default function ImportTasksDialog({ open, onClose, project, onProjectCha
 
     if (filteredResult.flatCompositions.length === 0) return;
 
-    const newPhases = convertStructuredToProject(filteredResult, project.startDate);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const newPhases = convertStructuredToProject(filteredResult, todayStr);
     const updatedPhases = [...project.phases];
     let colorIdx = updatedPhases.length;
 
@@ -181,7 +182,8 @@ export default function ImportTasksDialog({ open, onClose, project, onProjectCha
     const selected = parsedTasks.filter((_, i) => selectedTasks.has(i));
     if (selected.length === 0) return;
 
-    const { groups } = convertToProjectTasks(selected, project.startDate);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const { groups } = convertToProjectTasks(selected, todayStr);
     let colorIdx = project.phases.length;
     const updatedPhases = [...project.phases];
 
