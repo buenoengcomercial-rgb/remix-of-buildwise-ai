@@ -55,6 +55,10 @@
     --gantt-critical: 340 75% 55%;
     --gantt-grid: 220 15% 92%;
     --gantt-today: 25 95% 55%;
+    --gantt-sunday: 0 70% 95%;
+    --gantt-saturday: 45 80% 93%;
+    --gantt-holiday-national: 25 80% 93%;
+    --gantt-holiday-local: 280 50% 94%;
 
     --status-done: 152 60% 42%;
     --status-progress: 230 65% 52%;
