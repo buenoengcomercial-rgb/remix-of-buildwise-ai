@@ -652,7 +652,46 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                 <p className="text-[11px] font-medium text-foreground line-clamp-2 break-words leading-tight">{task.name}</p>
                               </div>
                               <div className="text-center">
-                                <span className="text-[10px] font-bold text-foreground">{task.duration}d</span>
+                                {(task.durationMode || 'manual') === 'manual' ? (
+                                  <input
+                                    className="w-full text-[10px] font-bold bg-transparent text-center text-foreground focus:outline-none focus:ring-1 focus:ring-primary rounded"
+                                    defaultValue={task.duration}
+                                    key={`dur-${task.id}-${task.duration}`}
+                                    type="number"
+                                    min={1}
+                                    onBlur={(e) => handleManualDurationChange(task.id, e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                                    title="Duração manual (dias)"
+                                  />
+                                ) : (
+                                  <span className="text-[10px] font-bold text-primary" title={`Calculado por RUP: ${task.bottleneckRole || '—'}`}>
+                                    {task.duration}d
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-center">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      onClick={() => toggleDurationMode(task.id)}
+                                      className={`text-[8px] font-bold rounded px-0.5 py-0 transition-colors ${
+                                        (task.durationMode || 'manual') === 'rup'
+                                          ? 'bg-primary/20 text-primary'
+                                          : 'bg-muted text-muted-foreground hover:text-foreground'
+                                      }`}
+                                      title={(task.durationMode || 'manual') === 'rup' ? 'Modo RUP (clique para manual)' : 'Modo Manual (clique para RUP)'}
+                                    >
+                                      {(task.durationMode || 'manual') === 'rup' ? 'R' : 'M'}
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="text-xs">
+                                      {(task.durationMode || 'manual') === 'rup'
+                                        ? 'Duração via RUP — clique para editar manualmente'
+                                        : 'Duração manual — clique para calcular via RUP'}
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
                               </div>
                               <Popover>
                                 <PopoverTrigger asChild>
