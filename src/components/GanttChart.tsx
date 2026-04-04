@@ -866,8 +866,71 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
 
                   {project.phases.map(phase => (
                     <div key={phase.id}>
-                      {/* Phase header row — account for expanded chapter dates */}
-                      <div className="border-b border-border bg-muted/30" style={{ height: ROW_HEIGHT + 20 }} />
+                      {/* Phase header row with milestone markers */}
+                      <div className="border-b border-border bg-muted/30 relative" style={{ height: ROW_HEIGHT + 20 }}>
+                        {(() => {
+                          const chapterBar = getChapterBarInfo(phase);
+                          if (!chapterBar) return null;
+                          const diamondSize = 10;
+                          const midY = (ROW_HEIGHT + 20) / 2;
+                          return (
+                            <>
+                              {/* Chapter span line */}
+                              <div
+                                className="absolute"
+                                style={{
+                                  left: chapterBar.left,
+                                  width: chapterBar.width,
+                                  top: midY - 1,
+                                  height: 2,
+                                  background: phase.color || 'hsl(var(--primary))',
+                                  opacity: 0.5,
+                                  zIndex: 5,
+                                }}
+                              />
+                              {/* Start milestone diamond */}
+                              <div
+                                className="absolute z-10"
+                                style={{
+                                  left: chapterBar.left - diamondSize / 2,
+                                  top: midY - diamondSize / 2,
+                                  width: diamondSize,
+                                  height: diamondSize,
+                                  background: phase.color || 'hsl(var(--primary))',
+                                  transform: 'rotate(45deg)',
+                                  borderRadius: 2,
+                                }}
+                                title={`Início: ${getPhaseRange(phase).start ? formatDateFull(getPhaseRange(phase).start) : '—'}`}
+                              />
+                              {/* End milestone diamond */}
+                              <div
+                                className="absolute z-10"
+                                style={{
+                                  left: chapterBar.right - diamondSize / 2,
+                                  top: midY - diamondSize / 2,
+                                  width: diamondSize,
+                                  height: diamondSize,
+                                  background: phase.color || 'hsl(var(--primary))',
+                                  transform: 'rotate(45deg)',
+                                  borderRadius: 2,
+                                }}
+                                title={`Fim: ${getPhaseRange(phase).end ? formatDateFull(getPhaseRange(phase).end) : '—'}`}
+                              />
+                              {/* Chapter name label */}
+                              <div
+                                className="absolute text-[9px] font-bold z-10 whitespace-nowrap"
+                                style={{
+                                  left: chapterBar.left + diamondSize + 4,
+                                  top: midY - 14,
+                                  color: phase.color || 'hsl(var(--primary))',
+                                }}
+                              >
+                                {phase.name}
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
                       {!collapsedPhases.has(phase.id) &&
                         phase.tasks
                           .filter(t => !showCriticalOnly || t.isCritical)
