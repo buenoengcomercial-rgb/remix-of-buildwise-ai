@@ -435,8 +435,44 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
     return result.dias === 0;
   }, [obraConfig]);
 
-  const sidebarCols = '24px 1fr 36px 68px 68px 50px 50px';
-  const sidebarWidth = 420;
+  const sidebarCols = '24px 1fr 28px 20px 68px 68px 50px 50px';
+  const sidebarWidth = 460;
+
+  // Toggle duration mode and recalculate if switching to RUP
+  const toggleDurationMode = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    const currentMode = task.durationMode || 'manual';
+    const newMode = currentMode === 'manual' ? 'rup' : 'manual';
+    const updates: Partial<Task> = { durationMode: newMode };
+    if (newMode === 'rup' && task.laborCompositions?.length && task.quantity) {
+      const { duration, totalHours, bottleneckRole } = calculateRupDuration(task);
+      updates.duration = duration;
+      updates.totalHours = totalHours;
+      updates.bottleneckRole = bottleneckRole;
+      updates.calculatedDuration = duration;
+    }
+    updateTask(taskId, updates);
+  };
+
+  const handleManualDurationChange = (taskId: string, value: string) => {
+    const num = parseInt(value);
+    if (isNaN(num) || num < 1) return;
+    updateTask(taskId, { duration: num, durationMode: 'manual' });
+    setTimeout(() => propagateDependencies(taskId), 0);
+  };
+
+  // Get chapter bar info for milestones
+  const getChapterBarInfo = (phase: typeof project.phases[0]) => {
+    if (phase.tasks.length === 0) return null;
+    const starts = phase.tasks.map(t => new Date(t.startDate).getTime());
+    const ends = phase.tasks.map(t => addDays(new Date(t.startDate), t.duration).getTime());
+    const minStart = new Date(Math.min(...starts));
+    const maxEnd = new Date(Math.max(...ends));
+    const left = diffDays(projectStart, minStart) * dayWidth;
+    const right = diffDays(projectStart, maxEnd) * dayWidth;
+    return { left, right, width: right - left };
+  };
 
   // Get day column background color
   const getDayBg = (dayIndex: number): string | undefined => {
