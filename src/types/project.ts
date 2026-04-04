@@ -6,6 +6,13 @@ export interface LaborComposition {
   hourlyRate?: number;
 }
 
+export type DependencyType = 'TI' | 'II' | 'TT' | 'IT';
+
+export interface TaskDependency {
+  taskId: string;
+  type: DependencyType;
+}
+
 export interface Task {
   id: string;
   name: string;
@@ -13,6 +20,7 @@ export interface Task {
   startDate: string;
   duration: number;
   dependencies: string[];
+  dependencyDetails?: TaskDependency[];
   responsible: string;
   percentComplete: number;
   materials: Material[];

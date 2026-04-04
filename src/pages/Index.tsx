@@ -36,7 +36,7 @@ export default function Index() {
       case 'dashboard':
         return <Dashboard project={project} />;
       case 'gantt':
-        return <GanttChart project={project} />;
+        return <GanttChart project={project} onProjectChange={setRawProject} />;
       case 'tasks':
         return <TaskList project={project} onProjectChange={setRawProject} />;
       case 'purchases':
