@@ -205,3 +205,140 @@ export function suggestOptimizations(project: Project): { taskId: string; taskNa
 
   return suggestions;
 }
+
+// ─── Dependency Propagation Engine ───────────────────────────────────
+
+function dateToISO(d: Date): string {
+  return d.toISOString().split('T')[0];
+}
+
+function addDaysCalc(date: Date, days: number): Date {
+  const r = new Date(date);
+  r.setDate(r.getDate() + days);
+  return r;
+}
+
+/**
+ * Central dependency propagation engine.
+ * Given a list of tasks and the ID of a task that changed,
+ * cascades date adjustments through all successor tasks.
+ * Returns a new array with all dates updated.
+ */
+export function propagateAllDependencies(
+  tasks: Task[],
+  changedTaskId: string,
+): { tasks: Task[]; changed: boolean; adjustedTypes: Set<DependencyType> } {
+  const taskMap = new Map(tasks.map(t => [t.id, { ...t }]));
+  const visited = new Set<string>();
+  let anyChanged = false;
+  const adjustedTypes = new Set<DependencyType>();
+
+  // Build successor index: predId -> [{successorId, type}]
+  const successorIndex = new Map<string, { successorId: string; type: DependencyType }[]>();
+  tasks.forEach(t => {
+    const details = t.dependencyDetails || [];
+    details.forEach(dep => {
+      if (!successorIndex.has(dep.taskId)) successorIndex.set(dep.taskId, []);
+      successorIndex.get(dep.taskId)!.push({ successorId: t.id, type: dep.type });
+    });
+  });
+
+  function propagate(predId: string, depth: number) {
+    if (depth > 50 || visited.has(predId)) return;
+    visited.add(predId);
+
+    const succs = successorIndex.get(predId);
+    if (!succs) return;
+
+    for (const { successorId, type } of succs) {
+      const pred = taskMap.get(predId)!;
+      const succ = taskMap.get(successorId)!;
+      if (!pred || !succ) continue;
+
+      const predStart = new Date(pred.startDate);
+      const predEnd = addDaysCalc(predStart, pred.duration);
+      const succStart = new Date(succ.startDate);
+      const succEnd = addDaysCalc(succStart, succ.duration);
+
+      let newStartDate: Date | null = null;
+
+      switch (type) {
+        case 'TI':
+          // Successor start must be >= predecessor end
+          if (succStart < predEnd) {
+            newStartDate = predEnd;
+          }
+          break;
+        case 'II':
+          // Successor start must be >= predecessor start
+          if (succStart < predStart) {
+            newStartDate = predStart;
+          }
+          break;
+        case 'TT':
+          // Successor end must be >= predecessor end
+          if (succEnd < predEnd) {
+            newStartDate = addDaysCalc(predEnd, -succ.duration);
+          }
+          break;
+        case 'IT':
+          // Successor end must be >= predecessor start
+          if (succEnd < predStart) {
+            newStartDate = addDaysCalc(predStart, -succ.duration);
+          }
+          break;
+      }
+
+      if (newStartDate) {
+        taskMap.set(successorId, { ...succ, startDate: dateToISO(newStartDate) });
+        anyChanged = true;
+        adjustedTypes.add(type);
+        propagate(successorId, depth + 1);
+      }
+    }
+  }
+
+  propagate(changedTaskId, 0);
+
+  return {
+    tasks: tasks.map(t => taskMap.get(t.id) || t),
+    changed: anyChanged,
+    adjustedTypes,
+  };
+}
+
+/**
+ * Check if dragging a successor to a position violates its dependency.
+ * Returns the violated dependency info or null.
+ */
+export function checkDependencyViolation(
+  task: Task,
+  newStartDate: string,
+  allTasks: Task[],
+): { predName: string; predId: string; type: DependencyType } | null {
+  const details = task.dependencyDetails || [];
+  const taskMap = new Map(allTasks.map(t => [t.id, t]));
+
+  for (const dep of details) {
+    const pred = taskMap.get(dep.taskId);
+    if (!pred) continue;
+
+    const predStart = new Date(pred.startDate);
+    const predEnd = addDaysCalc(predStart, pred.duration);
+    const newStart = new Date(newStartDate);
+    const newEnd = addDaysCalc(newStart, task.duration);
+
+    let violated = false;
+    switch (dep.type) {
+      case 'TI': violated = newStart < predEnd; break;
+      case 'II': violated = newStart < predStart; break;
+      case 'TT': violated = newEnd < predEnd; break;
+      case 'IT': violated = newEnd < predStart; break;
+    }
+
+    if (violated) {
+      return { predName: pred.name, predId: pred.id, type: dep.type };
+    }
+  }
+  return null;
+}
