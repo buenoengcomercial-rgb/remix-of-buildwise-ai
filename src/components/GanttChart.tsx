@@ -713,13 +713,27 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                   className={`w-full text-[10px] font-bold bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-primary rounded ${
                                     (task.durationMode || 'manual') === 'rup' ? 'text-primary' : 'text-foreground'
                                   }`}
-                                  value={task.duration}
+                                  value={editingDurationTaskId === task.id ? localDuration : task.duration}
                                   type="number"
                                   min={1}
+                                  onFocus={() => {
+                                    setEditingDurationTaskId(task.id);
+                                    setLocalDuration(String(task.duration));
+                                  }}
                                   onChange={(e) => {
+                                    setLocalDuration(e.target.value);
+                                    // Live preview: update bar width in real-time
                                     const val = parseInt(e.target.value);
-                                    if (isNaN(val) || val < 1) return;
-                                    handleManualDurationChange(task.id, e.target.value);
+                                    if (!isNaN(val) && val >= 1) {
+                                      handleManualDurationChange(task.id, val);
+                                    }
+                                  }}
+                                  onBlur={() => {
+                                    const val = parseInt(localDuration);
+                                    if (!isNaN(val) && val >= 1) {
+                                      handleManualDurationChange(task.id, val);
+                                    }
+                                    setEditingDurationTaskId(null);
                                   }}
                                   onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                                   title={(task.durationMode || 'manual') === 'rup'
