@@ -1,4 +1,4 @@
-import { Task, Project } from '@/types/project';
+import { Task, Project, DependencyType } from '@/types/project';
 import { getAllTasks } from '@/data/sampleProject';
 
 const DAILY_HOURS = 8;
