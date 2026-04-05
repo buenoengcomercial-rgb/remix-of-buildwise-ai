@@ -1058,13 +1058,31 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                   ))}
 
                   {/* Dependency arrows */}
-                  <DependencyArrows
-                    tasks={tasks}
-                    taskYPositions={taskYPositions}
-                    projectStart={projectStart}
-                    dayWidth={dayWidth}
-                    violations={violationMap}
-                  />
+                  {(() => {
+                    // During drag, provide tasks with temporary positions for arrows
+                    let arrowTasks = tasks;
+                    if (draggingTaskId && (dragOffset !== 0 || dragTempTasks.size > 0)) {
+                      const daysMoved = Math.round(dragOffset / dayWidth);
+                      arrowTasks = tasks.map(t => {
+                        if (t.id === draggingTaskId) {
+                          const newStart = addDays(new Date(t.startDate), daysMoved);
+                          return { ...t, startDate: dateToISO(newStart) };
+                        }
+                        const temp = dragTempTasks.get(t.id);
+                        if (temp) return { ...t, startDate: temp.startDate };
+                        return t;
+                      });
+                    }
+                    return (
+                      <DependencyArrows
+                        tasks={arrowTasks}
+                        taskYPositions={taskYPositions}
+                        projectStart={projectStart}
+                        dayWidth={dayWidth}
+                        violations={violationMap}
+                      />
+                    );
+                  })()}
 
                   {project.phases.map(phase => (
                     <div key={phase.id}>
