@@ -12,7 +12,7 @@ import ConfiguracaoObra, { ObraConfig, loadObraConfig } from './ConfiguracaoObra
 import { DAY_WIDTH, ROW_HEIGHT, FlatTask } from './gantt/types';
 import { addDays, diffDays, formatDateFull, getEndDate, MONTH_NAMES_PT, dateToISO } from './gantt/utils';
 import { getFeriadosMap, FeriadoInfo, calcularDiasUteis } from '@/lib/feriados';
-import { calculateRupDuration } from '@/lib/calculations';
+import { calculateRupDuration, propagateAllDependencies, checkDependencyViolation } from '@/lib/calculations';
 import { toast } from 'sonner';
 
 interface GanttChartProps {
