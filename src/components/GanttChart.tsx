@@ -1,6 +1,6 @@
 import { Project, Task, ViewMode, DependencyType, TaskDependency } from '@/types/project';
 import { getAllTasks } from '@/data/sampleProject';
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { ChevronDown, ChevronRight, AlertTriangle, Flag } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -31,6 +31,16 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
   const dragStartX = useRef(0);
   const dragStartLeft = useRef(0);
   const chartContainerRef = useRef<HTMLDivElement>(null);
+
+  // Resize state
+  const [resizingTaskId, setResizingTaskId] = useState<string | null>(null);
+  const [resizeSide, setResizeSide] = useState<'left' | 'right' | null>(null);
+  const [resizeDelta, setResizeDelta] = useState(0);
+  const resizeStartX = useRef(0);
+
+  // Local duration edit state
+  const [editingDurationTaskId, setEditingDurationTaskId] = useState<string | null>(null);
+  const [localDuration, setLocalDuration] = useState<string>('');
 
   const tasks = getAllTasks(project);
   const criticalCount = tasks.filter(t => t.isCritical).length;
@@ -460,11 +470,53 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
     updateTask(taskId, updates);
   };
 
-  const handleManualDurationChange = (taskId: string, value: string) => {
-    const num = parseInt(value);
-    if (isNaN(num) || num < 1) return;
-    updateTask(taskId, { duration: num, durationMode: 'manual' });
+  const handleManualDurationChange = (taskId: string, value: number) => {
+    if (value < 1) return;
+    updateTask(taskId, { duration: value, durationMode: 'manual', isManual: true, manualDuration: value });
     setTimeout(() => propagateDependencies(taskId), 0);
+  };
+
+  // Resize handlers
+  const handleResizeMouseDown = (e: React.MouseEvent, taskId: string, side: 'left' | 'right') => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingTaskId(taskId);
+    setResizeSide(side);
+    setResizeDelta(0);
+    resizeStartX.current = e.clientX;
+
+    const handleMove = (ev: MouseEvent) => {
+      setResizeDelta(ev.clientX - resizeStartX.current);
+    };
+    const handleUp = (ev: MouseEvent) => {
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleUp);
+      const dx = ev.clientX - resizeStartX.current;
+      const daysDelta = Math.round(dx / dayWidth);
+      const task = tasks.find(t => t.id === taskId);
+      if (task && daysDelta !== 0) {
+        if (side === 'right') {
+          const newDuration = Math.max(1, task.duration + daysDelta);
+          updateTask(taskId, { duration: newDuration, durationMode: 'manual', isManual: true, manualDuration: newDuration });
+        } else {
+          const newDuration = Math.max(1, task.duration - daysDelta);
+          const newStart = addDays(new Date(task.startDate), daysDelta);
+          updateTask(taskId, { startDate: dateToISO(newStart), duration: newDuration, durationMode: 'manual', isManual: true, manualDuration: newDuration });
+        }
+        setTimeout(() => propagateDependencies(taskId), 0);
+      }
+      setResizingTaskId(null);
+      setResizeSide(null);
+      setResizeDelta(0);
+    };
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleUp);
+  };
+
+  // Helper: get 3 first words of a name
+  const getShortLabel = (name: string) => {
+    const words = name.split(/\s+/);
+    return words.length > 3 ? words.slice(0, 3).join(' ') + '…' : name;
   };
 
   // Get chapter bar info for milestones
@@ -661,13 +713,27 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                   className={`w-full text-[10px] font-bold bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-primary rounded ${
                                     (task.durationMode || 'manual') === 'rup' ? 'text-primary' : 'text-foreground'
                                   }`}
-                                  value={task.duration}
+                                  value={editingDurationTaskId === task.id ? localDuration : task.duration}
                                   type="number"
                                   min={1}
+                                  onFocus={() => {
+                                    setEditingDurationTaskId(task.id);
+                                    setLocalDuration(String(task.duration));
+                                  }}
                                   onChange={(e) => {
+                                    setLocalDuration(e.target.value);
+                                    // Live preview: update bar width in real-time
                                     const val = parseInt(e.target.value);
-                                    if (isNaN(val) || val < 1) return;
-                                    handleManualDurationChange(task.id, e.target.value);
+                                    if (!isNaN(val) && val >= 1) {
+                                      handleManualDurationChange(task.id, val);
+                                    }
+                                  }}
+                                  onBlur={() => {
+                                    const val = parseInt(localDuration);
+                                    if (!isNaN(val) && val >= 1) {
+                                      handleManualDurationChange(task.id, val);
+                                    }
+                                    setEditingDurationTaskId(null);
                                   }}
                                   onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
                                   title={(task.durationMode || 'manual') === 'rup'
@@ -943,11 +1009,41 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                           .map((task, idx) => {
                             const bar = getBarStyle(task);
                             const isDragging = draggingTaskId === task.id;
-                            const currentLeft = isDragging ? bar.left + dragOffset : bar.left;
-                            const dragDate = getDragDate(task);
+                            const isResizing = resizingTaskId === task.id;
                             const violations = getViolations(task);
                             const hasViolation = violations.length > 0;
                             const noWorkDays = hasNoWorkingDays(task);
+
+                            // Compute current bar position with drag/resize
+                            let currentLeft = bar.left;
+                            let currentWidth = bar.width;
+                            if (isDragging) {
+                              currentLeft = bar.left + dragOffset;
+                            } else if (isResizing) {
+                              if (resizeSide === 'right') {
+                                currentWidth = Math.max(dayWidth, bar.width + resizeDelta);
+                              } else if (resizeSide === 'left') {
+                                const delta = Math.min(resizeDelta, bar.width - dayWidth);
+                                currentLeft = bar.left + delta;
+                                currentWidth = bar.width - delta;
+                              }
+                            }
+
+                            const dragDate = getDragDate(task);
+
+                            // Resize tooltip info
+                            const getResizeInfo = () => {
+                              if (!isResizing) return null;
+                              const newDuration = Math.max(1, Math.round(currentWidth / dayWidth));
+                              const newStart = addDays(projectStart, Math.round(currentLeft / dayWidth));
+                              const newEnd = addDays(newStart, newDuration);
+                              return {
+                                start: formatDateFull(dateToISO(newStart)),
+                                end: formatDateFull(dateToISO(newEnd)),
+                                duration: newDuration,
+                              };
+                            };
+                            const resizeInfo = getResizeInfo();
 
                             return (
                               <div
@@ -955,13 +1051,14 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                 className={`border-b border-border relative ${idx % 2 === 0 ? 'bg-card' : 'bg-muted/10'}`}
                                 style={{ height: ROW_HEIGHT }}
                               >
+                                {/* Bar */}
                                 <div
-                                  className={`absolute rounded-md cursor-grab active:cursor-grabbing group ${
+                                  className={`absolute rounded-md group ${
                                     bar.isCritical ? 'ring-1 ring-destructive/40' : ''
                                   } ${hasViolation ? 'animate-pulse ring-2 ring-destructive' : ''} ${noWorkDays ? 'ring-2 ring-warning' : ''}`}
                                   style={{
                                     left: currentLeft,
-                                    width: bar.width,
+                                    width: currentWidth,
                                     top: (ROW_HEIGHT - 16) / 2,
                                     height: 16,
                                     borderRadius: 6,
@@ -973,25 +1070,77 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                       ? 'hsl(var(--gantt-critical))'
                                       : 'hsl(var(--gantt-bar))',
                                     opacity: 0.85,
-                                    transition: isDragging ? 'none' : 'left 0.2s ease',
+                                    transition: (isDragging || isResizing) ? 'none' : 'left 0.2s ease, width 0.2s ease',
                                     zIndex: 10,
+                                    cursor: 'grab',
                                   }}
-                                  onMouseDown={(e) => handleMouseDown(e, task.id, bar.left)}
+                                  onMouseDown={(e) => {
+                                    // Check if near edges for resize
+                                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                    const relX = e.clientX - rect.left;
+                                    if (relX <= 8 && currentWidth > dayWidth) {
+                                      handleResizeMouseDown(e, task.id, 'left');
+                                    } else if (relX >= rect.width - 8) {
+                                      handleResizeMouseDown(e, task.id, 'right');
+                                    } else {
+                                      handleMouseDown(e, task.id, bar.left);
+                                    }
+                                  }}
+                                  onMouseMove={(e) => {
+                                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                    const relX = e.clientX - rect.left;
+                                    if (relX <= 8 || relX >= rect.width - 8) {
+                                      (e.currentTarget as HTMLElement).style.cursor = 'col-resize';
+                                    } else {
+                                      (e.currentTarget as HTMLElement).style.cursor = 'grab';
+                                    }
+                                  }}
                                 >
+                                  {/* Progress fill */}
                                   <div
                                     className="h-full rounded-md opacity-30"
                                     style={{ width: `${task.percentComplete}%`, background: 'white', borderRadius: 6 }}
                                   />
-                                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-foreground text-background text-[9px] px-2 py-1 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-30">
-                                    {isDragging && dragDate
+
+                                  {/* Tooltip */}
+                                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-foreground text-background text-[9px] px-2 py-1 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-30 pointer-events-none">
+                                    {isResizing && resizeInfo
+                                      ? `${resizeSide === 'left' ? 'Início' : 'Fim'}: ${resizeSide === 'left' ? resizeInfo.start : resizeInfo.end} | ${resizeInfo.duration} dias`
+                                      : isDragging && dragDate
                                       ? `${dragDate.start} → ${dragDate.end}`
                                       : hasViolation
                                       ? violations[0]
                                       : noWorkDays
                                       ? 'Tarefa sem dias úteis no período'
-                                      : `${task.name} — ${task.percentComplete}% • ${task.duration}d`
+                                      : `${task.percentComplete}% • ${task.duration}d`
                                     }
                                   </div>
+                                </div>
+
+                                {/* Label to the right of the bar */}
+                                <div
+                                  className="absolute z-10 pointer-events-none"
+                                  style={{
+                                    left: currentLeft + currentWidth + 4,
+                                    top: 0,
+                                    height: ROW_HEIGHT,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                  }}
+                                >
+                                  <span
+                                    className="text-muted-foreground"
+                                    style={{
+                                      fontSize: '11px',
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      maxWidth: 120,
+                                      display: 'block',
+                                    }}
+                                  >
+                                    {getShortLabel(task.name)}
+                                  </span>
                                 </div>
                               </div>
                             );
