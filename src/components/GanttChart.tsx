@@ -470,11 +470,53 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
     updateTask(taskId, updates);
   };
 
-  const handleManualDurationChange = (taskId: string, value: string) => {
-    const num = parseInt(value);
-    if (isNaN(num) || num < 1) return;
-    updateTask(taskId, { duration: num, durationMode: 'manual' });
+  const handleManualDurationChange = (taskId: string, value: number) => {
+    if (value < 1) return;
+    updateTask(taskId, { duration: value, durationMode: 'manual', isManual: true, manualDuration: value });
     setTimeout(() => propagateDependencies(taskId), 0);
+  };
+
+  // Resize handlers
+  const handleResizeMouseDown = (e: React.MouseEvent, taskId: string, side: 'left' | 'right') => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingTaskId(taskId);
+    setResizeSide(side);
+    setResizeDelta(0);
+    resizeStartX.current = e.clientX;
+
+    const handleMove = (ev: MouseEvent) => {
+      setResizeDelta(ev.clientX - resizeStartX.current);
+    };
+    const handleUp = (ev: MouseEvent) => {
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleUp);
+      const dx = ev.clientX - resizeStartX.current;
+      const daysDelta = Math.round(dx / dayWidth);
+      const task = tasks.find(t => t.id === taskId);
+      if (task && daysDelta !== 0) {
+        if (side === 'right') {
+          const newDuration = Math.max(1, task.duration + daysDelta);
+          updateTask(taskId, { duration: newDuration, durationMode: 'manual', isManual: true, manualDuration: newDuration });
+        } else {
+          const newDuration = Math.max(1, task.duration - daysDelta);
+          const newStart = addDays(new Date(task.startDate), daysDelta);
+          updateTask(taskId, { startDate: dateToISO(newStart), duration: newDuration, durationMode: 'manual', isManual: true, manualDuration: newDuration });
+        }
+        setTimeout(() => propagateDependencies(taskId), 0);
+      }
+      setResizingTaskId(null);
+      setResizeSide(null);
+      setResizeDelta(0);
+    };
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleUp);
+  };
+
+  // Helper: get 3 first words of a name
+  const getShortLabel = (name: string) => {
+    const words = name.split(/\s+/);
+    return words.length > 3 ? words.slice(0, 3).join(' ') + '…' : name;
   };
 
   // Get chapter bar info for milestones
