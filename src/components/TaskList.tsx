@@ -1,8 +1,9 @@
-import { Project, Task, LaborComposition } from '@/types/project';
+import { Project, Task, LaborComposition, DailyProductionLog } from '@/types/project';
 import { getTeamDefinition, TEAM_CODES, TeamCode } from '@/lib/teams';
 import { useState, useRef, useCallback } from 'react';
-import { ChevronDown, ChevronRight, User, Zap, Users, AlertTriangle, Plus, Copy, Trash2, Edit3, Check, X, Upload, FolderPlus, GripVertical } from 'lucide-react';
+import { ChevronDown, ChevronRight, User, Zap, Users, AlertTriangle, Plus, Copy, Trash2, Edit3, Check, X, Upload, FolderPlus, GripVertical, ClipboardList } from 'lucide-react';
 import ImportTasksDialog from '@/components/ImportTasksDialog';
+import DailyLogsPanel from '@/components/DailyLogsPanel';
 import { motion, AnimatePresence } from 'framer-motion';
 import { calculateRupDuration } from '@/lib/calculations';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -85,6 +86,7 @@ function InlineInput({ value, onChange, type = 'text', className = '', min, max,
 export default function TaskList({ project, onProjectChange }: TaskListProps) {
   const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set(project.phases.map(p => p.id)));
   const [expandedRup, setExpandedRup] = useState<string | null>(null);
+  const [expandedDaily, setExpandedDaily] = useState<string | null>(null);
   const [simulating, setSimulating] = useState<string | null>(null);
   const [editingTask, setEditingTask] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
