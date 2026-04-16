@@ -149,12 +149,13 @@ export default function DailyLogsPanel({ task, onChange }: DailyLogsPanelProps) 
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-2 text-[10px] font-semibold text-muted-foreground uppercase">
+        <div className="grid grid-cols-8 gap-2 text-[10px] font-semibold text-muted-foreground uppercase">
           <div>Data</div>
           <div className="text-center">Meta ({unit})</div>
           <div className="text-center">Realizado ({unit})</div>
           <div className="text-center">Saldo Dia</div>
           <div className="text-center">Saldo Acum.</div>
+          <div className="text-center">Falta Executar</div>
           <div>Obs.</div>
           <div className="text-center">Ação</div>
         </div>
