@@ -5,6 +5,14 @@ import { ChevronDown, ChevronRight, User, Zap, Users, AlertTriangle, Plus, Copy,
 import ImportTasksDialog from '@/components/ImportTasksDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { calculateRupDuration } from '@/lib/calculations';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
+/** Encurta o nome da tarefa para no máximo `maxWords` palavras, adicionando "…" no final. */
+function truncateWords(text: string, maxWords = 4): string {
+  const words = text.trim().split(/\s+/);
+  if (words.length <= maxWords) return text;
+  return words.slice(0, maxWords).join(' ') + '…';
+}
 
 interface TaskListProps {
   project: Project;
