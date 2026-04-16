@@ -326,6 +326,21 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
         onProjectChange={onProjectChange}
       />
 
+      {/* Legenda de equipes */}
+      <div className="flex flex-wrap items-center gap-3 px-2 py-2 bg-card rounded-lg border border-border">
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mr-1">Equipes:</span>
+        {TEAM_CODES.map(code => {
+          const def = getTeamDefinition(code)!;
+          return (
+            <div key={code} className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: def.bgColor, border: `1px solid ${def.borderColor}` }} />
+              <span className="text-[10px] font-medium text-foreground">{def.label}</span>
+              <span className="text-[9px] text-muted-foreground">({def.composition})</span>
+            </div>
+          );
+        })}
+      </div>
+
       <div className="space-y-3">
         {project.phases.map((phase, pi) => {
           const phaseProgress = phase.tasks.length ? Math.round(phase.tasks.reduce((s, t) => s + t.percentComplete, 0) / phase.tasks.length) : 0;
@@ -405,18 +420,19 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                 {isExpanded && (
                   <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
                     <div className="border-t border-border">
-                      <div className="grid grid-cols-12 gap-2 px-5 py-2 bg-secondary/50 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                        <div className="col-span-2">Tarefa</div>
-                        <div className="col-span-1">Qtd.</div>
-                        <div className="col-span-1">Responsável</div>
-                        <div className="col-span-1">Duração</div>
-                        <div className="col-span-1">Horas</div>
-                        <div className="col-span-1">Gargalo</div>
-                        <div className="col-span-1">Folga</div>
-                        <div className="col-span-1">Depend.</div>
-                        <div className="col-span-1">Progresso</div>
-                        <div className="col-span-1">Status</div>
-                        <div className="col-span-1">Ações</div>
+                      <div className="grid gap-2 px-5 py-2 bg-secondary/50 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider" style={{ gridTemplateColumns: '36px 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr' }}>
+                        <div>Eq.</div>
+                        <div>Tarefa</div>
+                        <div>Qtd.</div>
+                        <div>Responsável</div>
+                        <div>Duração</div>
+                        <div>Horas</div>
+                        <div>Gargalo</div>
+                        <div>Folga</div>
+                        <div>Depend.</div>
+                        <div>Progresso</div>
+                        <div>Status</div>
+                        <div>Ações</div>
                       </div>
 
                       {phase.tasks.map(task => {
@@ -441,46 +457,39 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                               const rowTeam = getTeamDefinition(task.team);
                               return (
                             <div
-                              className={`grid grid-cols-12 gap-2 px-5 py-3 border-t border-border hover:brightness-110 transition-colors items-center ${
+                              className={`grid gap-2 px-5 py-3 border-t border-border hover:brightness-110 transition-colors items-center ${
                                 !rowTeam ? (isDelayed ? 'bg-destructive/5' : task.isCritical ? 'bg-destructive/[0.03]' : '') : ''
                               }`}
-                              style={rowTeam ? { backgroundColor: rowTeam.bgColor, color: rowTeam.textColor } : {}}
+                              style={{ gridTemplateColumns: '36px 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr', ...(rowTeam ? { backgroundColor: rowTeam.bgColor, color: rowTeam.textColor } : {}) }}
                             >
+                              {/* Equipe inicial */}
+                              <div className="flex items-center justify-center">
+                                <select
+                                  value={task.team || ''}
+                                  onChange={e => updateTask(phase.id, task.id, { team: (e.target.value || undefined) as TeamCode | undefined })}
+                                  className="w-8 h-7 text-[10px] font-bold text-center rounded cursor-pointer border-0 appearance-none"
+                                  style={rowTeam
+                                    ? { backgroundColor: rowTeam.bgColor, color: rowTeam.textColor, border: `2px solid ${rowTeam.borderColor}` }
+                                    : { backgroundColor: 'hsl(var(--muted))', color: 'hsl(var(--muted-foreground))' }
+                                  }
+                                  title="Selecionar equipe"
+                                >
+                                  <option value="">—</option>
+                                  {TEAM_CODES.map(code => (
+                                    <option key={code} value={code}>{getTeamDefinition(code)!.label.charAt(0)}</option>
+                                  ))}
+                                </select>
+                              </div>
                               {/* Nome */}
-                              <div className="col-span-2 flex items-center gap-1 min-w-0">
+                              <div className="flex items-center gap-1 min-w-0">
                                 <GripVertical className={`w-3.5 h-3.5 cursor-grab active:cursor-grabbing flex-shrink-0 ${rowTeam ? 'opacity-50' : 'text-muted-foreground/50'}`} />
                                 {task.isCritical && <div className="w-1.5 h-1.5 rounded-full bg-destructive flex-shrink-0" />}
-                                {(() => {
-                                  const teamDef = getTeamDefinition(task.team);
-                                  if (teamDef) return (
-                                    <span
-                                      className="px-1.5 py-0.5 text-[8px] font-bold rounded-full flex-shrink-0"
-                                      style={{ background: teamDef.bgColor, color: teamDef.textColor, border: `1px solid ${teamDef.borderColor}` }}
-                                    >
-                                      {teamDef.label}
-                                    </span>
-                                  );
-                                  return null;
-                                })()}
                                 {isEditing ? (
-                                  <div className="flex items-center gap-1 w-full min-w-0">
-                                    <InlineInput
-                                      value={task.name}
-                                      onChange={v => updateTask(phase.id, task.id, { name: v })}
-                                      className="flex-1 min-w-0"
-                                    />
-                                    <select
-                                      value={task.team || ''}
-                                      onChange={e => updateTask(phase.id, task.id, { team: (e.target.value || undefined) as TeamCode | undefined })}
-                                      className="text-[9px] bg-transparent border border-current/30 rounded px-1 py-0.5"
-                                      style={rowTeam ? { color: 'inherit' } : undefined}
-                                    >
-                                      <option value="">Sem equipe</option>
-                                      {TEAM_CODES.map(code => (
-                                        <option key={code} value={code}>{getTeamDefinition(code)!.label}</option>
-                                      ))}
-                                    </select>
-                                  </div>
+                                  <InlineInput
+                                    value={task.name}
+                                    onChange={v => updateTask(phase.id, task.id, { name: v })}
+                                    className="flex-1 min-w-0"
+                                  />
                                 ) : (
                                   <button onClick={() => setExpandedRup(showRup ? null : task.id)} className={`text-xs font-medium truncate text-left transition-colors ${rowTeam ? 'hover:opacity-70' : 'text-foreground hover:text-primary'}`}>
                                     {task.name}
@@ -489,7 +498,7 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                               </div>
 
                               {/* Quantidade + Unidade */}
-                              <div className="col-span-1 flex items-center gap-0.5">
+                              <div className="flex items-center gap-0.5">
                                 {isEditing ? (
                                   <>
                                     <InlineInput
@@ -511,7 +520,7 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                               </div>
 
                               {/* Responsável */}
-                              <div className="col-span-1">
+                              <div className="">
                                 {isEditing ? (
                                   <InlineInput
                                     value={task.responsible}
@@ -538,7 +547,7 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                               </div>
 
                               {/* Gargalo */}
-                              <div className="col-span-1">
+                              <div className="">
                                 {task.bottleneckRole ? (
                                   <span className={`text-[9px] px-1 py-0.5 rounded font-medium truncate block text-center ${rowTeam ? 'bg-white/20' : 'bg-warning/15 text-warning'}`}>
                                     {task.bottleneckRole}
@@ -547,14 +556,14 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                               </div>
 
                               {/* Folga */}
-                              <div className="col-span-1">
+                              <div className="">
                                 <span className={`text-[10px] font-bold ${rowTeam ? '' : (task.float === 0 ? 'text-destructive' : 'text-success')}`}>
                                   {task.float !== undefined ? `${task.float}d` : '—'}
                                 </span>
                               </div>
 
                               {/* Dependências */}
-                              <div className="col-span-1">
+                              <div className="">
                                 {isEditing ? (
                                   <select
                                     multiple
@@ -580,7 +589,7 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                               </div>
 
                               {/* Progresso */}
-                              <div className="col-span-1">
+                              <div className="">
                                 <div className="flex items-center gap-1">
                                   <div className={`flex-1 h-1.5 rounded-full overflow-hidden ${rowTeam ? 'bg-white/20' : 'bg-muted'}`}>
                                     <div
@@ -601,12 +610,12 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                               </div>
 
                               {/* Status (auto) */}
-                              <div className="col-span-1">
+                              <div className="">
                                 <StatusBadge percent={task.percentComplete} />
                               </div>
 
                               {/* Ações */}
-                              <div className="col-span-1 flex items-center gap-1">
+                              <div className="flex items-center gap-1">
                                 {isEditing ? (
                                   <button onClick={() => setEditingTask(null)} className="p-1 rounded hover:bg-success/20 text-success transition-colors" title="Salvar">
                                     <Check className="w-3 h-3" />
