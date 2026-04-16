@@ -1,4 +1,5 @@
 import { Project, Task, LaborComposition } from '@/types/project';
+import { getTeamDefinition, TEAM_CODES, TeamCode } from '@/lib/teams';
 import { useState, useRef, useCallback } from 'react';
 import { ChevronDown, ChevronRight, User, Zap, Users, AlertTriangle, Plus, Copy, Trash2, Edit3, Check, X, Upload, FolderPlus, GripVertical } from 'lucide-react';
 import ImportTasksDialog from '@/components/ImportTasksDialog';
