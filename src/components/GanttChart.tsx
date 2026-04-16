@@ -1610,6 +1610,29 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                 </div>
                                   );
                                 })()}
+                                {/* Linha pontilhada grossa = Real / Previsto */}
+                                {(() => {
+                                  const rpStartIso = task.current?.startDate || task.startDate;
+                                  const rpDuration = task.current?.duration || task.duration;
+                                  if (!rpStartIso || !rpDuration) return null;
+                                  const rpLeft = diffDays(projectStart, parseISODateLocal(rpStartIso)) * dayWidth;
+                                  const rpWidth = rpDuration * dayWidth;
+                                  const rpEndIso = task.current?.forecastEndDate || task.current?.endDate || dateToISO(addDays(parseISODateLocal(rpStartIso), rpDuration));
+                                  return (
+                                    <div
+                                      className="absolute pointer-events-none"
+                                      style={{
+                                        left: rpLeft,
+                                        width: rpWidth,
+                                        top: 18,
+                                        height: 0,
+                                        borderTop: '3px dashed hsl(var(--foreground))',
+                                        zIndex: 11,
+                                      }}
+                                      title={`Real/Previsto: ${formatDateFull(rpStartIso)} → ${formatDateFull(rpEndIso)} (${rpDuration}d)`}
+                                    />
+                                  );
+                                })()}
 
                                 {/* Label to the right of the bar */}
                                 <div
