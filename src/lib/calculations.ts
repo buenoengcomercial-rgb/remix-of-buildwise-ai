@@ -1,4 +1,4 @@
-import { Task, Project, DependencyType } from '@/types/project';
+import { Task, Project, DependencyType, TaskBaseline } from '@/types/project';
 import { getAllTasks } from '@/data/sampleProject';
 
 const DAILY_HOURS = 8;
@@ -44,8 +44,36 @@ export function applyRupToProject(project: Project): Project {
   };
 }
 
+/** Capture baseline (linha de base fixa) for tasks that don't yet have one.
+ * Runs once on first load — baseline never changes after capture. */
+export function captureBaseline(project: Project): Project {
+  const now = new Date().toISOString();
+  return {
+    ...project,
+    phases: project.phases.map(p => ({
+      ...p,
+      tasks: p.tasks.map(t => {
+        if (t.baseline) return t;
+        const start = new Date(t.startDate);
+        const end = new Date(start);
+        end.setDate(end.getDate() + t.duration);
+        const baseline: TaskBaseline = {
+          startDate: t.startDate,
+          duration: t.duration,
+          endDate: end.toISOString().split('T')[0],
+          plannedDailyProduction: t.quantity && t.duration > 0 ? t.quantity / t.duration : undefined,
+          quantity: t.quantity,
+          capturedAt: now,
+        };
+        return { ...t, baseline };
+      }),
+    })),
+  };
+}
+
 /** Apply daily production logs: recompute remaining duration, forecast date, physical progress.
- * Logs override `duration` (unless task.isManual), so CPM downstream propagates automatically. */
+ * Logs override `duration` (unless task.isManual), so CPM downstream propagates automatically.
+ * Also populates `task.current` (cronograma variável). */
 export function applyDailyLogsToProject(project: Project): Project {
   return {
     ...project,
@@ -53,11 +81,25 @@ export function applyDailyLogsToProject(project: Project): Project {
       ...p,
       tasks: p.tasks.map(t => {
         const logs = t.dailyLogs || [];
+
+        // Build "current" mirror of baseline by default
+        const buildCurrent = (overrides: Partial<NonNullable<Task['current']>> = {}): NonNullable<Task['current']> => {
+          const start = new Date(t.startDate);
+          const end = new Date(start);
+          end.setDate(end.getDate() + t.duration);
+          return {
+            startDate: t.startDate,
+            duration: t.duration,
+            endDate: end.toISOString().split('T')[0],
+            ...overrides,
+          };
+        };
+
         if (!t.quantity || t.quantity <= 0 || t.duration <= 0) {
-          return t;
+          return { ...t, current: buildCurrent() };
         }
-        const baseDuration = t.originalDuration ?? t.duration;
-        const plannedDailyProduction = t.quantity / baseDuration;
+        const baseDuration = t.baseline?.duration ?? t.originalDuration ?? t.duration;
+        const plannedDailyProduction = t.baseline?.plannedDailyProduction ?? (t.quantity / baseDuration);
 
         if (logs.length === 0) {
           return {
@@ -67,6 +109,12 @@ export function applyDailyLogsToProject(project: Project): Project {
             accumulatedDelayQuantity: 0,
             recalculatedDuration: baseDuration,
             physicalProgress: t.percentComplete,
+            current: buildCurrent({
+              executedQuantityTotal: 0,
+              remainingQuantity: t.quantity,
+              accumulatedDelayQuantity: 0,
+              physicalProgress: t.percentComplete,
+            }),
           };
         }
 
@@ -90,10 +138,14 @@ export function applyDailyLogsToProject(project: Project): Project {
         const physicalProgress = Math.min(100, Math.round((executedQuantityTotal / t.quantity) * 1000) / 10);
 
         const shouldOverrideDuration = !t.isManual;
+        const newDuration = shouldOverrideDuration ? recalculatedDuration : t.duration;
+        const currentEnd = new Date(startDate);
+        currentEnd.setDate(currentEnd.getDate() + newDuration);
+
         return {
           ...t,
           originalDuration: baseDuration,
-          duration: shouldOverrideDuration ? recalculatedDuration : t.duration,
+          duration: newDuration,
           executedQuantityTotal,
           remainingQuantity,
           accumulatedDelayQuantity,
@@ -101,6 +153,16 @@ export function applyDailyLogsToProject(project: Project): Project {
           forecastEndDate,
           physicalProgress,
           percentComplete: Math.max(t.percentComplete, Math.round(physicalProgress)),
+          current: {
+            startDate: t.startDate,
+            duration: newDuration,
+            endDate: currentEnd.toISOString().split('T')[0],
+            forecastEndDate,
+            executedQuantityTotal,
+            remainingQuantity,
+            accumulatedDelayQuantity,
+            physicalProgress,
+          },
         };
       }),
     })),
