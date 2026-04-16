@@ -782,7 +782,9 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
         <div className="flex items-center gap-3 text-[9px] text-muted-foreground flex-wrap">
           <div className="flex items-center gap-2 mr-2 border-r border-border pr-3">
             <span className="font-medium">Elementos:</span>
-            <div className="flex items-center gap-1"><div className="w-4 h-2 rounded" style={{ background: 'hsl(var(--gantt-bar))', opacity: 0.95 }} /> <span>Barra cheia = Planejado (baseline)</span></div>
+            <div className="flex items-center gap-1"><div className="w-4 h-2 rounded" style={{ background: 'hsl(var(--gantt-bar))', opacity: 0.95 }} /> <span>Barra cheia = Planejado corrente</span></div>
+            <div className="flex items-center gap-1"><div className="w-4 h-0" style={{ borderTop: '3px dashed hsl(var(--foreground))' }} /> <span>Pontilhada = Real / Previsto</span></div>
+            <div className="flex items-center gap-1"><div className="w-4 h-[3px] rounded bg-muted-foreground/30" /> <span>Faixa cinza = Baseline original</span></div>
             <div className="flex items-center gap-1">
               <span className="flex gap-0.5">
                 <span className="w-1 h-1.5 rounded-sm bg-emerald-500" />
@@ -1488,20 +1490,25 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                     />
                                   );
                                 })}
-                                {/* Barra cheia = datas planejadas (baseline). Fallback: current. */}
+                                {/* Faixa fina = baseline original (referência) */}
+                                {task.baseline && (() => {
+                                  const blLeft = diffDays(projectStart, parseISODateLocal(task.baseline.startDate)) * dayWidth;
+                                  const blWidth = task.baseline.duration * dayWidth;
+                                  return (
+                                    <div
+                                      className="absolute rounded bg-muted-foreground/30 pointer-events-none"
+                                      style={{ left: blLeft, width: blWidth, top: 26, height: 3, zIndex: 7 }}
+                                      title={`Baseline: ${formatDateFull(task.baseline.startDate)} → ${formatDateFull(task.baseline.endDate)} (${task.baseline.duration}d)`}
+                                    />
+                                  );
+                                })()}
+                                {/* Barra cheia = current (planejado corrente, editável via drag) */}
                                 {(() => {
-                                  const isLate = task.baseline ? task.duration > task.baseline.duration : false;
-                                  const barLeft = task.baseline
-                                    ? diffDays(projectStart, parseISODateLocal(task.baseline.startDate)) * dayWidth
-                                    : currentLeft;
-                                  const barWidth = task.baseline
-                                    ? task.baseline.duration * dayWidth
-                                    : currentWidth;
+                                  const barLeft = currentLeft;
+                                  const barWidth = currentWidth;
                                   return (
                                 <div
-                                  className={`absolute rounded-md group ${
-                                    bar.isCritical ? 'ring-1 ring-destructive/40' : ''
-                                  } ${isLate && !bar.isCritical && !hasViolation ? 'ring-1 ring-destructive/60' : ''} ${hasViolation ? 'animate-pulse ring-2 ring-destructive' : ''} ${noWorkDays ? 'ring-2 ring-warning' : ''}`}
+                                  className={`absolute rounded-md group ${hasViolation ? 'animate-pulse ring-2 ring-destructive' : ''} ${noWorkDays ? 'ring-2 ring-warning' : ''}`}
                                   style={{
                                     left: barLeft,
                                     width: barWidth,
@@ -1603,6 +1610,29 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                     );
                                   })()}
                                 </div>
+                                  );
+                                })()}
+                                {/* Linha pontilhada grossa = Real / Previsto */}
+                                {(() => {
+                                  const rpStartIso = task.current?.startDate || task.startDate;
+                                  const rpDuration = task.current?.duration || task.duration;
+                                  if (!rpStartIso || !rpDuration) return null;
+                                  const rpLeft = diffDays(projectStart, parseISODateLocal(rpStartIso)) * dayWidth;
+                                  const rpWidth = rpDuration * dayWidth;
+                                  const rpEndIso = task.current?.forecastEndDate || task.current?.endDate || dateToISO(addDays(parseISODateLocal(rpStartIso), rpDuration));
+                                  return (
+                                    <div
+                                      className="absolute pointer-events-none"
+                                      style={{
+                                        left: rpLeft,
+                                        width: rpWidth,
+                                        top: 18,
+                                        height: 0,
+                                        borderTop: '3px dashed hsl(var(--foreground))',
+                                        zIndex: 11,
+                                      }}
+                                      title={`Real/Previsto: ${formatDateFull(rpStartIso)} → ${formatDateFull(rpEndIso)} (${rpDuration}d)`}
+                                    />
                                   );
                                 })()}
 
