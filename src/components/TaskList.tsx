@@ -621,6 +621,8 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                                 </button>
                               </div>
                             </div>
+                              );
+                            })()}
 
                             {/* RUP detail panel */}
                             <AnimatePresence>
