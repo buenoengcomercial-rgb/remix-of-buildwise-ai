@@ -13,6 +13,37 @@ interface TaskListProps {
 
 const DAILY_HOURS = 8;
 
+/** Encurta nomes de cargos longos (ex: SINAPI) para caber na coluna de gargalo. */
+function abbreviateRole(role: string): string {
+  if (!role) return '';
+  const cleaned = role
+    .replace(/COM ENCARGOS COMPLEMENTARES/gi, '')
+    .replace(/\(.*?\)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  // Mapeamentos comuns
+  const map: Array<[RegExp, string]> = [
+    [/AUXILIAR DE ENCANADOR|AUXILIAR HIDR[ÁA]ULICO|AUXILIAR DE BOMBEIRO/i, 'Aux. Encanador'],
+    [/ENCANADOR|BOMBEIRO HIDR[ÁA]ULICO/i, 'Encanador'],
+    [/AUXILIAR DE ELETRICISTA/i, 'Aux. Eletricista'],
+    [/ELETRICISTA/i, 'Eletricista'],
+    [/AJUDANTE/i, 'Ajudante'],
+    [/PEDREIRO/i, 'Pedreiro'],
+    [/SERVENTE/i, 'Servente'],
+    [/GESSEIRO|GESSO/i, 'Gesseiro'],
+    [/CARPINTEIRO/i, 'Carpinteiro'],
+    [/ARMADOR/i, 'Armador'],
+    [/PINTOR/i, 'Pintor'],
+    [/AUXILIAR/i, 'Auxiliar'],
+  ];
+  for (const [re, label] of map) {
+    if (re.test(cleaned)) return label;
+  }
+  // Fallback: pega as 2 primeiras palavras significativas
+  const words = cleaned.split(' ').filter(w => w.length > 2 && !/^(DE|DO|DA|OU|COM|E)$/i.test(w));
+  return words.slice(0, 2).join(' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function StatusBadge({ percent }: { percent: number }) {
   if (percent === 100) return <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-success/15 text-success">Concluído</span>;
   if (percent > 0) return <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-primary/15 text-primary">Em andamento</span>;
