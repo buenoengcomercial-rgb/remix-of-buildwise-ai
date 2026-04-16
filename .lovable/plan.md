@@ -1,25 +1,43 @@
 
 ## Objetivo
-Tornar o nome completo da tarefa visível na EAP, sem truncar, evitando confusão entre tarefas com descrições parecidas (caso típico SINAPI, onde o sufixo distingue a tarefa).
+Mostrar apenas as 4 primeiras palavras do nome da tarefa na EAP, com o nome completo aparecendo num tooltip ao passar o mouse, eliminando linhas muito altas e mantendo a leitura limpa.
 
 ## Situação atual
-Linha 534 em `src/components/TaskList.tsx` usa `truncate`, cortando o nome longo (ex.: "FURO MECANIZADO EM CONCRETO ... DIÂMETROS MENORES OU IGUAIS A 40 MM. AF_09/2023") com reticências. O grid usa `2fr` para a coluna Nome, então o conteúdo é forçado a uma única linha.
+Após o último ajuste, `src/components/TaskList.tsx` está com `whitespace-normal break-words` no botão do nome (linha ~534), permitindo que descrições longas (SINAPI) ocupem 2-3 linhas. Isso polui a EAP. Já existe `title={task.name}` nativo, mas queremos um tooltip mais robusto via Radix (`@/components/ui/tooltip`), que já está disponível no projeto.
 
 ## Mudança proposta
-Permitir quebra de linha (wrap) na coluna "Nome" da EAP, mantendo o resto do layout intacto.
 
-### Alterações em `src/components/TaskList.tsx`
+### 1. Helper de truncagem por palavras
+Em `src/components/TaskList.tsx`, criar:
+```ts
+const truncateWords = (text: string, maxWords = 4) => {
+  const words = text.trim().split(/\s+/);
+  if (words.length <= maxWords) return text;
+  return words.slice(0, maxWords).join(" ") + "…";
+};
+```
 
-1. **Botão do nome (linha 534)**: trocar `truncate` por `whitespace-normal break-words leading-tight`, para que o texto longo apareça em múltiplas linhas dentro da própria coluna.
-2. **Container do nome (linha 524)**: trocar `items-center` por `items-start` (alinhamento topo) e remover/relaxar `min-w-0` se necessário, para acomodar texto multilinha sem empurrar os ícones.
-3. **Linha do grid (linha 500)**: trocar `items-center` por `items-start` e adicionar `py-2` extra de respiro, para que as outras colunas (Qtd, Prod, Responsável, etc.) fiquem alinhadas ao topo quando o nome ocupar 2-3 linhas.
-4. **Tooltip auxiliar**: adicionar `title={task.name}` no botão para reforço (acessível ao hover), mesmo com o texto já visível.
+### 2. Reverter wrap → linha única
+No botão do nome (linha ~534): trocar `whitespace-normal break-words leading-tight` por `truncate` novamente, garantindo altura compacta da linha.
 
-### Garantias
-- Não altera lógica de edição (`InlineInput` continua igual quando `isEditing`).
-- Não mexe em colunas de Qtd, Produção Diária, Responsável, Duração, Equipe, CPM ou RUP.
-- Não afeta drag-and-drop (o `GripVertical` permanece no início da linha).
-- Cores de equipe, estados (crítico, atrasado, concluído) e contraste preservados.
+### 3. Reverter alinhamento ao centro
+- Linha do grid (~500): voltar `items-start` → `items-center` e remover `py-2` extra.
+- Container do nome (~524): voltar `items-start` → `items-center`.
+- Remover `mt-0.5` / `mt-1.5` do `GripVertical` e do indicador de crítico (volta ao alinhamento padrão).
 
-### Resultado esperado
-Cada nome de tarefa aparece por completo na EAP, quebrando em até 2-3 linhas conforme necessário, eliminando ambiguidade entre tarefas SINAPI similares.
+### 4. Tooltip Radix com nome completo
+Envolver o botão do nome com `Tooltip` / `TooltipTrigger` / `TooltipContent` de `@/components/ui/tooltip`:
+- Trigger: o botão exibindo `truncateWords(task.name, 4)`.
+- Content: `task.name` completo, com `max-w-md` e `whitespace-normal break-words` para quebrar nomes longos legivelmente.
+- Manter `TooltipProvider` no topo (verificar se já existe globalmente em `App.tsx`; se sim, basta usar `Tooltip` direto; se não, envolver o componente).
+
+### 5. Modo edição preservado
+Quando `isEditing` for true, `InlineInput` continua recebendo `task.name` completo — sem truncagem, sem tooltip.
+
+## Garantias
+- Altura das linhas volta ao compacto original.
+- Nome completo continua acessível via hover (tooltip Radix, mais visível que `title` nativo).
+- Edição inline, drag-and-drop, cores de equipe, CPM, RUP, status (crítico/atrasado/concluído) e demais colunas permanecem intactos.
+
+## Resultado esperado
+Cada tarefa exibe no máximo 4 palavras + "…" na coluna Nome. Ao passar o mouse, o tooltip mostra o nome completo (ex.: "FURO MECANIZADO EM CONCRETO ARMADO PARA DIÂMETROS MENORES OU IGUAIS A 40 MM. AF_09/2023"), preservando a identificação sem poluir a EAP.
