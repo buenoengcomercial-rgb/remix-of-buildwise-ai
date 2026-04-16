@@ -1,86 +1,42 @@
 
 ## Objetivo
-Separar **linha de base (fixa)** e **cronograma variável (recalculado pela execução)** em cada tarefa, permitindo comparar planejado vs previsto no Gantt e na EAP.
+Acrescentar no Gantt **marcadores diários de execução real** (a partir de `dailyLogs` com `actualQuantity > 0`) e enriquecer o tooltip com base, previsão, executado, restante e dias trabalhados — preservando a baseline (sombra atrás) e a barra atual já existentes.
 
-## Modelagem (`src/types/project.ts`)
+## Arquivo único alterado
+`src/components/GanttChart.tsx`
 
-Adicionar dois sub-objetos opcionais em `Task`:
+## Mudanças
 
-```ts
-export interface TaskBaseline {
-  startDate: string;
-  duration: number;
-  endDate: string;
-  plannedDailyProduction?: number;
-  quantity?: number;
-  capturedAt: string; // ISO timestamp
-}
+### 1. Marcadores diários de execução
+Logo após a renderização da sombra de baseline (~linha 1311) e antes da barra atual (~linha 1313), adicionar um bloco que itera `task.dailyLogs`:
+- Para cada log com `actualQuantity > 0`:
+  - Calcular `dayOffset = diffDays(projectStart, new Date(log.date))`
+  - Renderizar um quadradinho colorido com:
+    - `left: dayOffset * dayWidth + 1`
+    - `width: dayWidth - 2`
+    - `top: ROW_HEIGHT - 6` (logo abaixo da barra principal, na faixa inferior da linha)
+    - `height: 4`
+    - Cor baseada em `dailyDelta = plannedQuantity − actualQuantity`:
+      - `≤ 0` → verde (`hsl(var(--success))` ou `bg-emerald-500`)
+      - `≤ 20% da meta` → amarelo (`bg-amber-500`)
+      - `> 20%` → vermelho (`bg-red-500`)
+    - `title` com `dd/mm — Realizado X / Meta Y` para tooltip nativo no marcador
+    - `zIndex: 8` (acima da sombra de baseline, abaixo da barra principal `zIndex 10`)
+- `pointer-events-auto` apenas no marcador, para não atrapalhar drag da barra.
 
-export interface TaskCurrent {
-  startDate: string;
-  duration: number;
-  endDate: string;
-  forecastEndDate?: string;
-  executedQuantityTotal?: number;
-  remainingQuantity?: number;
-  accumulatedDelayQuantity?: number;
-  physicalProgress?: number;
-}
+### 2. Tooltip enriquecido
+No tooltip da barra (~linha 1380-1400), adicionar quando há `dailyLogs`:
+- `Executado: {executedQuantityTotal} {unit}`
+- `Restante: {remainingQuantity} {unit}`
+- `Dias trabalhados: {datas formatadas dd/MM separadas por vírgula, máx 5 + "…"}`
 
-// em Task:
-baseline?: TaskBaseline;
-current?: TaskCurrent;
-```
-
-Os campos atuais (`startDate`, `duration`, `dailyLogs`, etc.) continuam — `baseline` e `current` são camadas derivadas/snapshot.
-
-## Lógica (`src/lib/calculations.ts`)
-
-**1. `captureBaseline(project)`** (novo): para toda tarefa sem `baseline`, grava snapshot com `startDate`, `duration`, `endDate = start + duration`, `plannedDailyProduction = quantity/duration`, `quantity`, `capturedAt = now`. Roda **uma vez** na primeira carga (e via botão "Salvar Linha de Base" futuramente).
-
-**2. Refatorar `applyDailyLogsToProject`**:
-- Calcula como hoje, mas, em vez de só sobrescrever `task.duration`, popula também `task.current`:
-  - `current.startDate = baseline.startDate` (não muda por enquanto)
-  - `current.duration = recalculatedDuration`
-  - `current.endDate = startDate + recalculatedDuration` (dias úteis)
-  - `current.forecastEndDate`, `executedQuantityTotal`, `remainingQuantity`, `accumulatedDelayQuantity`, `physicalProgress`
-- Mantém `task.duration = recalculatedDuration` para CPM continuar propagando dependências no cronograma variável.
-
-**3. CPM** (`calculateCPM`): inalterado — opera sobre `duration`/`startDate` atuais (= cronograma variável). Como `baseline` é snapshot estático, não interfere.
-
-**4. Pipeline** (`src/pages/Index.tsx`):
-```
-calculateCPM(applyDailyLogsToProject(applyRupToProject(captureBaseline(rawProject))))
-```
-
-## UI — Gantt (`src/components/GanttChart.tsx`)
-
-Para cada tarefa com `baseline`:
-- **Sombra de fundo** (faixa cinza-clara translúcida) renderizada de `baseline.startDate` por `baseline.duration` dias — atrás da barra principal.
-- **Barra principal** continua usando `current` (= `task.duration` atual).
-- Tooltip ganha linhas: **Base:** `baseline.startDate → baseline.endDate` · **Previsto:** `current.startDate → current.forecastEndDate` · **Desvio:** `current.duration − baseline.duration` dias.
-
-Implementação: na função que renderiza barras, adicionar antes do `<div>` da barra um `<div className="absolute bg-muted/40 border border-dashed">` posicionado pelo `baseline`.
-
-## UI — EAP (`src/components/TaskList.tsx`)
-
-Adicionar (apenas quando `baseline` existir e divergir de `current`):
-- Tooltip/popover na coluna de duração mostrando:
-  - **Início base** / **Fim base**
-  - **Fim previsto**
-  - **Desvio** (dias, com cor: verde ≤0, amarelo ≤2, vermelho >2)
-  - **Saldo acumulado** (un)
-  - **Executado acumulado** (un)
-- Indicador compacto inline: pequeno badge `Δ +Nd` ao lado da duração quando `current.duration ≠ baseline.duration`.
-
-Painel `DailyLogsPanel` (`src/components/DailyLogsPanel.tsx`): cabeçalho ganha resumo "Base: Xd · Previsto: Yd · Desvio: ±Zd".
+Trocar o `whitespace-nowrap` do tooltip por `whitespace-pre-line` e juntar partes com `\n` quando `task.baseline || task.dailyLogs?.length` para legibilidade multilinha (mantendo single-line para tarefas simples).
 
 ## Garantias
-- `baseline` é gravada **uma vez** e nunca alterada por logs / drag / resize / RUP.
-- Drag/resize do Gantt continuam editando `startDate`/`duration` (cronograma variável). Para "redefinir base", ficará disponível futuramente um botão dedicado (fora deste escopo).
-- Tarefas sem `quantity` ou sem logs: `current` espelha `baseline` (sem desvio).
-- `isManual`, RUP, CPM, dependências, drag e setas permanecem intactos.
-- Persistência via `localStorage` cobre `baseline` e `current` automaticamente.
+- Marcadores são puramente visuais (camada extra) — não afetam drag, resize, dependências, CPM ou propagação.
+- Sem mudança em `types.ts`, `calculations.ts` ou `Index.tsx` (os campos `dailyLogs`, `executedQuantityTotal`, `remainingQuantity` já existem).
+- Tarefas sem `dailyLogs` continuam idênticas ao comportamento atual.
+- Baseline shadow (já existente) permanece atrás; barra atual permanece principal.
 
 ## Resultado
-No Gantt: barra colorida (previsto) sobre faixa cinza pontilhada (base) — comparação visual imediata. Na EAP: tooltip e badge mostrando desvio, executado e saldo. A baseline congela o plano original; o cronograma variável evolui com o apontamento diário.
+Cada tarefa exibirá: faixa pontilhada (base) ▪ barra colorida (atual/reprogramada) ▪ pequenos blocos coloridos abaixo nos dias com apontamento real. Tooltip mostrará Base, Previsto, Executado, Restante e lista de dias trabalhados.
