@@ -50,15 +50,51 @@ export default function DailyLogsPanel({ task, onChange }: DailyLogsPanelProps) 
     onChange(logs.filter(l => l.id !== id));
   };
 
-  // Linhas com saldo acumulado
+  // Linhas: saldo dia, saldo acumulado, executado acumulado, falta executar
   let acc = 0;
-  const rows = [...logs]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map(l => {
-      const delta = (l.plannedQuantity || 0) - (l.actualQuantity || 0);
-      acc += delta;
-      return { ...l, delta, accumulated: acc, status: statusForDelta(delta, l.plannedQuantity || 0) };
-    });
+  let execAcc = 0;
+  const totalQty = task.quantity || 0;
+  const sortedLogs = [...logs].sort((a, b) => a.date.localeCompare(b.date));
+  const rows = sortedLogs.map(l => {
+    const planned = l.plannedQuantity || 0;
+    const actual = l.actualQuantity || 0;
+    const delta = planned - actual;
+    acc += delta;
+    execAcc += actual;
+    const remainingAfter = totalQty > 0 ? Math.max(totalQty - execAcc, 0) : 0;
+    return {
+      ...l,
+      delta,
+      accumulated: acc,
+      executedAcc: execAcc,
+      remainingAfter,
+      status: statusForDelta(delta, planned),
+    };
+  });
+
+  // Preview em tempo real do "Previsto" — atualiza imediatamente ao digitar realizado
+  const previewRemaining = totalQty > 0 ? Math.max(totalQty - execAcc, 0) : 0;
+  const previewRemainingDuration = plannedDailyProduction > 0
+    ? Math.ceil(previewRemaining / plannedDailyProduction)
+    : 0;
+  const previewStartDate = task.current?.startDate ?? task.startDate;
+  const lastLogDate = sortedLogs.length > 0 ? sortedLogs[sortedLogs.length - 1].date : previewStartDate;
+  const elapsedDays = sortedLogs.length > 0
+    ? Math.max(1, Math.ceil((new Date(lastLogDate).getTime() - new Date(previewStartDate).getTime()) / 86400000) + 1)
+    : (task.current?.duration ?? task.duration);
+  const previewDuration = sortedLogs.length === 0
+    ? (task.current?.duration ?? task.duration)
+    : previewRemaining <= 0
+      ? elapsedDays
+      : elapsedDays + previewRemainingDuration;
+  const previewEndDate = (() => {
+    if (sortedLogs.length === 0) {
+      return task.current?.forecastEndDate ?? task.current?.endDate ?? task.startDate;
+    }
+    const base = new Date(lastLogDate);
+    base.setDate(base.getDate() + (previewRemaining <= 0 ? 0 : previewRemainingDuration));
+    return base.toISOString().split('T')[0];
+  })();
 
   const accStatus = statusForDelta(task.accumulatedDelayQuantity || 0, plannedDailyProduction);
   const unit = task.unit || 'un';
@@ -76,9 +112,9 @@ export default function DailyLogsPanel({ task, onChange }: DailyLogsPanelProps) 
             <span className="font-semibold text-muted-foreground uppercase tracking-wider">Cronograma:</span>
             <span className="text-muted-foreground">Base: <strong className="text-foreground">{task.baseline.duration}d</strong> ({new Date(task.baseline.startDate).toLocaleDateString('pt-BR')} → {new Date(task.baseline.endDate).toLocaleDateString('pt-BR')})</span>
             <span className="text-muted-foreground">·</span>
-            <span className="text-muted-foreground">Previsto: <strong className="text-primary">{task.current?.duration ?? task.duration}d</strong> ({new Date(task.current?.startDate ?? task.startDate).toLocaleDateString('pt-BR')} → {new Date(task.current?.forecastEndDate ?? task.current?.endDate ?? task.startDate).toLocaleDateString('pt-BR')})</span>
+            <span className="text-muted-foreground">Previsto: <strong className="text-primary">{previewDuration}d</strong> ({new Date(previewStartDate).toLocaleDateString('pt-BR')} → {new Date(previewEndDate).toLocaleDateString('pt-BR')})</span>
             {(() => {
-              const dev = (task.current?.duration ?? task.duration) - task.baseline.duration;
+              const dev = previewDuration - task.baseline.duration;
               if (dev === 0) return null;
               const cls = dev <= 0 ? 'text-success' : dev <= 2 ? 'text-warning' : 'text-destructive';
               return <span className={`font-bold ${cls}`}>· Desvio: {dev > 0 ? '+' : ''}{dev}d</span>;
@@ -113,12 +149,13 @@ export default function DailyLogsPanel({ task, onChange }: DailyLogsPanelProps) 
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-2 text-[10px] font-semibold text-muted-foreground uppercase">
+        <div className="grid grid-cols-8 gap-2 text-[10px] font-semibold text-muted-foreground uppercase">
           <div>Data</div>
           <div className="text-center">Meta ({unit})</div>
           <div className="text-center">Realizado ({unit})</div>
           <div className="text-center">Saldo Dia</div>
           <div className="text-center">Saldo Acum.</div>
+          <div className="text-center">Falta Executar</div>
           <div>Obs.</div>
           <div className="text-center">Ação</div>
         </div>
@@ -132,7 +169,7 @@ export default function DailyLogsPanel({ task, onChange }: DailyLogsPanelProps) 
         {rows.map(row => (
           <div
             key={row.id}
-            className={`grid grid-cols-7 gap-2 text-[11px] items-center py-1 px-2 rounded ${STATUS_BG[row.status]}`}
+            className={`grid grid-cols-8 gap-2 text-[11px] items-center py-1 px-2 rounded ${STATUS_BG[row.status]}`}
           >
             <input
               type="date"
@@ -161,6 +198,9 @@ export default function DailyLogsPanel({ task, onChange }: DailyLogsPanelProps) 
               {row.delta.toFixed(1)}
             </div>
             <div className="text-center font-bold">{row.accumulated.toFixed(1)}</div>
+            <div className={`text-center font-bold ${row.remainingAfter <= 0 ? 'text-success' : ''}`} title={`Falta executar após este lançamento: ${row.remainingAfter.toFixed(1)} ${unit}`}>
+              {row.remainingAfter.toFixed(1)} {unit}
+            </div>
             <input
               type="text"
               value={row.notes || ''}
