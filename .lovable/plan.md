@@ -1,86 +1,86 @@
 
 ## Objetivo
-Adicionar uma camada de **apontamento diário de produção** que registra execução real por dia, calcula defasagem, propaga saldo, recalcula a duração restante e ajusta a previsão de término — refletindo no Gantt sem quebrar RUP, CPM, dependências, drag e resize.
+Separar **linha de base (fixa)** e **cronograma variável (recalculado pela execução)** em cada tarefa, permitindo comparar planejado vs previsto no Gantt e na EAP.
 
 ## Modelagem (`src/types/project.ts`)
 
-Nova interface:
+Adicionar dois sub-objetos opcionais em `Task`:
+
 ```ts
-export interface DailyProductionLog {
-  id: string;
-  date: string;            // ISO yyyy-mm-dd
-  plannedQuantity: number; // meta do dia (snapshot da produção diária planejada)
-  actualQuantity: number;  // executado no dia
-  notes?: string;
+export interface TaskBaseline {
+  startDate: string;
+  duration: number;
+  endDate: string;
+  plannedDailyProduction?: number;
+  quantity?: number;
+  capturedAt: string; // ISO timestamp
 }
+
+export interface TaskCurrent {
+  startDate: string;
+  duration: number;
+  endDate: string;
+  forecastEndDate?: string;
+  executedQuantityTotal?: number;
+  remainingQuantity?: number;
+  accumulatedDelayQuantity?: number;
+  physicalProgress?: number;
+}
+
+// em Task:
+baseline?: TaskBaseline;
+current?: TaskCurrent;
 ```
 
-Novos campos opcionais em `Task` (todos derivados, salvo `dailyLogs`):
-- `dailyLogs?: DailyProductionLog[]`
-- `executedQuantityTotal?: number`
-- `remainingQuantity?: number`
-- `accumulatedDelayQuantity?: number` (positivo = atraso)
-- `recalculatedDuration?: number`
-- `forecastEndDate?: string`
-- `physicalProgress?: number` (% real = executado/quantidade)
+Os campos atuais (`startDate`, `duration`, `dailyLogs`, etc.) continuam — `baseline` e `current` são camadas derivadas/snapshot.
 
-Nada disso quebra estruturas existentes (campos opcionais).
+## Lógica (`src/lib/calculations.ts`)
 
-## Cálculos (`src/lib/calculations.ts`)
+**1. `captureBaseline(project)`** (novo): para toda tarefa sem `baseline`, grava snapshot com `startDate`, `duration`, `endDate = start + duration`, `plannedDailyProduction = quantity/duration`, `quantity`, `capturedAt = now`. Roda **uma vez** na primeira carga (e via botão "Salvar Linha de Base" futuramente).
 
-Nova função `applyDailyLogsToProject(project)`:
-- Para cada tarefa com `quantity > 0`:
-  - `plannedDailyProduction = quantity / duration`
-  - `executedQuantityTotal = Σ actualQuantity`
-  - `remainingQuantity = max(0, quantity - executedQuantityTotal)`
-  - `accumulatedDelayQuantity = Σ (plannedQuantity − actualQuantity)` dos logs
-  - `daysConsumed = nº de logs`
-  - `remainingDuration = ceil(remainingQuantity / plannedDailyProduction)`
-  - `recalculatedDuration = daysConsumed + remainingDuration`
-  - `forecastEndDate = startDate + recalculatedDuration` (em dias úteis usando `calcularDiasUteis`/feriados, consistente com o cronograma)
-  - `physicalProgress = min(100, executedQuantityTotal / quantity * 100)`
-  - Se `dailyLogs` existir e `!isManual`, **ajustar `duration = recalculatedDuration`** para que CPM e Gantt expandam/encolham automaticamente.
-  - Atualizar `percentComplete = physicalProgress` (mantendo behavior legado quando não há logs).
+**2. Refatorar `applyDailyLogsToProject`**:
+- Calcula como hoje, mas, em vez de só sobrescrever `task.duration`, popula também `task.current`:
+  - `current.startDate = baseline.startDate` (não muda por enquanto)
+  - `current.duration = recalculatedDuration`
+  - `current.endDate = startDate + recalculatedDuration` (dias úteis)
+  - `current.forecastEndDate`, `executedQuantityTotal`, `remainingQuantity`, `accumulatedDelayQuantity`, `physicalProgress`
+- Mantém `task.duration = recalculatedDuration` para CPM continuar propagando dependências no cronograma variável.
 
-Pipeline em `src/pages/Index.tsx`:
+**3. CPM** (`calculateCPM`): inalterado — opera sobre `duration`/`startDate` atuais (= cronograma variável). Como `baseline` é snapshot estático, não interfere.
+
+**4. Pipeline** (`src/pages/Index.tsx`):
 ```
-calculateCPM(applyDailyLogsToProject(applyRupToProject(rawProject)))
+calculateCPM(applyDailyLogsToProject(applyRupToProject(captureBaseline(rawProject))))
 ```
-
-Como `duration` é recalculada antes do CPM, dependências TI/II/TT/IT propagarão automaticamente.
-
-## UI — EAP (`src/components/TaskList.tsx`)
-
-1. **Indicadores na linha da tarefa:**
-   - Badge de saldo acumulado (verde / amarelo / vermelho conforme `accumulatedDelayQuantity` vs threshold = `plannedDailyProduction`).
-   - Mostrar `forecastEndDate` ao lado da data planejada quando divergir.
-   - Substituir % planejado por % físico real quando houver logs.
-
-2. **Painel expansível de Apontamento Diário** (novo botão ao lado do RUP, ícone `ClipboardList`):
-   - Tabela: Data | Meta | Realizado | Saldo Dia | Saldo Acumulado | Obs.
-   - Linhas coloridas (verde/amarelo/vermelho) por `dailyDelta`.
-   - Botão **"+ Lançamento"**: abre linha nova preenchendo `date = hoje`, `plannedQuantity = plannedDailyProduction`, `actualQuantity = 0`.
-   - Editar/excluir lançamento inline; ao salvar dispara `onProjectChange` que recalcula tudo.
 
 ## UI — Gantt (`src/components/GanttChart.tsx`)
 
-- Usar `recalculatedDuration` (já aplicada a `duration`) → barra estende/encolhe sozinha.
-- Tooltip da barra: mostrar **Previsão**, **Saldo acumulado**, **% físico real**.
-- Marcador visual (linha pontilhada na ponta direita da barra original) indicando `forecastEndDate` quando diferente do planejado original — usaremos `manualDuration`/snapshot armazenado no primeiro log para referência.
+Para cada tarefa com `baseline`:
+- **Sombra de fundo** (faixa cinza-clara translúcida) renderizada de `baseline.startDate` por `baseline.duration` dias — atrás da barra principal.
+- **Barra principal** continua usando `current` (= `task.duration` atual).
+- Tooltip ganha linhas: **Base:** `baseline.startDate → baseline.endDate` · **Previsto:** `current.startDate → current.forecastEndDate` · **Desvio:** `current.duration − baseline.duration` dias.
 
-## Cores de status diário
-- `dailyDelta ≤ 0` → verde
-- `0 < dailyDelta ≤ 20% da meta` → amarelo
-- `dailyDelta > 20%` → vermelho
-- Mesma escala aplicada ao badge de saldo acumulado da tarefa.
+Implementação: na função que renderiza barras, adicionar antes do `<div>` da barra um `<div className="absolute bg-muted/40 border border-dashed">` posicionado pelo `baseline`.
+
+## UI — EAP (`src/components/TaskList.tsx`)
+
+Adicionar (apenas quando `baseline` existir e divergir de `current`):
+- Tooltip/popover na coluna de duração mostrando:
+  - **Início base** / **Fim base**
+  - **Fim previsto**
+  - **Desvio** (dias, com cor: verde ≤0, amarelo ≤2, vermelho >2)
+  - **Saldo acumulado** (un)
+  - **Executado acumulado** (un)
+- Indicador compacto inline: pequeno badge `Δ +Nd` ao lado da duração quando `current.duration ≠ baseline.duration`.
+
+Painel `DailyLogsPanel` (`src/components/DailyLogsPanel.tsx`): cabeçalho ganha resumo "Base: Xd · Previsto: Yd · Desvio: ±Zd".
 
 ## Garantias
-- `dailyLogs` opcional → tarefas sem logs comportam-se exatamente como hoje.
-- `isManual` continua intocável (apontamento ignora se usuário fixou duração manual).
-- RUP roda antes; apontamento sobrescreve `duration` apenas quando há logs.
-- CPM recebe a duração recalculada → dependências, datas finais e setas ficam consistentes.
-- Drag/resize do Gantt continuam editando `startDate`/`duration`; novos lançamentos disparam recálculo automático no próximo render.
-- Persistência automática via `localStorage` já existente cobre `dailyLogs`.
+- `baseline` é gravada **uma vez** e nunca alterada por logs / drag / resize / RUP.
+- Drag/resize do Gantt continuam editando `startDate`/`duration` (cronograma variável). Para "redefinir base", ficará disponível futuramente um botão dedicado (fora deste escopo).
+- Tarefas sem `quantity` ou sem logs: `current` espelha `baseline` (sem desvio).
+- `isManual`, RUP, CPM, dependências, drag e setas permanecem intactos.
+- Persistência via `localStorage` cobre `baseline` e `current` automaticamente.
 
-## Resultado esperado
-Cada tarefa expõe um diário de produção. Ao registrar a execução do dia, o sistema mostra defasagem, acumula saldo, recalcula duração restante, ajusta a previsão de término e move automaticamente as tarefas dependentes no Gantt.
+## Resultado
+No Gantt: barra colorida (previsto) sobre faixa cinza pontilhada (base) — comparação visual imediata. Na EAP: tooltip e badge mostrando desvio, executado e saldo. A baseline congela o plano original; o cronograma variável evolui com o apontamento diário.
