@@ -497,7 +497,7 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                               const rowTeam = getTeamDefinition(task.team);
                               return (
                             <div
-                              className={`grid gap-2 px-5 py-3 border-t border-border hover:brightness-110 transition-colors items-center ${
+                              className={`grid gap-2 px-5 py-3 border-t border-border hover:brightness-110 transition-colors items-start ${
                                 !rowTeam ? (isDelayed ? 'bg-destructive/5' : task.isCritical ? 'bg-destructive/[0.03]' : '') : ''
                               }`}
                               style={{ gridTemplateColumns: '36px 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr', ...(rowTeam ? { backgroundColor: rowTeam.bgColor, color: rowTeam.textColor } : {}) }}
