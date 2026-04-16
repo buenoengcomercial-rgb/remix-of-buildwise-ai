@@ -45,7 +45,8 @@ export function applyRupToProject(project: Project): Project {
 }
 
 /** Capture baseline (linha de base fixa) for tasks that don't yet have one.
- * Runs once on first load — baseline never changes after capture. */
+ * Runs once on first load — baseline never changes after capture.
+ * For RUP-mode tasks the baseline duration is anchored to the RUP calculation. */
 export function captureBaseline(project: Project): Project {
   const now = new Date().toISOString();
   return {
@@ -54,18 +55,55 @@ export function captureBaseline(project: Project): Project {
       ...p,
       tasks: p.tasks.map(t => {
         if (t.baseline) return t;
+        const isRup = (t.durationMode || 'manual') === 'rup';
+        const baseDuration = isRup
+          ? calculateRupDuration(t).duration
+          : t.duration;
         const start = new Date(t.startDate);
         const end = new Date(start);
-        end.setDate(end.getDate() + t.duration);
+        end.setDate(end.getDate() + baseDuration);
         const baseline: TaskBaseline = {
           startDate: t.startDate,
-          duration: t.duration,
+          duration: baseDuration,
           endDate: end.toISOString().split('T')[0],
-          plannedDailyProduction: t.quantity && t.duration > 0 ? t.quantity / t.duration : undefined,
+          plannedDailyProduction: t.quantity && baseDuration > 0 ? t.quantity / baseDuration : undefined,
           quantity: t.quantity,
           capturedAt: now,
         };
         return { ...t, baseline };
+      }),
+    })),
+  };
+}
+
+/** Sync baseline endDate/duration with current RUP calculation for RUP-mode tasks.
+ * Manual-mode tasks keep their captured baseline untouched.
+ * Baseline startDate is preserved (the planning anchor). */
+export function syncBaselineWithRup(project: Project): Project {
+  return {
+    ...project,
+    phases: project.phases.map(p => ({
+      ...p,
+      tasks: p.tasks.map(t => {
+        if (!t.baseline) return t;
+        const isRup = (t.durationMode || 'manual') === 'rup';
+        if (!isRup) return t;
+        const rupDuration = calculateRupDuration(t).duration;
+        if (rupDuration === t.baseline.duration) return t;
+        const start = new Date(t.baseline.startDate);
+        const end = new Date(start);
+        end.setDate(end.getDate() + rupDuration);
+        return {
+          ...t,
+          baseline: {
+            ...t.baseline,
+            duration: rupDuration,
+            endDate: end.toISOString().split('T')[0],
+            plannedDailyProduction: t.quantity && rupDuration > 0
+              ? t.quantity / rupDuration
+              : t.baseline.plannedDailyProduction,
+          },
+        };
       }),
     })),
   };
