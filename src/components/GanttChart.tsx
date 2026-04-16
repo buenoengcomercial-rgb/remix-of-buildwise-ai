@@ -950,9 +950,9 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                 <PopoverTrigger asChild>
                                   <button className={`text-[9px] transition-colors text-center w-full leading-tight flex flex-col ${rowTeamDef ? 'hover:opacity-70' : 'hover:text-primary'}`}>
                                     {task.baseline && (
-                                      <span className={`text-[8px] ${rowTeamDef ? 'opacity-60' : 'text-muted-foreground'}`}>P: {formatDateFull(task.baseline.startDate)}</span>
+                                      <span className={`text-[8px] ${rowTeamDef ? 'opacity-60' : 'text-muted-foreground'}`}>Plan: {formatDateFull(task.baseline.startDate)}</span>
                                     )}
-                                    <span className={`${rowTeamDef ? '' : 'text-foreground'} font-medium`}>{task.baseline ? 'R: ' : ''}{formatDateFull(task.startDate)}</span>
+                                    <span className={`${rowTeamDef ? '' : 'text-foreground'} font-medium`}>{task.baseline ? 'Real: ' : ''}{formatDateFull(task.startDate)}</span>
                                   </button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
