@@ -751,7 +751,18 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
             <div className="w-3 h-3 rounded" style={{ background: 'hsl(var(--gantt-holiday-national))' }} /><span>Feriado Nac.</span>
             <div className="w-3 h-3 rounded" style={{ background: 'hsl(var(--gantt-holiday-local))' }} /><span>Feriado Local</span>
           </div>
-        </div>
+          <div className="flex items-center gap-3 text-[9px] text-muted-foreground flex-wrap">
+            <span className="font-medium">Equipes:</span>
+            {TEAM_CODES.map(code => {
+              const def = TEAM_DEFINITIONS[code];
+              return (
+                <div key={code} className="flex items-center gap-1">
+                  <div className="w-3 h-1.5 rounded-full" style={{ background: def.bgColor, border: `1px solid ${def.borderColor}` }} />
+                  <span>{def.label}</span>
+                </div>
+              );
+            })}
+          </div>
 
         <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
           <div className="flex">
