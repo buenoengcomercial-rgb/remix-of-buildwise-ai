@@ -7,7 +7,7 @@ import GanttChart from '@/components/GanttChart';
 import TaskList from '@/components/TaskList';
 import Purchases from '@/components/Purchases';
 import { Menu, X } from 'lucide-react';
-import { applyRupToProject, applyDailyLogsToProject, calculateCPM } from '@/lib/calculations';
+import { applyRupToProject, applyDailyLogsToProject, calculateCPM, captureBaseline } from '@/lib/calculations';
 
 const STORAGE_KEY = 'obra-project-data';
 
@@ -30,7 +30,7 @@ export default function Index() {
   }, [rawProject]);
 
   const project = useMemo(
-    () => calculateCPM(applyDailyLogsToProject(applyRupToProject(rawProject))),
+    () => calculateCPM(applyDailyLogsToProject(applyRupToProject(captureBaseline(rawProject)))),
     [rawProject]
   );
 
