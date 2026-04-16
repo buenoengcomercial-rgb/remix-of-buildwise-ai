@@ -1395,7 +1395,10 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                   />
 
                                   {/* Tooltip */}
-                                  <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-foreground text-background text-[9px] px-2 py-1 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-30 pointer-events-none">
+                                  {(() => {
+                                    const hasMulti = !!task.baseline || (task.dailyLogs?.length || 0) > 0;
+                                    return (
+                                  <div className={`absolute -top-10 left-1/2 -translate-x-1/2 bg-foreground text-background text-[9px] px-2 py-1 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity ${hasMulti ? 'whitespace-pre-line' : 'whitespace-nowrap'} z-30 pointer-events-none`}>
                                     {isResizing && resizeInfo
                                       ? `${resizeSide === 'left' ? 'Início' : 'Fim'}: ${resizeSide === 'left' ? resizeInfo.start : resizeInfo.end} | ${resizeInfo.duration} dias`
                                       : isDragging && dragDate
@@ -1419,14 +1422,25 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                             }
                                             if (dev !== 0) parts.push(`Desvio: ${dev > 0 ? '+' : ''}${dev}d`);
                                           }
+                                          const workedLogs = (task.dailyLogs || []).filter(l => l.actualQuantity > 0);
+                                          if (workedLogs.length > 0) {
+                                            const unit = task.unit || 'un';
+                                            if (task.executedQuantityTotal !== undefined) parts.push(`Executado: ${task.executedQuantityTotal} ${unit}`);
+                                            if (task.remainingQuantity !== undefined) parts.push(`Restante: ${task.remainingQuantity} ${unit}`);
+                                            const dates = workedLogs.map(l => new Date(l.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }));
+                                            const shown = dates.slice(0, 5).join(', ') + (dates.length > 5 ? '…' : '');
+                                            parts.push(`Dias trabalhados: ${shown}`);
+                                          }
                                           if (task.physicalProgress !== undefined && (task.dailyLogs?.length || 0) > 0) {
                                             parts.push(`Físico: ${task.physicalProgress.toFixed(1)}%`);
                                           }
                                           if (parts.length === 0) return `${task.percentComplete}% • ${task.duration}d`;
-                                          return parts.join(' • ');
+                                          return parts.join(hasMulti ? '\n' : ' • ');
                                         })()
                                     }
                                   </div>
+                                    );
+                                  })()}
                                 </div>
 
                                 {/* Label to the right of the bar */}
