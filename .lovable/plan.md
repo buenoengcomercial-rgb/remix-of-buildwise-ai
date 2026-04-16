@@ -1,39 +1,48 @@
 
-## Contexto
+## Diagnóstico
 
-A linha pontilhada de "dias trabalhados" já foi removida na rodada anterior. Restam então 2 ajustes do plano original ainda pendentes + legenda:
+### Bug 1 — Barra fica fixa ao arrastar
+A barra cheia renderizada usa `barLeft`/`barWidth` calculados a partir de `task.baseline` (planejado), mas o drag/resize só atualiza `currentLeft`/`currentWidth` (current). Como `handleMouseDown` está na barra cheia (baseline), o mouse "agarra" a barra mas ela não acompanha o cursor — apenas o **label à direita** (linha 1613, `currentLeft + currentWidth + 4`) se move.
 
-1. **Bug de fuso horário**: a barra cheia usa `new Date(task.baseline.startDate)` (linha 1483), que interpreta `'2026-05-14'` como UTC e desloca 1 dia no Brasil. Mesmo problema nos marcadores diários (linha 1454: `new Date(log.date)`).
-2. **Barra fininha (14px)**: pouco visível.
-3. **Sem legenda**: usuários não sabem o que cada elemento representa.
+### Bug 2 — "Linha vermelha" sem função
+Trata-se do `ring-1 ring-destructive/60` (linhas 1503–1504), aplicado quando `isLate` ou `bar.isCritical`. Visualmente parece uma borda/linha vermelha sobreposta. Sem função analítica clara — o atraso já é informado pelos marcadores diários e tooltip.
+
+### Falta: linha pontilhada grossa = real/previsto
+Hoje só temos a barra cheia (planejado) + marcadores diários (apontamento). Falta o elemento que represente o intervalo **real/previsto** (data atual de início → data prevista de fim), sobre o eixo central da barra.
 
 ## Mudanças (apenas em `src/components/GanttChart.tsx`)
 
-### A) Corrigir vínculo de datas (timezone-safe)
-- Linha 1454: `new Date(log.date)` → `parseISODateLocal(log.date)`
-- Linha 1483: `new Date(task.baseline.startDate)` → `parseISODateLocal(task.baseline.startDate)`
-- Verificar se `parseISODateLocal` já está importado de `./gantt/utils`; se não, adicionar ao import.
+### A) Corrigir o drag — barra cheia segue o cursor
+A barra cheia passa a representar **o que está sendo arrastado** (current/planejado corrente), pois é o plano editável. A baseline (snapshot original) será exibida separadamente como **moldura fina cinza** atrás, sem interatividade.
 
-Resultado: a barra cheia da tarefa "Suporte de Fixação" começa exatamente sob a coluna **14/05** e termina em **19/05**, sem deslocamento de 1 dia.
+- Linhas 1492–1499: trocar para `barLeft = currentLeft` e `barWidth = currentWidth` (a barra cheia volta a ser o atual editável).
+- Adicionar **antes** da barra cheia uma faixa fina cinza (3px, `top: 26`, `bg-muted-foreground/30`, `rounded`, sem eventos) usando as datas de `task.baseline` (se existir), com tooltip "Baseline: dd/mm→dd/mm". Isso preserva a referência visual do baseline sem confundir o drag.
 
-### B) Deixar a barra mais robusta
-- Linha 1497: `height: 14` → `height: 20`
-- Linha 1496: `top: 12` → `top: 9` (mantém centralização vertical num row de 32px: 9 + 20 = 29, sobra 3 acima e 3 abaixo)
-- Linha 1513: `opacity: isDragPropagated ? 0.75 : 0.85` → `opacity: isDragPropagated ? 0.85 : 0.95`
-- Linha 1471: marcadores diários `top: 28` → `top: 30` (para não colidir com a barra mais alta)
+### B) Remover a "linha vermelha" sem função
+- Linhas 1503–1504: remover as classes `ring-1 ring-destructive/40` (crítica) e `ring-1 ring-destructive/60` (late). Manter apenas `animate-pulse ring-2 ring-destructive` quando `hasViolation` (violação real de dependência) e `ring-2 ring-warning` para `noWorkDays` — esses têm função analítica.
 
-### C) Adicionar legenda visual
-Localizar o cabeçalho/legenda existente do Gantt (acima da grid) e acrescentar dois itens explicativos:
-- **▬** Barra cheia (cor da equipe) = planejado (baseline)
-- **■** Marcadores coloridos abaixo = meta vs realizado por dia (verde = ok, âmbar = leve atraso, vermelho = atraso significativo)
+### C) Adicionar linha pontilhada grossa = real/previsto
+Sobre o centro vertical da barra cheia, renderizar uma linha:
+- `borderTop: 3px dashed hsl(var(--foreground))` (grossa, neutra para não conflitar com cor da equipe)
+- `left = diffDays(projectStart, parseISODateLocal(task.current?.startDate || task.startDate)) * dayWidth`
+- `width = (task.current?.duration || task.duration) * dayWidth`
+- `top: 18` (centro vertical da barra de 20px que começa em `top: 9`)
+- `zIndex: 11` (acima da barra cheia, abaixo do tooltip)
+- `pointerEvents: 'none'` (não interfere no drag)
+- Tooltip nativo: `Real/Previsto: dd/mm → dd/mm (Xd)`
 
-Se houver hoje uma legenda só de equipes, adicionar uma seção compacta "Elementos do Gantt" ao lado.
+Quando real/previsto extrapola a baseline, a pontilhada visualmente "estoura" a barra cheia → atraso fica óbvio sem precisar de ring vermelho.
 
-## Resultado esperado em "Suporte de Fixação"
-- Barra cheia azul-Charlie alinhada exatamente em **14/05 → 19/05**
-- Altura visivelmente maior (20px) e mais opaca (0.95)
-- Marcadores diários (verde/âmbar/vermelho) logo abaixo, sem sobreposição
-- Legenda explicando o significado de cada elemento
+### D) Atualizar legenda
+- Remover item antigo "ring vermelho = atraso" se existir.
+- Adicionar: **┅** Linha pontilhada grossa = Real / Previsto (apontamento diário)
+- Manter: **▬** Barra cheia = Planejado corrente · **■** Marcadores = meta vs realizado por dia · faixa cinza fina = baseline original.
+
+## Resultado
+- Arrastar a barra agora **move a barra inteira** acompanhando o cursor (não só o texto).
+- Sem mais "linha vermelha" decorativa.
+- Linha pontilhada grossa central mostra real/previsto, extrapolando a barra quando há atraso.
+- Baseline preservada como faixa fina cinza de referência.
 
 ## Arquivo
 `src/components/GanttChart.tsx` (apenas)
