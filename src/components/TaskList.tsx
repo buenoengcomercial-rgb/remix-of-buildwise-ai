@@ -1,4 +1,5 @@
 import { Project, Task, LaborComposition } from '@/types/project';
+import { getTeamDefinition, TEAM_CODES, TeamCode } from '@/lib/teams';
 import { useState, useRef, useCallback } from 'react';
 import { ChevronDown, ChevronRight, User, Zap, Users, AlertTriangle, Plus, Copy, Trash2, Edit3, Check, X, Upload, FolderPlus, GripVertical } from 'lucide-react';
 import ImportTasksDialog from '@/components/ImportTasksDialog';
@@ -445,12 +446,36 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                               <div className="col-span-2 flex items-center gap-1 min-w-0">
                                 <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 cursor-grab active:cursor-grabbing flex-shrink-0" />
                                 {task.isCritical && <div className="w-1.5 h-1.5 rounded-full bg-destructive flex-shrink-0" />}
+                                {(() => {
+                                  const teamDef = getTeamDefinition(task.team);
+                                  if (teamDef) return (
+                                    <span
+                                      className="px-1.5 py-0.5 text-[8px] font-bold rounded-full flex-shrink-0"
+                                      style={{ background: teamDef.bgColor, color: teamDef.textColor, border: `1px solid ${teamDef.borderColor}` }}
+                                    >
+                                      {teamDef.label}
+                                    </span>
+                                  );
+                                  return null;
+                                })()}
                                 {isEditing ? (
-                                  <InlineInput
-                                    value={task.name}
-                                    onChange={v => updateTask(phase.id, task.id, { name: v })}
-                                    className="w-full"
-                                  />
+                                  <div className="flex items-center gap-1 w-full min-w-0">
+                                    <InlineInput
+                                      value={task.name}
+                                      onChange={v => updateTask(phase.id, task.id, { name: v })}
+                                      className="flex-1 min-w-0"
+                                    />
+                                    <select
+                                      value={task.team || ''}
+                                      onChange={e => updateTask(phase.id, task.id, { team: (e.target.value || undefined) as TeamCode | undefined })}
+                                      className="text-[9px] bg-transparent border border-border rounded px-1 py-0.5"
+                                    >
+                                      <option value="">Sem equipe</option>
+                                      {TEAM_CODES.map(code => (
+                                        <option key={code} value={code}>{getTeamDefinition(code)!.label}</option>
+                                      ))}
+                                    </select>
+                                  </div>
                                 ) : (
                                   <button onClick={() => setExpandedRup(showRup ? null : task.id)} className="text-xs font-medium text-foreground truncate text-left hover:text-primary transition-colors">
                                     {task.name}

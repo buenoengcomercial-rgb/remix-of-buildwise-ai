@@ -7,7 +7,8 @@ export interface LaborComposition {
 }
 
 export type DependencyType = 'TI' | 'II' | 'TT' | 'IT';
-export type TeamCode = 'alpha' | 'bravo';
+import type { TeamCode } from '@/lib/teams';
+export type { TeamCode } from '@/lib/teams';
 
 export interface TaskDependency {
   taskId: string;
