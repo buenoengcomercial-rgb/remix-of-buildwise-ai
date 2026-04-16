@@ -1,4 +1,5 @@
 import { Project, Task, ViewMode, DependencyType, TaskDependency } from '@/types/project';
+import { getTeamDefinition, TEAM_DEFINITIONS, TEAM_CODES, TeamCode } from '@/lib/teams';
 import { getAllTasks } from '@/data/sampleProject';
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { ChevronDown, ChevronRight, AlertTriangle, Flag } from 'lucide-react';
@@ -1241,7 +1242,14 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                       ? 'hsl(var(--gantt-bar-complete))'
                                       : bar.isCritical
                                       ? 'hsl(var(--gantt-critical))'
-                                      : 'hsl(var(--gantt-bar))',
+                                      : (() => {
+                                          const teamDef = getTeamDefinition(task.team);
+                                          return teamDef ? teamDef.bgColor : 'hsl(var(--gantt-bar))';
+                                        })(),
+                                    border: (() => {
+                                      const teamDef = getTeamDefinition(task.team);
+                                      return teamDef ? `1px solid ${teamDef.borderColor}` : 'none';
+                                    })(),
                                     opacity: isDragPropagated ? 0.75 : 0.85,
                                     transition: (isDragging || isResizing || isDragPropagated) ? 'none' : 'left 0.2s ease, width 0.2s ease',
                                     zIndex: 10,
