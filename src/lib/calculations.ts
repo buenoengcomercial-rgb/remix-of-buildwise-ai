@@ -149,6 +149,7 @@ export function applyDailyLogsToProject(project: Project): Project {
         const newDuration = shouldOverrideDuration ? recalculatedDuration : t.duration;
         const currentEnd = new Date(startDate);
         currentEnd.setDate(currentEnd.getDate() + newDuration);
+        const currentEndDate = currentEnd.toISOString().split('T')[0];
 
         return {
           ...t,
@@ -164,7 +165,8 @@ export function applyDailyLogsToProject(project: Project): Project {
           current: {
             startDate: t.startDate,
             duration: newDuration,
-            endDate: currentEnd.toISOString().split('T')[0],
+            // Sync end with forecast so Gantt + panel show same date
+            endDate: forecastEndDate,
             forecastEndDate,
             executedQuantityTotal,
             remainingQuantity,
