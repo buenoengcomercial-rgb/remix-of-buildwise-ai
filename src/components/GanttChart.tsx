@@ -782,7 +782,9 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
         <div className="flex items-center gap-3 text-[9px] text-muted-foreground flex-wrap">
           <div className="flex items-center gap-2 mr-2 border-r border-border pr-3">
             <span className="font-medium">Elementos:</span>
-            <div className="flex items-center gap-1"><div className="w-4 h-2 rounded" style={{ background: 'hsl(var(--gantt-bar))', opacity: 0.95 }} /> <span>Barra cheia = Planejado (baseline)</span></div>
+            <div className="flex items-center gap-1"><div className="w-4 h-2 rounded" style={{ background: 'hsl(var(--gantt-bar))', opacity: 0.95 }} /> <span>Barra cheia = Planejado corrente</span></div>
+            <div className="flex items-center gap-1"><div className="w-4 h-0" style={{ borderTop: '3px dashed hsl(var(--foreground))' }} /> <span>Pontilhada = Real / Previsto</span></div>
+            <div className="flex items-center gap-1"><div className="w-4 h-[3px] rounded bg-muted-foreground/30" /> <span>Faixa cinza = Baseline original</span></div>
             <div className="flex items-center gap-1">
               <span className="flex gap-0.5">
                 <span className="w-1 h-1.5 rounded-sm bg-emerald-500" />
