@@ -549,8 +549,11 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
                               {/* Gargalo */}
                               <div className="">
                                 {task.bottleneckRole ? (
-                                  <span className={`text-[9px] px-1 py-0.5 rounded font-medium truncate block text-center ${rowTeam ? 'bg-white/20' : 'bg-warning/15 text-warning'}`}>
-                                    {task.bottleneckRole}
+                                  <span
+                                    title={task.bottleneckRole}
+                                    className={`text-[9px] px-1 py-0.5 rounded font-medium truncate block text-center ${rowTeam ? 'bg-white/20' : 'bg-warning/15 text-warning'}`}
+                                  >
+                                    {abbreviateRole(task.bottleneckRole)}
                                   </span>
                                 ) : <span className={`text-[10px] ${rowTeam ? 'opacity-60' : 'text-muted-foreground'}`}>—</span>}
                               </div>
