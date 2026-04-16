@@ -341,7 +341,53 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
     setTimeout(() => runPropagation(taskId), 0);
   };
 
-  // Chapter date change — distribute tasks proportionally
+  // Edit baseline (Plan) dates — respects RUP duration mode
+  const handleBaselineDateChange = (taskId: string, field: 'start' | 'end', date: Date | undefined) => {
+    if (!date || !onProjectChange) return;
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || !task.baseline) return;
+
+    const isRup = (task.durationMode || 'manual') === 'rup';
+    const rupDuration = isRup ? calculateRupDuration(task).duration : task.baseline.duration;
+
+    let newStart: Date;
+    let newDuration: number;
+    let newEnd: Date;
+
+    if (field === 'start') {
+      newStart = date;
+      if (isRup) {
+        newDuration = rupDuration;
+        newEnd = addDays(newStart, newDuration);
+      } else {
+        // Manual: keep duration, shift end
+        newDuration = task.baseline.duration;
+        newEnd = addDays(newStart, newDuration);
+      }
+    } else {
+      newEnd = date;
+      if (isRup) {
+        // RUP: keep duration, shift start backward
+        newDuration = rupDuration;
+        newStart = addDays(newEnd, -newDuration);
+      } else {
+        // Manual: keep start, recalc duration
+        newStart = new Date(task.baseline.startDate);
+        newDuration = Math.max(1, diffDays(newStart, newEnd));
+        newEnd = addDays(newStart, newDuration);
+      }
+    }
+
+    const newBaseline = {
+      ...task.baseline,
+      startDate: dateToISO(newStart),
+      duration: newDuration,
+      endDate: dateToISO(newEnd),
+      plannedDailyProduction: task.quantity && newDuration > 0 ? task.quantity / newDuration : task.baseline.plannedDailyProduction,
+    };
+
+    updateTask(taskId, { baseline: newBaseline });
+  };
   const handleChapterDateChange = (phaseId: string, field: 'start' | 'end', date: Date | undefined) => {
     if (!date || !onProjectChange) return;
     const phase = project.phases.find(p => p.id === phaseId);
