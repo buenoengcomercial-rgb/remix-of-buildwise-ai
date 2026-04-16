@@ -14,6 +14,14 @@ interface TaskListProps {
 const DAILY_HOURS = 8;
 
 /** Encurta nomes de cargos longos (ex: SINAPI) para caber na coluna de gargalo. */
+/** Calcula a produção diária de uma tarefa: quantidade total / duração. */
+function getDailyProduction(task: Task): string {
+  if (!task.quantity || !task.duration || task.duration <= 0) return '—';
+  const value = task.quantity / task.duration;
+  const formatted = Number.isInteger(value) ? value.toString() : value.toFixed(1);
+  return `${formatted} ${task.unit || ''}/dia`.trim();
+}
+
 function abbreviateRole(role: string): string {
   if (!role) return '';
   const cleaned = role
