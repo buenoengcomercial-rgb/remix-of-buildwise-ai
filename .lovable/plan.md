@@ -1,44 +1,46 @@
 
+Objetivo: corrigir o erro de interpretação anterior e ajustar exatamente o que você pediu em `src/components/GanttChart.tsx`.
 
-## Plano: Remover coluna Duração, redistribuir espaços e reposicionar badge
+1. Restaurar a coluna de Duração
+- Recolocar a coluna de duração na sidebar, entre `Fim` e `% Concl.`
+- Não usar mais o sufixo `d`
+- Mostrar apenas o número da duração, sem letra e sem afastamento artificial
+- Reaproveitar a lógica já existente de duração manual/RUP, sem mudar cálculo interno
 
-### 1. Remover coluna DURAÇÃO e redistribuir larguras
-Em `src/components/GanttChart.tsx`:
+2. Reorganizar as larguras para caber tudo sem esconder informação
+- Atualizar `sidebarCols` para voltar a ter 10 colunas
+- Redistribuir espaço para:
+  - `Início`
+  - `Fim`
+  - `Duração`
+  - `% Concl.`
+  - `Dep`
+  - `Tipo`
+  - `Equipe`
+- Aplicar o mesmo grid no header e nas linhas das tarefas para manter alinhamento perfeito
 
-| Coluna | Antes | Depois |
-|---|---|---|
-| Drag handle | 24px | 24px |
-| Nome (EAP) | 1fr | 1fr |
-| Equipe | 58px | 36px |
-| Crítica (!) | 20px | 22px |
-| Início | 88px | 92px |
-| Fim | 88px | 92px |
-| ~~Duração~~ | ~~58px~~ | **removida** |
-| % Concl. | 48px | 56px |
-| Dep | 48px | 52px |
-| Ações | 56px | 60px |
+3. Voltar a célula de duração nas linhas
+- Recriar a célula visual da duração que foi removida
+- Exibir valor limpo e centralizado
+- Garantir que números como `1`, `12`, `120` apareçam completos
 
-- `sidebarCols`: `'24px 1fr 36px 22px 92px 92px 56px 52px 60px'` (9 colunas)
-- `sidebarWidth`: `562` (era 620 — libera 58px da Duração e redistribui)
-- Remover header "Duração", célula do input de duração + sufixo "d" das linhas de tarefa, e célula equivalente das linhas de fase
-- Duração continua calculada internamente (CPM/datas) — apenas sai da UI
+4. Corrigir a posição do percentual no Gantt
+- Manter o cálculo dinâmico com base no último apontamento diário real
+- Tirar o badge de cima da linha tracejada
+- Posicionar o badge à direita do ponto do último apontamento, com folga horizontal
+- Alinhar o badge na mesma altura da linha tracejada/barra, não acima dela
+- Manter a regra de esconder quando não houver apontamento real
 
-### 2. Reposicionar badge de % no Gantt
-- Posição X: `left = (offsetDays * dayWidth) + 8px` (afasta horizontalmente do ponto do último apontamento)
-- Posição Y: `top: -16px` (eleva acima da linha tracejada e da barra)
-- Remover `transform: translateX(-50%)` — ancora pela borda esquerda
-- Manter cores semânticas (azul/verde no prazo, vermelho atrasado) e `drop-shadow` branco
-- Esconder badge se não houver apontamentos diários
+5. Ajuste fino visual
+- Validar que o percentual não encoste na barra nem na data
+- Garantir leitura limpa tanto em tarefas normais quanto atrasadas
+- Preservar a semântica de cores atual
 
-### 3. Espaçamento vertical das linhas
-- Manter altura atual das linhas (sem alteração) — o problema relatado é horizontal
-- Garantir que header, linhas de fase e linhas de tarefa usem o **mesmo** novo `sidebarCols` para alinhamento perfeito
+Resultado esperado
+- A coluna de duração volta a aparecer
+- O `d` some, ficando só o número
+- Nenhum valor fica cortado
+- O percentual no gráfico fica ao lado direito do último apontamento diário, e não acima
 
-### Arquivo afetado
-- `src/components/GanttChart.tsx` (somente)
-
-### Resultado esperado
-- Sidebar mais limpa sem coluna Duração e sem o "d" desalinhado
-- Colunas Início/Fim/% Concl./Dep/Ações com folga visual extra
-- Badge de % afastado e elevado em relação ao último apontamento, sem poluir barra nem linha tracejada
-
+Arquivo afetado
+- `src/components/GanttChart.tsx`
