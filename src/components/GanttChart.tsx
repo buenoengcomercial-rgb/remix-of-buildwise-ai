@@ -1001,7 +1001,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                   );
                                   const realLine = hasRealData ? (
                                     <span
-                                      className="text-[9px] font-semibold leading-none"
+                                      className="text-[9px] font-medium leading-none"
                                       style={{ color: '#1e40af', filter: 'drop-shadow(0 0 1px white)' }}
                                     >
                                       Real: {formatDateFull(task.current!.startDate)}
