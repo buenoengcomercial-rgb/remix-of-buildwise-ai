@@ -12,7 +12,7 @@ import DependencyArrows from './gantt/DependencyArrows';
 import ConfiguracaoObra, { ObraConfig, loadObraConfig } from './ConfiguracaoObra';
 import { DAY_WIDTH, ROW_HEIGHT, FlatTask } from './gantt/types';
 import { addDays, diffDays, formatDateFull, formatDateShort, getEndDate, MONTH_NAMES_PT, dateToISO, toISODateLocal, parseISODateLocal } from './gantt/utils';
-import { getFeriadosMap, FeriadoInfo, calcularDiasUteis } from '@/lib/feriados';
+import { getFeriadosMap, FeriadoInfo, calcularDiasUteis, isDiaUtil } from '@/lib/feriados';
 import { calculateRupDuration, propagateAllDependencies, checkDependencyViolation } from '@/lib/calculations';
 import { toast } from 'sonner';
 
@@ -984,8 +984,10 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                               <div className="flex flex-col gap-0.5">
                                 {(() => {
                                   const hasLogs = (task.dailyLogs?.length ?? 0) > 0;
+                                  const startNonUtil = !isDiaUtil(parseISODateLocal(task.startDate), obraConfig.uf, obraConfig.municipio, obraConfig.trabalhaSabado);
                                   const labelEl = (
-                                    <span className={`text-[9px] ${rowTeamDef ? '' : 'text-foreground'} font-medium`}>
+                                    <span className={`text-[9px] ${rowTeamDef ? '' : 'text-foreground'} font-medium inline-flex items-center justify-center gap-0.5`}>
+                                      {startNonUtil && <AlertTriangle className="w-2.5 h-2.5 text-warning" aria-label="Início em dia não útil" />}
                                       {formatDateFull(task.startDate)}
                                     </span>
                                   );
@@ -1025,8 +1027,10 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                               <div className="flex flex-col gap-0.5">
                                 {(() => {
                                   const hasLogs = (task.dailyLogs?.length ?? 0) > 0;
+                                  const endNonUtil = !isDiaUtil(parseISODateLocal(endDate), obraConfig.uf, obraConfig.municipio, obraConfig.trabalhaSabado);
                                   const labelEl = (
-                                    <span className={`text-[9px] ${rowTeamDef ? '' : 'text-foreground'} font-medium`}>
+                                    <span className={`text-[9px] ${rowTeamDef ? '' : 'text-foreground'} font-medium inline-flex items-center justify-center gap-0.5`}>
+                                      {endNonUtil && <AlertTriangle className="w-2.5 h-2.5 text-warning" aria-label="Fim em dia não útil" />}
                                       {formatDateFull(endDate)}
                                     </span>
                                   );
