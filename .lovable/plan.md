@@ -1,48 +1,100 @@
 
+## Objetivo
+
+Corrigir a propagação de dependências para que sucessoras se movam **em tempo real** junto com a predecessora arrastada — tanto para frente quanto para trás — independente de violação.
+
 ## Diagnóstico
 
-### Bug 1 — Barra fica fixa ao arrastar
-A barra cheia renderizada usa `barLeft`/`barWidth` calculados a partir de `task.baseline` (planejado), mas o drag/resize só atualiza `currentLeft`/`currentWidth` (current). Como `handleMouseDown` está na barra cheia (baseline), o mouse "agarra" a barra mas ela não acompanha o cursor — apenas o **label à direita** (linha 1613, `currentLeft + currentWidth + 4`) se move.
+### `lib/calculations.ts` — `propagateAllDependencies`
+Hoje só recalcula a sucessora **quando há violação** (`if (succStart < predEnd)` etc). Isso significa:
+- Arrastar predecessora **para frente** → empurra sucessora ✅
+- Arrastar predecessora **para trás** → sucessora fica parada ❌ (gera gap)
+- Arrastar sucessora para perto da predecessora → não "cola" ❌
 
-### Bug 2 — "Linha vermelha" sem função
-Trata-se do `ring-1 ring-destructive/60` (linhas 1503–1504), aplicado quando `isLate` ou `bar.isCritical`. Visualmente parece uma borda/linha vermelha sobreposta. Sem função analítica clara — o atraso já é informado pelos marcadores diários e tooltip.
+### `GanttChart.tsx` — `computeDragPropagation`
+Já existe e é chamada durante o drag, populando `dragTempTasks`. Funciona em conjunto com `propagateAllDependencies`, então herda o mesmo bug: como a função interna só propaga em violação, as sucessoras só "andam" no preview quando empurradas para frente.
 
-### Falta: linha pontilhada grossa = real/previsto
-Hoje só temos a barra cheia (planejado) + marcadores diários (apontamento). Falta o elemento que represente o intervalo **real/previsto** (data atual de início → data prevista de fim), sobre o eixo central da barra.
+### `handleUp` (commit do drag)
+Chama `runPropagation` que persiste o resultado de `propagateAllDependencies` — herda o mesmo bug.
 
-## Mudanças (apenas em `src/components/GanttChart.tsx`)
+## Mudanças
 
-### A) Corrigir o drag — barra cheia segue o cursor
-A barra cheia passa a representar **o que está sendo arrastado** (current/planejado corrente), pois é o plano editável. A baseline (snapshot original) será exibida separadamente como **moldura fina cinza** atrás, sem interatividade.
+### A) `src/lib/calculations.ts` — propagação **sempre** (vínculo rígido)
 
-- Linhas 1492–1499: trocar para `barLeft = currentLeft` e `barWidth = currentWidth` (a barra cheia volta a ser o atual editável).
-- Adicionar **antes** da barra cheia uma faixa fina cinza (3px, `top: 26`, `bg-muted-foreground/30`, `rounded`, sem eventos) usando as datas de `task.baseline` (se existir), com tooltip "Baseline: dd/mm→dd/mm". Isso preserva a referência visual do baseline sem confundir o drag.
+Reescrever o `switch` dentro de `propagate()`:
 
-### B) Remover a "linha vermelha" sem função
-- Linhas 1503–1504: remover as classes `ring-1 ring-destructive/40` (crítica) e `ring-1 ring-destructive/60` (late). Manter apenas `animate-pulse ring-2 ring-destructive` quando `hasViolation` (violação real de dependência) e `ring-2 ring-warning` para `noWorkDays` — esses têm função analítica.
+```ts
+switch (type) {
+  case 'TI': newStartDate = predEnd; break;                           // Início = Fim do pred
+  case 'II': newStartDate = predStart; break;                         // Início = Início do pred
+  case 'TT': newStartDate = addDaysCalc(predEnd, -succ.duration); break;  // Fim = Fim do pred
+  case 'IT': newStartDate = addDaysCalc(predStart, -succ.duration); break; // Fim = Início do pred
+}
+```
 
-### C) Adicionar linha pontilhada grossa = real/previsto
-Sobre o centro vertical da barra cheia, renderizar uma linha:
-- `borderTop: 3px dashed hsl(var(--foreground))` (grossa, neutra para não conflitar com cor da equipe)
-- `left = diffDays(projectStart, parseISODateLocal(task.current?.startDate || task.startDate)) * dayWidth`
-- `width = (task.current?.duration || task.duration) * dayWidth`
-- `top: 18` (centro vertical da barra de 20px que começa em `top: 9`)
-- `zIndex: 11` (acima da barra cheia, abaixo do tooltip)
-- `pointerEvents: 'none'` (não interfere no drag)
-- Tooltip nativo: `Real/Previsto: dd/mm → dd/mm (Xd)`
+Remover todas as condições `if (succStart < predEnd)`. A propagação passa a ser **incondicional** (FS rígido / SS rígido / FF rígido / SF rígido), o que dá o comportamento "sucessoras seguem a predecessora em tempo real para frente E para trás".
 
-Quando real/previsto extrapola a baseline, a pontilhada visualmente "estoura" a barra cheia → atraso fica óbvio sem precisar de ring vermelho.
+E o teste de mudança fica:
 
-### D) Atualizar legenda
-- Remover item antigo "ring vermelho = atraso" se existir.
-- Adicionar: **┅** Linha pontilhada grossa = Real / Previsto (apontamento diário)
-- Manter: **▬** Barra cheia = Planejado corrente · **■** Marcadores = meta vs realizado por dia · faixa cinza fina = baseline original.
+```ts
+if (newStartDate !== null) {
+  const newISO = dateToISO(newStartDate);
+  if (newISO !== succ.startDate) {
+    taskMap.set(successorId, { ...succ, startDate: newISO });
+    anyChanged = true;
+    adjustedTypes.add(type);
+    propagate(successorId, depth + 1);
+  }
+}
+```
+
+Isso evita loop infinito (só recursa quando a data realmente mudou) mas garante cascata em ambas as direções.
+
+### B) `checkDependencyViolation` — manter
+
+Continua válida para o caso "usuário arrasta a **sucessora** para uma posição inválida em relação à predecessora não arrastada" (toast de aviso). Não mexer.
+
+### C) `GanttChart.tsx` — `computeDragPropagation`
+
+A versão atual já está correta no formato; só precisa ajustar para incluir **todas** as tarefas modificadas (não filtrar por "diferente da original"):
+
+```ts
+const computeDragPropagation = useCallback((taskId: string, newStartDate: string) => {
+  const allTasks = getAllTasks(project).map(t =>
+    t.id === taskId ? { ...t, startDate: newStartDate } : t
+  );
+  const result = propagateAllDependencies(allTasks, taskId);
+  const tempMap = new Map<string, { startDate: string }>();
+  result.tasks.forEach(t => {
+    if (t.id !== taskId) tempMap.set(t.id, { startDate: t.startDate });
+  });
+  return tempMap;
+}, [project]);
+```
+
+### D) Renderização — `currentLeft` quando `isDragPropagated`
+
+Já existe um bloco `else if (isDragPropagated)`. Confirmar (e corrigir se necessário) que usa `parseISODateLocal` em vez de `new Date()` para evitar shift de fuso, e que mantém a largura original:
+
+```ts
+} else if (isDragPropagated) {
+  const tempData = dragTempTasks.get(task.id)!;
+  const tempStart = diffDays(projectStart, parseISODateLocal(tempData.startDate));
+  currentLeft = tempStart * dayWidth;
+  // currentWidth permanece (duração não muda na propagação)
+}
+```
+
+### E) `handleUp` — commit final
+
+Verificar que após o drag, `runPropagation` (ou equivalente) é chamado e **todas** as tarefas alteradas em `result.tasks` são persistidas no `project` — não só as que violaram. Como `propagateAllDependencies` agora sempre retorna o conjunto correto, basta gravar `result.tasks` inteiro de volta no estado.
+
+## Arquivos
+- `src/lib/calculations.ts` — reescrever switch em `propagateAllDependencies`
+- `src/components/GanttChart.tsx` — confirmar `computeDragPropagation`, render de `isDragPropagated` e `handleUp`
 
 ## Resultado
-- Arrastar a barra agora **move a barra inteira** acompanhando o cursor (não só o texto).
-- Sem mais "linha vermelha" decorativa.
-- Linha pontilhada grossa central mostra real/previsto, extrapolando a barra quando há atraso.
-- Baseline preservada como faixa fina cinza de referência.
-
-## Arquivo
-`src/components/GanttChart.tsx` (apenas)
+- Arrastar predecessora **para frente**: sucessoras avançam em tempo real
+- Arrastar predecessora **para trás**: sucessoras recuam em tempo real (sem gap)
+- Cascata multi-nível mantida (limite de profundidade 50 preservado)
+- `checkDependencyViolation` continua avisando quando o usuário arrasta sucessora para posição inválida
