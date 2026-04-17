@@ -1483,7 +1483,9 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                   const width = spanDays * dayWidth;
                                   const plannedEndISO = dateToISO(addDays(parseISODateLocal(task.startDate), task.duration));
                                   const isLate = previstoISO > plannedEndISO;
-                                  const color = isLate ? 'hsl(var(--destructive))' : 'hsl(var(--success))';
+                                  // Cor de alto contraste: azul-marinho forte (visível sobre fundos claros e escuros)
+                                  // Tom muda para vermelho/verde escuros conforme atrasado/no prazo
+                                  const color = isLate ? 'hsl(0, 80%, 32%)' : 'hsl(220, 90%, 25%)';
                                   // Centralizar verticalmente na barra (top:9, height:20 → centro = 19)
                                   // Usa traço branco com contorno escuro para contraste sobre qualquer cor de barra
                                   const BAR_TOP = 9;
