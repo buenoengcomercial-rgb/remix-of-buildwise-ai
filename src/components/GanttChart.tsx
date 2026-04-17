@@ -1592,6 +1592,27 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                           boxShadow: '0 0 0 1px hsl(var(--background))',
                                         }}
                                       />
+                                      {/* Badge % concluído sobre a linha tracejada */}
+                                      {(() => {
+                                        const pct = Math.round(task.physicalProgress ?? task.percentComplete ?? 0);
+                                        return (
+                                          <span
+                                            className="absolute text-[9px] font-bold px-1 rounded leading-none"
+                                            style={{
+                                              left: '50%',
+                                              top: '50%',
+                                              transform: 'translate(-50%, -50%)',
+                                              color,
+                                              background: 'white',
+                                              boxShadow: `0 0 0 1px ${color}`,
+                                              filter: 'drop-shadow(0 0 1px white)',
+                                            }}
+                                            title={`Concluído: ${pct}%`}
+                                          >
+                                            {pct}%
+                                          </span>
+                                        );
+                                      })()}
                                     </div>
                                   );
                                 })()}
