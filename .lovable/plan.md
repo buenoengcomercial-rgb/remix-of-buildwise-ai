@@ -1,47 +1,53 @@
 
 
-## Plano: Sufixo "d", padronização de datas, coluna % Concluído e badge no Gantt
+## Plano: Ajustar larguras das colunas e reposicionar badge de %
 
-### 1. Coluna DURAÇÃO — sufixo "d"
-Em `src/components/GanttChart.tsx`, envolver o `<input type="number">` da duração num wrapper `relative` e adicionar um `<span>d</span>` absoluto à direita (`text-[8px] opacity-60 pointer-events-none`), preservando edição numérica.
+### Problema atual
+1. Coluna **DURAÇÃO** ficou estreita demais (44px) — com o sufixo "d" o número some/trunca.
+2. Outras colunas (Início, Fim, % Concl., Dep) podem estar apertadas após adicionar a nova coluna.
+3. Badge de % no Gantt está centralizado na linha tracejada — usuário quer fixo no **lado direito, na ponta da última data do apontamento diário** (ponto onde Real termina = início da projeção).
 
-### 2. Datas REAL / PREV — mesma fonte/tamanho da data principal
-Padronizar as labels Real e Prev para `text-[9px] font-medium` (igual à data principal), mantendo as cores semânticas já aplicadas:
-- Real → `#1e40af` (azul escuro)
-- Prev → `#166534` (verde escuro) no prazo / `#991b1b` (vermelho escuro) se atrasado
+### 1. Redimensionar colunas da sidebar (`src/components/GanttChart.tsx`)
+Aumentar larguras para evitar truncamento:
 
-### 3. Nova coluna "% Concluído"
-- `sidebarCols`: adicionar coluna de ~42px após "Fim" → `'24px 1fr 28px 20px 78px 78px 42px 44px 44px 56px'`
-- `sidebarWidth`: aumentar para `578`
-- Header novo `% Concl.` entre "Fim" e "Dep"
-- **Tarefa**: exibir `task.physicalProgress ?? task.percentComplete` como `XX%`
-- **Capítulo/Fase**: média ponderada por duração das tarefas filhas
-- **Cor dinâmica**: verde se ≥ esperado-no-tempo, vermelho se atrasado, cinza se sem dado
+| Coluna | Antes | Depois |
+|---|---|---|
+| Drag handle | 24px | 24px |
+| Nome (EAP) | 1fr | 1fr |
+| Equipe | 28px | 32px |
+| Crítica (!) | 20px | 20px |
+| Início | 78px | 88px |
+| Fim | 78px | 88px |
+| **Duração** | **44px** | **58px** (cabe "999d") |
+| % Concl. | 42px | 48px |
+| Dep | 44px | 48px |
+| Ações | 56px | 56px |
 
-### 4. Badge de % na linha tracejada do Gantt
-No grid (linha tracejada Real→Previsto), sobrepor um badge pequeno (`text-[9px] font-bold px-1 rounded`) no centro da linha exibindo o mesmo `XX%` da coluna, herdando a cor da linha (azul = no prazo, vermelho = atrasado), com `drop-shadow` branco para legibilidade.
+Novo `sidebarCols`: `'24px 1fr 32px 20px 88px 88px 58px 48px 48px 56px'`
+Novo `sidebarWidth`: `620` (era 578).
+
+Aplicar em **todas** as ocorrências (header, linhas de fase, linhas de tarefa) para manter alinhamento.
+
+### 2. Sufixo "d" sem cobrir o número
+Ajustar wrapper do input de duração:
+- Input com `pr-3` (padding-right) para reservar espaço.
+- `<span>d</span>` em `right-1 text-[9px]` (em vez de 8px) para ficar mais visível.
+- `text-align: left` no input para o número não colidir com o "d".
+
+### 3. Reposicionar badge de % no Gantt
+Atualmente: badge centralizado no meio da linha tracejada.
+Novo comportamento:
+- Calcular posição X = `(diasDoStartAtéÚltimoApontamento) * dayWidth` — ou seja, fim da parte "Real" / início da parte "Previsto".
+- Badge ancorado nesse ponto com `transform: translateX(-50%)` e `top` levemente acima da linha.
+- Se não há apontamentos, esconder o badge (não há projeção).
+- Cor mantém a semântica: azul se em dia, vermelho se atrasado.
+- Manter `drop-shadow` branco para legibilidade.
 
 ### Arquivo afetado
-- `src/components/GanttChart.tsx` (todas as alterações inline; helper de % ponderado calculado inline no render dos capítulos)
-
----
-
-## Sugestões para melhorar o fluxo de gestão (não implementadas agora)
-
-1. **Painel "Hoje"** — tela inicial com tarefas do dia, atrasos críticos, apontamentos pendentes e materiais a chegar.
-2. **Indicadores SPI/CPI** — Schedule/Cost Performance Index calculados do baseline + apontamentos (padrão PMI).
-3. **Notificações inteligentes** — alertas automáticos para atrasos críticos, dependências bloqueadas e equipes ociosas.
-4. **Versionamento de baseline** — snapshots semanais/mensais para análise de desvios temporais.
-5. **RDO automático** — Relatório Diário de Obra em PDF a partir dos apontamentos + clima + efetivo.
-6. **Curva S real vs planejado** — sobreposição das duas curvas para comparação imediata.
-7. **Gestão de equipes** — visualização de carga/ociosidade por equipe com realocação por drag-and-drop.
-8. **Modo offline (PWA)** — apontamento em campo sem internet, com sincronização posterior.
-9. **Multi-projeto/Portfólio** — KPIs comparativos entre várias obras.
-10. **Fotos georreferenciadas** — anexar fotos diárias por tarefa, criando memória visual da execução.
+- `src/components/GanttChart.tsx` (somente).
 
 ### Resultado esperado
-- Coluna DURAÇÃO mostra `5d`, `12d`, etc.
-- Datas Real/Prev com mesma tipografia da data principal.
-- Nova coluna "% Concl." visível por tarefa e por capítulo.
-- Badge percentual sobreposto à linha tracejada, sincronizado com a coluna.
+- Coluna Duração mostra `12d`, `120d` sem truncar.
+- Datas Início/Fim com folga visual.
+- Badge % fixo no ponto exato onde termina o último apontamento, deixando claro: "deste ponto pra frente é projeção, e o status atual é XX%".
 
