@@ -624,8 +624,8 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
     return result.dias === 0;
   }, [obraConfig]);
 
-  const sidebarCols = '24px 1fr 28px 20px 78px 78px 44px 44px 44px 56px';
-  const sidebarWidth = 580;
+ const sidebarCols = '24px 1fr 28px 20px 78px 78px 44px 44px 56px';
+ const sidebarWidth = 536;
 
   // Toggle duration mode and recalculate if switching to RUP
   const toggleDurationMode = (taskId: string) => {
@@ -825,7 +825,6 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                 <span className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider text-center" title="Modo: RUP ou Manual">M</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Início</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Fim</span>
-                <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center" title="Desvio: Previsto − Base">Δ</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Dep</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Tipo</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Equipe</span>
