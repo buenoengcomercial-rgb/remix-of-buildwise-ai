@@ -996,8 +996,8 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                   );
                                   const realLine = hasRealData ? (
                                     <span
-                                      className="text-[8px] font-semibold leading-none"
-                                      style={{ color: 'hsl(220, 90%, 30%)', filter: 'drop-shadow(0 0 1px hsl(var(--background)))' }}
+                                      className="text-[9px] font-semibold leading-none"
+                                      style={{ color: '#1e40af', filter: 'drop-shadow(0 0 1px white)' }}
                                     >
                                       Real: {formatDateFull(task.current!.startDate)}
                                     </span>
