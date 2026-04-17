@@ -461,16 +461,13 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
     );
     const result = propagateAllDependencies(allTasks, taskId);
     const tempMap = new Map<string, { startDate: string }>();
-    if (result.changed) {
-      result.tasks.forEach(t => {
-        const orig = tasks.find(ot => ot.id === t.id);
-        if (orig && t.startDate !== orig.startDate && t.id !== taskId) {
-          tempMap.set(t.id, { startDate: t.startDate });
-        }
-      });
-    }
+    result.tasks.forEach(t => {
+      if (t.id !== taskId) {
+        tempMap.set(t.id, { startDate: t.startDate });
+      }
+    });
     return tempMap;
-  }, [project, tasks]);
+  }, [project]);
 
   const handleMouseDown = (e: React.MouseEvent, taskId: string, barLeft: number) => {
     e.preventDefault();
