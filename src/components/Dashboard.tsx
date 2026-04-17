@@ -15,7 +15,8 @@ export default function Dashboard({ project }: DashboardProps) {
   const completedTasks = tasks.filter(t => t.percentComplete === 100).length;
   const delayedTasks = tasks.filter(t => {
     const end = new Date(t.startDate);
-    end.setDate(end.getDate() + t.duration);
+    // Fim = último dia trabalhado = start + (duration − 1)
+    end.setDate(end.getDate() + Math.max(0, t.duration - 1));
     return end < new Date() && t.percentComplete < 100;
   }).length;
   const criticalTasks = tasks.filter(t => t.isCritical).length;

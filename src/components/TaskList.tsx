@@ -488,7 +488,8 @@ export default function TaskList({ project, onProjectChange }: TaskListProps) {
 
                       {phase.tasks.map(task => {
                         const endDate = new Date(task.startDate);
-                        endDate.setDate(endDate.getDate() + task.duration);
+                        // Fim = último dia trabalhado = start + (duration − 1)
+                        endDate.setDate(endDate.getDate() + Math.max(0, task.duration - 1));
                         const isDelayed = endDate < new Date() && task.percentComplete < 100;
                         const showRup = expandedRup === task.id;
                         const sim = simulating === task.id ? simulateDouble(task) : null;
