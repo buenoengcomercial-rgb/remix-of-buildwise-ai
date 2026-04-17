@@ -641,7 +641,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
     return result.dias === 0;
   }, [obraConfig]);
 
-  const sidebarCols = '24px 1fr 22px 88px 88px 44px 52px 48px 56px 56px';
+  const sidebarCols = '24px 1fr 88px 88px 44px 22px 52px 48px 56px 56px';
   const sidebarWidth = 586;
 
   // Toggle duration mode and recalculate if switching to RUP
@@ -837,10 +837,10 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
               >
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">#</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Tarefa</span>
-                <span className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider text-center" title="Modo: RUP ou Manual">M</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Início</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Fim</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center" title="Duração em dias">Dur.</span>
+                <span className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider text-center" title="Modo: RUP ou Manual">M</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center" title="Percentual concluído">% Concl.</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Dep</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Tipo</span>
@@ -952,32 +952,6 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                 <p className={`text-[11px] font-medium line-clamp-2 break-words leading-tight ${rowTeamDef ? '' : 'text-foreground'}`}>{task.name}</p>
                               </div>
                               
-                              <div className="text-center">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      onClick={() => toggleDurationMode(task.id)}
-                                      className={`text-[8px] font-bold rounded px-0.5 py-0 transition-colors ${
-                                        rowTeamDef
-                                          ? 'bg-white/20'
-                                          : ((task.durationMode || 'manual') === 'rup'
-                                            ? 'bg-primary/20 text-primary'
-                                            : 'bg-muted text-muted-foreground hover:text-foreground')
-                                      }`}
-                                      title={(task.durationMode || 'manual') === 'rup' ? 'Modo RUP (clique para manual)' : 'Modo Manual (clique para RUP)'}
-                                    >
-                                      {(task.durationMode || 'manual') === 'rup' ? 'R' : 'M'}
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p className="text-xs">
-                                      {(task.durationMode || 'manual') === 'rup'
-                                        ? 'Duração via RUP — clique para editar manualmente'
-                                        : 'Duração manual — clique para calcular via RUP'}
-                                    </p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </div>
                               <div className="flex flex-col gap-0.5">
                                 {(() => {
                                   const hasLogs = (task.dailyLogs?.length ?? 0) > 0;
@@ -1111,6 +1085,33 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                     ? 'Editar a duração mudará para modo Manual'
                                     : 'Duração em dias (modo Manual)'}
                                 />
+                              </div>
+                              {/* Modo: RUP / Manual */}
+                              <div className="text-center">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      onClick={() => toggleDurationMode(task.id)}
+                                      className={`text-[8px] font-bold rounded px-0.5 py-0 transition-colors ${
+                                        rowTeamDef
+                                          ? 'bg-white/20'
+                                          : ((task.durationMode || 'manual') === 'rup'
+                                            ? 'bg-primary/20 text-primary'
+                                            : 'bg-muted text-muted-foreground hover:text-foreground')
+                                      }`}
+                                      title={(task.durationMode || 'manual') === 'rup' ? 'Modo RUP (clique para manual)' : 'Modo Manual (clique para RUP)'}
+                                    >
+                                      {(task.durationMode || 'manual') === 'rup' ? 'R' : 'M'}
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="text-xs">
+                                      {(task.durationMode || 'manual') === 'rup'
+                                        ? 'Duração via RUP — clique para editar manualmente'
+                                        : 'Duração manual — clique para calcular via RUP'}
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
                               </div>
                               {/* % Concluído */}
                               <div className="text-center">
