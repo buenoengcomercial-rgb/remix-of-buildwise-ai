@@ -251,7 +251,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
 
   const getBarStyle = (task: Task) => {
     const start = diffDays(projectStart, parseISODateLocal(task.startDate));
-    const width = task.duration * dayWidth;
+    const width = (task.duration + 1) * dayWidth;
     const isDelayed = addDays(parseISODateLocal(task.startDate), task.duration) < today && task.percentComplete < 100;
     const isCritical = !!task.isCritical && !isDelayed && task.percentComplete < 100;
     const isComplete = task.percentComplete === 100;
