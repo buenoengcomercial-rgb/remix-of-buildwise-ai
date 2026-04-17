@@ -626,8 +626,8 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
     return result.dias === 0;
   }, [obraConfig]);
 
-  const sidebarCols = '24px 1fr 22px 92px 92px 56px 52px 60px 56px';
-  const sidebarWidth = 562;
+  const sidebarCols = '24px 1fr 22px 88px 88px 44px 52px 48px 56px 56px';
+  const sidebarWidth = 586;
 
   // Toggle duration mode and recalculate if switching to RUP
   const toggleDurationMode = (taskId: string) => {
