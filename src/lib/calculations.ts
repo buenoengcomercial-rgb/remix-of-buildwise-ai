@@ -4,10 +4,29 @@ import { parseISODateLocal } from '@/components/gantt/utils';
 
 const DAILY_HOURS = 8;
 
-/** Calculate task duration from RUP compositions */
-export function calculateRupDuration(task: Task): { duration: number; totalHours: number; bottleneckRole: string } {
+export interface JornadaConfig {
+  trabalhaSabado: boolean;
+  jornadaDiaria: number;
+}
+
+/** Calculate task duration from RUP compositions, respecting the configured workday/Saturday rule. */
+export function calculateRupDuration(
+  task: Task,
+  config?: JornadaConfig
+): { duration: number; totalHours: number; bottleneckRole: string } {
+  const jornadaDiaria = config?.jornadaDiaria ?? DAILY_HOURS;
+  const trabalhaSabado = config?.trabalhaSabado ?? false;
+
+  // Average hours per working day, accounting for half-day Saturdays.
+  // Mon–Fri = jornadaDiaria; Sat = jornadaDiaria/2 when trabalhaSabado.
+  const horasPorSemana = trabalhaSabado
+    ? 5 * jornadaDiaria + jornadaDiaria / 2
+    : 5 * jornadaDiaria;
+  const diasUteisSemana = trabalhaSabado ? 5.5 : 5;
+  const horasPorDia = horasPorSemana / diasUteisSemana;
+
   if (!task.laborCompositions?.length || !task.quantity) {
-    return { duration: task.duration, totalHours: task.duration * DAILY_HOURS, bottleneckRole: '' };
+    return { duration: task.duration, totalHours: task.duration * horasPorDia, bottleneckRole: '' };
   }
 
   let maxHours = 0;
@@ -23,7 +42,7 @@ export function calculateRupDuration(task: Task): { duration: number; totalHours
   }
 
   const totalHours = maxHours;
-  const duration = Math.ceil(totalHours / DAILY_HOURS);
+  const duration = Math.ceil(totalHours / horasPorDia);
   return { duration, totalHours, bottleneckRole: bottleneck };
 }
 
