@@ -935,44 +935,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                 {noWorkDays && <AlertTriangle className="w-3 h-3 flex-shrink-0" style={{ color: '#b45309', filter: 'drop-shadow(0 0 1px white)' }} />}
                                 <p className={`text-[11px] font-medium line-clamp-2 break-words leading-tight ${rowTeamDef ? '' : 'text-foreground'}`}>{task.name}</p>
                               </div>
-                              <div className="text-center relative">
-                                <input
-                                  className={`w-full text-[10px] font-bold bg-transparent text-left pl-1 pr-3.5 focus:outline-none focus:ring-1 focus:ring-primary rounded ${
-                                    rowTeamDef ? '' : ((task.durationMode || 'manual') === 'rup' ? 'text-primary' : 'text-foreground')
-                                  }`}
-                                  style={rowTeamDef ? { color: rowTeamDef.textColor } : undefined}
-                                  value={editingDurationTaskId === task.id ? localDuration : task.duration}
-                                  type="number"
-                                  min={1}
-                                  onFocus={() => {
-                                    setEditingDurationTaskId(task.id);
-                                    setLocalDuration(String(task.duration));
-                                  }}
-                                  onChange={(e) => {
-                                    setLocalDuration(e.target.value);
-                                    // Live preview: update bar width in real-time
-                                    const val = parseInt(e.target.value);
-                                    if (!isNaN(val) && val >= 1) {
-                                      handleManualDurationChange(task.id, val);
-                                    }
-                                  }}
-                                  onBlur={() => {
-                                    const val = parseInt(localDuration);
-                                    if (!isNaN(val) && val >= 1) {
-                                      handleManualDurationChange(task.id, val);
-                                    }
-                                    setEditingDurationTaskId(null);
-                                  }}
-                                  onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                                  title={(task.durationMode || 'manual') === 'rup'
-                                    ? `RUP: ${task.bottleneckRole || '—'} — edite para desvincular`
-                                    : 'Duração manual (dias)'}
-                                />
-                                <span
-                                  className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] font-semibold opacity-70 pointer-events-none"
-                                  style={rowTeamDef ? { color: rowTeamDef.textColor } : undefined}
-                                >d</span>
-                              </div>
+                              
                               <div className="text-center">
                                 <Tooltip>
                                   <TooltipTrigger asChild>
