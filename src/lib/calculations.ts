@@ -81,7 +81,8 @@ export function captureBaseline(project: Project): Project {
           : t.duration;
         const start = parseISODateLocal(t.startDate);
         const end = new Date(start);
-        end.setDate(end.getDate() + baseDuration);
+        // Fim = último dia trabalhado = start + (duration − 1)
+        end.setDate(end.getDate() + Math.max(0, baseDuration - 1));
         const baseline: TaskBaseline = {
           startDate: t.startDate,
           duration: baseDuration,
@@ -112,7 +113,8 @@ export function syncBaselineWithRup(project: Project): Project {
         if (rupDuration === t.baseline.duration) return t;
         const start = parseISODateLocal(t.baseline.startDate);
         const end = new Date(start);
-        end.setDate(end.getDate() + rupDuration);
+        // Fim = último dia trabalhado = start + (duration − 1)
+        end.setDate(end.getDate() + Math.max(0, rupDuration - 1));
         return {
           ...t,
           baseline: {
@@ -144,7 +146,8 @@ export function applyDailyLogsToProject(project: Project): Project {
         const buildCurrent = (overrides: Partial<NonNullable<Task['current']>> = {}): NonNullable<Task['current']> => {
           const start = parseISODateLocal(t.startDate);
           const end = new Date(start);
-          end.setDate(end.getDate() + t.duration);
+          // Fim = último dia trabalhado = start + (duration − 1)
+          end.setDate(end.getDate() + Math.max(0, t.duration - 1));
           return {
             startDate: t.startDate,
             duration: t.duration,

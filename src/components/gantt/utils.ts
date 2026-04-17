@@ -72,9 +72,12 @@ export function formatDateShort(d: string) {
   return formatISODateShortBR(d);
 }
 
+/** Data fim = último dia trabalhado = startDate + duration − 1.
+ *  Convenção MS Project: tarefa de 1 dia começa e termina no mesmo dia. */
 export function getEndDate(startDate: string, duration: number): string {
   const d = parseISODateLocal(startDate);
-  d.setDate(d.getDate() + duration);
+  const offset = Math.max(0, duration - 1);
+  d.setDate(d.getDate() + offset);
   return toISODateLocal(d);
 }
 
