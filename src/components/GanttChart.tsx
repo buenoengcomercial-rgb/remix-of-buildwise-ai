@@ -938,7 +938,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                               </div>
                               <div className="text-center relative">
                                 <input
-                                  className={`w-full text-[10px] font-bold bg-transparent text-center pr-2.5 focus:outline-none focus:ring-1 focus:ring-primary rounded ${
+                                  className={`w-full text-[10px] font-bold bg-transparent text-left pl-1 pr-3.5 focus:outline-none focus:ring-1 focus:ring-primary rounded ${
                                     rowTeamDef ? '' : ((task.durationMode || 'manual') === 'rup' ? 'text-primary' : 'text-foreground')
                                   }`}
                                   style={rowTeamDef ? { color: rowTeamDef.textColor } : undefined}
@@ -970,7 +970,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                     : 'Duração manual (dias)'}
                                 />
                                 <span
-                                  className="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] opacity-60 pointer-events-none"
+                                  className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] font-semibold opacity-70 pointer-events-none"
                                   style={rowTeamDef ? { color: rowTeamDef.textColor } : undefined}
                                 >d</span>
                               </div>
