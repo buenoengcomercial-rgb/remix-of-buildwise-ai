@@ -917,8 +917,8 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                               </div>
                               <div className="min-w-0 flex items-center gap-1 pl-1">
                                 {task.isCritical && <div className="w-1.5 h-1.5 rounded-full bg-destructive flex-shrink-0" />}
-                                {hasViolation && <AlertTriangle className="w-3 h-3 text-destructive flex-shrink-0" />}
-                                {noWorkDays && <AlertTriangle className="w-3 h-3 text-warning flex-shrink-0" />}
+                                {hasViolation && <AlertTriangle className="w-3 h-3 flex-shrink-0" style={{ color: 'hsl(0, 75%, 38%)', filter: 'drop-shadow(0 0 1px white)' }} />}
+                                {noWorkDays && <AlertTriangle className="w-3 h-3 flex-shrink-0" style={{ color: 'hsl(35, 90%, 32%)', filter: 'drop-shadow(0 0 1px white)' }} />}
                                 <p className={`text-[11px] font-medium line-clamp-2 break-words leading-tight ${rowTeamDef ? '' : 'text-foreground'}`}>{task.name}</p>
                               </div>
                               <div className="text-center">
