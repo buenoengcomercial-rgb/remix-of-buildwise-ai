@@ -1089,11 +1089,28 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                   );
                                 })()}
                               </div>
-                              {/* Duração (apenas leitura) */}
+                              {/* Duração (editável — força modo Manual) */}
                               <div className="text-center">
-                                <span className={`text-[10px] font-medium ${rowTeamDef ? '' : 'text-foreground'}`} title="Duração em dias">
-                                  {task.duration}
-                                </span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  step={1}
+                                  className={`w-full text-[10px] font-medium bg-transparent border-b border-border/50 text-center focus:outline-none focus:border-primary appearance-none ${rowTeamDef ? '' : 'text-foreground'}`}
+                                  style={rowTeamDef ? { color: rowTeamDef.textColor } : undefined}
+                                  defaultValue={task.duration}
+                                  key={`dur-${task.id}-${task.duration}`}
+                                  onBlur={(e) => handleDurationChange(task.id, e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                                    if (e.key === 'Escape') {
+                                      (e.target as HTMLInputElement).value = String(task.duration);
+                                      (e.target as HTMLInputElement).blur();
+                                    }
+                                  }}
+                                  title={(task.durationMode || 'manual') === 'rup'
+                                    ? 'Editar a duração mudará para modo Manual'
+                                    : 'Duração em dias (modo Manual)'}
+                                />
                               </div>
                               {/* % Concluído */}
                               <div className="text-center">
