@@ -779,17 +779,8 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
         <div className="flex items-center gap-3 text-[9px] text-muted-foreground flex-wrap">
           <div className="flex items-center gap-2 mr-2 border-r border-border pr-3">
             <span className="font-medium">Elementos:</span>
-            <div className="flex items-center gap-1"><div className="w-4 h-2 rounded" style={{ background: 'hsl(var(--gantt-bar))', border: '1px solid hsl(var(--gantt-bar))' }} /> <span>Planejado (cor da equipe)</span></div>
-            <div className="flex items-center gap-1"><div className="w-4 h-0" style={{ borderTop: '2px dashed #6b7280' }} /> <span>Real / Previsto (apontamento)</span></div>
-            <div className="flex items-center gap-1"><div className="w-4 h-[3px] rounded" style={{ background: 'rgba(150,150,150,0.35)' }} /> <span>Baseline original</span></div>
-            <div className="flex items-center gap-1">
-              <span className="flex gap-0.5">
-                <span className="w-1 h-1.5 rounded-sm bg-emerald-500" />
-                <span className="w-1 h-1.5 rounded-sm bg-amber-500" />
-                <span className="w-1 h-1.5 rounded-sm bg-destructive" />
-              </span>
-              <span>Marcadores diários = Meta vs Realizado</span>
-            </div>
+            <div className="flex items-center gap-1"><div className="w-4 h-2 rounded" style={{ background: 'hsl(var(--gantt-bar))', border: '1px solid hsl(var(--gantt-bar))' }} /> <span>Planejado (Manual / RUP)</span></div>
+            <div className="flex items-center gap-1"><div className="w-4 h-0" style={{ borderTop: '2px dashed #6b7280' }} /> <span>Apontamento diário (quando registrado)</span></div>
           </div>
           <div className="flex items-center gap-3 ml-2 border-l border-border pl-3">
             <span className="font-medium">Dep:</span>
