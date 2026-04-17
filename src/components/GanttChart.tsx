@@ -1434,7 +1434,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                             } else if (isDragPropagated) {
                               // Real-time propagation: move successor bar
                               const tempData = dragTempTasks.get(task.id)!;
-                              const tempStart = diffDays(projectStart, new Date(tempData.startDate));
+                              const tempStart = diffDays(projectStart, parseISODateLocal(tempData.startDate));
                               currentLeft = tempStart * dayWidth;
                             }
 
