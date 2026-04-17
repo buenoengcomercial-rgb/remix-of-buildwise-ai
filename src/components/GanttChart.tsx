@@ -1051,10 +1051,10 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                   const isLate = !!previsto && previsto > endDate;
                                   const prevLine = hasRealData && previsto ? (
                                     <span
-                                      className="text-[8px] font-semibold leading-none"
+                                      className="text-[9px] font-semibold leading-none"
                                       style={{
-                                        color: isLate ? 'hsl(0, 75%, 32%)' : 'hsl(150, 70%, 24%)',
-                                        filter: 'drop-shadow(0 0 1px hsl(var(--background)))',
+                                        color: isLate ? '#991b1b' : '#166534',
+                                        filter: 'drop-shadow(0 0 1px white)',
                                       }}
                                     >
                                       Prev: {formatDateFull(previsto)}
