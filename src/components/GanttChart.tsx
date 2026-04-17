@@ -1412,19 +1412,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                     />
                                   );
                                 })}
-                                {/* Faixa baseline = cinza claro, 3px, atrás de tudo */}
-                                {task.baseline && (() => {
-                                  const blLeft = diffDays(projectStart, parseISODateLocal(task.baseline.startDate)) * dayWidth;
-                                  const blWidth = task.baseline.duration * dayWidth;
-                                  return (
-                                    <div
-                                      className="absolute rounded pointer-events-none"
-                                      style={{ left: blLeft, width: blWidth, top: 26, height: 3, background: 'rgba(150, 150, 150, 0.35)', borderRadius: 2, zIndex: 7 }}
-                                      title={`Baseline: ${formatDateFull(task.baseline.startDate)} → ${formatDateFull(task.baseline.endDate)} (${task.baseline.duration}d)`}
-                                    />
-                                  );
-                                })()}
-                                {/* Barra cheia = current (planejado corrente, editável via drag) */}
+                                {/* Barra cheia = planejado (task.startDate + task.duration, Manual ou RUP) */}
                                 {(() => {
                                   const barLeft = currentLeft;
                                   const barWidth = currentWidth;
@@ -1484,7 +1472,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
 
                                   {/* Tooltip */}
                                   {(() => {
-                                    const hasMulti = !!task.baseline || (task.dailyLogs?.length || 0) > 0;
+                                    const hasMulti = (task.dailyLogs?.length || 0) > 0;
                                     return (
                                   <div className={`absolute -top-10 left-1/2 -translate-x-1/2 bg-foreground text-background text-[9px] px-2 py-1 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity ${hasMulti ? 'whitespace-pre-line' : 'whitespace-nowrap'} z-30 pointer-events-none`}>
                                     {isResizing && resizeInfo
@@ -1497,34 +1485,28 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                       ? 'Tarefa sem dias úteis no período'
                                       : (() => {
                                           const teamDef = getTeamDefinition(task.team);
-                                          const teamLabel = teamDef ? `${teamDef.label} (${teamDef.composition})` : '';
-                                          const prodLabel = formatTeamLabel(task);
+                                          const mode = (task.durationMode || 'manual') === 'rup' ? 'RUP' : 'Manual';
                                           const parts: string[] = [];
-                                          if (teamLabel) parts.push(teamLabel);
-                                          if (prodLabel) parts.push(prodLabel);
-                                          if (task.baseline) {
-                                            const dev = task.duration - task.baseline.duration;
-                                            parts.push(`Base: ${formatDateFull(task.baseline.startDate)}→${formatDateFull(task.baseline.endDate)} (${task.baseline.duration}d)`);
-                                            if (task.current) {
-                                              parts.push(`Previsto: ${formatDateFull(task.current.startDate)}→${formatDateFull(task.current.forecastEndDate || task.current.endDate)} (${task.current.duration}d)`);
-                                            }
-                                            if (dev !== 0) parts.push(`Desvio: ${dev > 0 ? '+' : ''}${dev}d`);
-                                          }
+                                          parts.push(`Início: ${formatDateFull(task.startDate)}`);
+                                          parts.push(`Fim: ${formatDateFull(endDate)}`);
+                                          parts.push(`Duração: ${task.duration} dias`);
+                                          parts.push(`Modo: ${mode}`);
+                                          if (teamDef) parts.push(`Equipe: ${teamDef.label} (${teamDef.composition})`);
                                           const workedLogs = (task.dailyLogs || []).filter(l => l.actualQuantity > 0);
                                           if (workedLogs.length > 0) {
                                             const unit = task.unit || 'un';
                                             if (task.executedQuantityTotal !== undefined) parts.push(`Executado: ${task.executedQuantityTotal} ${unit}`);
                                             if (task.remainingQuantity !== undefined) parts.push(`Restante: ${task.remainingQuantity} ${unit}`);
-                                            const dates = workedLogs.map(l => formatDateShort(l.date));
-                                            const shown = dates.slice(0, 5).join(', ') + (dates.length > 5 ? '…' : '');
-                                            parts.push(`Dias trabalhados: ${shown}`);
                                           }
                                           if (task.physicalProgress !== undefined && (task.dailyLogs?.length || 0) > 0) {
                                             parts.push(`Físico: ${task.physicalProgress.toFixed(1)}%`);
                                           }
-                                          if (parts.length === 0) return `${task.percentComplete}% • ${task.duration}d`;
                                           return parts.join(hasMulti ? '\n' : ' • ');
                                         })()
+                                    }
+                                  </div>
+                                    );
+                                  })()}
                                     }
                                   </div>
                                     );
