@@ -624,8 +624,8 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
     return result.dias === 0;
   }, [obraConfig]);
 
-  const sidebarCols = '24px 1fr 28px 20px 78px 78px 44px 44px 44px 56px';
-  const sidebarWidth = 580;
+ const sidebarCols = '24px 1fr 28px 20px 78px 78px 44px 44px 56px';
+ const sidebarWidth = 536;
 
   // Toggle duration mode and recalculate if switching to RUP
   const toggleDurationMode = (taskId: string) => {
@@ -779,17 +779,8 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
         <div className="flex items-center gap-3 text-[9px] text-muted-foreground flex-wrap">
           <div className="flex items-center gap-2 mr-2 border-r border-border pr-3">
             <span className="font-medium">Elementos:</span>
-            <div className="flex items-center gap-1"><div className="w-4 h-2 rounded" style={{ background: 'hsl(var(--gantt-bar))', border: '1px solid hsl(var(--gantt-bar))' }} /> <span>Planejado (cor da equipe)</span></div>
-            <div className="flex items-center gap-1"><div className="w-4 h-0" style={{ borderTop: '2px dashed #6b7280' }} /> <span>Real / Previsto (apontamento)</span></div>
-            <div className="flex items-center gap-1"><div className="w-4 h-[3px] rounded" style={{ background: 'rgba(150,150,150,0.35)' }} /> <span>Baseline original</span></div>
-            <div className="flex items-center gap-1">
-              <span className="flex gap-0.5">
-                <span className="w-1 h-1.5 rounded-sm bg-emerald-500" />
-                <span className="w-1 h-1.5 rounded-sm bg-amber-500" />
-                <span className="w-1 h-1.5 rounded-sm bg-destructive" />
-              </span>
-              <span>Marcadores diários = Meta vs Realizado</span>
-            </div>
+            <div className="flex items-center gap-1"><div className="w-4 h-2 rounded" style={{ background: 'hsl(var(--gantt-bar))', border: '1px solid hsl(var(--gantt-bar))' }} /> <span>Planejado (Manual / RUP)</span></div>
+            <div className="flex items-center gap-1"><div className="w-4 h-0" style={{ borderTop: '2px dashed #6b7280' }} /> <span>Apontamento diário (quando registrado)</span></div>
           </div>
           <div className="flex items-center gap-3 ml-2 border-l border-border pl-3">
             <span className="font-medium">Dep:</span>
@@ -834,7 +825,6 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                 <span className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider text-center" title="Modo: RUP ou Manual">M</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Início</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Fim</span>
-                <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center" title="Desvio: Previsto − Base">Δ</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Dep</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Tipo</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Equipe</span>
@@ -1000,29 +990,11 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                 </Tooltip>
                               </div>
                               <div className="flex flex-col gap-0.5">
-                                {task.baseline && (
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <button className={`text-[8px] transition-colors text-center w-full ${rowTeamDef ? 'opacity-60 hover:opacity-100' : 'text-muted-foreground hover:text-primary'}`} title="Editar data planejada (baseline)">
-                                        Plan: {formatDateFull(task.baseline.startDate)}
-                                      </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                      <Calendar
-                                        mode="single"
-                                        selected={new Date(task.baseline.startDate)}
-                                        onSelect={(d) => handleBaselineDateChange(task.id, 'start', d)}
-                                        className={cn("p-3 pointer-events-auto")}
-                                      />
-                                    </PopoverContent>
-                                  </Popover>
-                                )}
                                 {(() => {
                                   const hasLogs = (task.dailyLogs?.length ?? 0) > 0;
-                                  const realStart = task.current?.startDate ?? task.startDate;
                                   const labelEl = (
                                     <span className={`text-[9px] ${rowTeamDef ? '' : 'text-foreground'} font-medium`}>
-                                      {task.baseline ? 'Real: ' : ''}{formatDateFull(realStart)}
+                                      {formatDateFull(task.startDate)}
                                     </span>
                                   );
                                   if (hasLogs) {
@@ -1059,44 +1031,18 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                 })()}
                               </div>
                               <div className="flex flex-col gap-0.5">
-                                {task.baseline && (
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <button className={`text-[8px] transition-colors text-center w-full ${rowTeamDef ? 'opacity-60 hover:opacity-100' : 'text-muted-foreground hover:text-primary'}`} title="Editar data planejada (baseline)">
-                                        Plan: {formatDateFull(task.baseline.endDate)}
-                                      </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                      <Calendar
-                                        mode="single"
-                                        selected={new Date(task.baseline.endDate)}
-                                        onSelect={(d) => handleBaselineDateChange(task.id, 'end', d)}
-                                        className={cn("p-3 pointer-events-auto")}
-                                      />
-                                    </PopoverContent>
-                                  </Popover>
-                                )}
                                 {(() => {
-                                  const forecastEnd = task.current?.forecastEndDate ?? task.current?.endDate ?? endDate;
-                                  const hasForecast = !!task.current?.forecastEndDate;
                                   const hasLogs = (task.dailyLogs?.length ?? 0) > 0;
-                                  let forecastCls = rowTeamDef ? '' : 'text-foreground';
-                                  if (task.baseline) {
-                                    const fEnd = new Date(forecastEnd).getTime();
-                                    const bEnd = new Date(task.baseline.endDate).getTime();
-                                    if (fEnd > bEnd) forecastCls = 'text-destructive';
-                                    else if (fEnd < bEnd) forecastCls = 'text-success';
-                                  }
                                   const labelEl = (
-                                    <span className={`text-[9px] ${forecastCls} font-medium`}>
-                                      {task.baseline ? 'Prev: ' : ''}{formatDateFull(forecastEnd)}
+                                    <span className={`text-[9px] ${rowTeamDef ? '' : 'text-foreground'} font-medium`}>
+                                      {formatDateFull(endDate)}
                                     </span>
                                   );
                                   if (hasLogs) {
                                     return (
                                       <Tooltip>
                                         <TooltipTrigger asChild>
-                                          <button disabled className="text-center w-full leading-tight cursor-not-allowed opacity-90" title={hasForecast ? 'Previsão atualizada pelo apontamento diário' : undefined}>
+                                          <button disabled className="text-center w-full leading-tight cursor-not-allowed opacity-90">
                                             {labelEl}
                                           </button>
                                         </TooltipTrigger>
@@ -1124,23 +1070,6 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                     </Popover>
                                   );
                                 })()}
-                              </div>
-                              <div className="text-center">
-                                {task.baseline ? (() => {
-                                  const dev = task.duration - task.baseline.duration;
-                                  const cls = dev > 0
-                                    ? 'bg-destructive/15 text-destructive'
-                                    : dev < 0
-                                    ? 'bg-success/15 text-success'
-                                    : 'bg-muted text-muted-foreground';
-                                  return (
-                                    <span className={`inline-block px-1 py-0.5 rounded text-[9px] font-bold ${cls}`}>
-                                      {dev > 0 ? '+' : ''}{dev}d
-                                    </span>
-                                  );
-                                })() : (
-                                  <span className={`text-[9px] ${rowTeamDef ? 'opacity-60' : 'text-muted-foreground'}`}>—</span>
-                                )}
                               </div>
                               <div className="text-center">
                                 <input
@@ -1483,19 +1412,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                     />
                                   );
                                 })}
-                                {/* Faixa baseline = cinza claro, 3px, atrás de tudo */}
-                                {task.baseline && (() => {
-                                  const blLeft = diffDays(projectStart, parseISODateLocal(task.baseline.startDate)) * dayWidth;
-                                  const blWidth = task.baseline.duration * dayWidth;
-                                  return (
-                                    <div
-                                      className="absolute rounded pointer-events-none"
-                                      style={{ left: blLeft, width: blWidth, top: 26, height: 3, background: 'rgba(150, 150, 150, 0.35)', borderRadius: 2, zIndex: 7 }}
-                                      title={`Baseline: ${formatDateFull(task.baseline.startDate)} → ${formatDateFull(task.baseline.endDate)} (${task.baseline.duration}d)`}
-                                    />
-                                  );
-                                })()}
-                                {/* Barra cheia = current (planejado corrente, editável via drag) */}
+                                {/* Barra cheia = planejado (task.startDate + task.duration, Manual ou RUP) */}
                                 {(() => {
                                   const barLeft = currentLeft;
                                   const barWidth = currentWidth;
@@ -1555,7 +1472,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
 
                                   {/* Tooltip */}
                                   {(() => {
-                                    const hasMulti = !!task.baseline || (task.dailyLogs?.length || 0) > 0;
+                                    const hasMulti = (task.dailyLogs?.length || 0) > 0;
                                     return (
                                   <div className={`absolute -top-10 left-1/2 -translate-x-1/2 bg-foreground text-background text-[9px] px-2 py-1 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity ${hasMulti ? 'whitespace-pre-line' : 'whitespace-nowrap'} z-30 pointer-events-none`}>
                                     {isResizing && resizeInfo
@@ -1568,32 +1485,23 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                       ? 'Tarefa sem dias úteis no período'
                                       : (() => {
                                           const teamDef = getTeamDefinition(task.team);
-                                          const teamLabel = teamDef ? `${teamDef.label} (${teamDef.composition})` : '';
-                                          const prodLabel = formatTeamLabel(task);
+                                          const mode = (task.durationMode || 'manual') === 'rup' ? 'RUP' : 'Manual';
+                                          const barEnd = getEndDate(task.startDate, task.duration);
                                           const parts: string[] = [];
-                                          if (teamLabel) parts.push(teamLabel);
-                                          if (prodLabel) parts.push(prodLabel);
-                                          if (task.baseline) {
-                                            const dev = task.duration - task.baseline.duration;
-                                            parts.push(`Base: ${formatDateFull(task.baseline.startDate)}→${formatDateFull(task.baseline.endDate)} (${task.baseline.duration}d)`);
-                                            if (task.current) {
-                                              parts.push(`Previsto: ${formatDateFull(task.current.startDate)}→${formatDateFull(task.current.forecastEndDate || task.current.endDate)} (${task.current.duration}d)`);
-                                            }
-                                            if (dev !== 0) parts.push(`Desvio: ${dev > 0 ? '+' : ''}${dev}d`);
-                                          }
+                                          parts.push(`Início: ${formatDateFull(task.startDate)}`);
+                                          parts.push(`Fim: ${formatDateFull(barEnd)}`);
+                                          parts.push(`Duração: ${task.duration} dias`);
+                                          parts.push(`Modo: ${mode}`);
+                                          if (teamDef) parts.push(`Equipe: ${teamDef.label} (${teamDef.composition})`);
                                           const workedLogs = (task.dailyLogs || []).filter(l => l.actualQuantity > 0);
                                           if (workedLogs.length > 0) {
                                             const unit = task.unit || 'un';
                                             if (task.executedQuantityTotal !== undefined) parts.push(`Executado: ${task.executedQuantityTotal} ${unit}`);
                                             if (task.remainingQuantity !== undefined) parts.push(`Restante: ${task.remainingQuantity} ${unit}`);
-                                            const dates = workedLogs.map(l => formatDateShort(l.date));
-                                            const shown = dates.slice(0, 5).join(', ') + (dates.length > 5 ? '…' : '');
-                                            parts.push(`Dias trabalhados: ${shown}`);
                                           }
                                           if (task.physicalProgress !== undefined && (task.dailyLogs?.length || 0) > 0) {
                                             parts.push(`Físico: ${task.physicalProgress.toFixed(1)}%`);
                                           }
-                                          if (parts.length === 0) return `${task.percentComplete}% • ${task.duration}d`;
                                           return parts.join(hasMulti ? '\n' : ' • ');
                                         })()
                                     }
