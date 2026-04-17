@@ -343,7 +343,22 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
     setTimeout(() => runPropagation(taskId), 0);
   };
 
-  // Edit baseline (Plan) dates — respects RUP duration mode
+  const handleDurationChange = (taskId: string, value: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    const parsed = parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return;
+    const newDuration = Math.max(1, parsed);
+    if (newDuration === task.duration) return;
+    // Sempre força modo manual ao editar a duração diretamente
+    updateTask(taskId, {
+      duration: newDuration,
+      durationMode: 'manual',
+      isManual: true,
+      manualDuration: newDuration,
+    });
+    setTimeout(() => runPropagation(taskId), 0);
+  };
   const handleBaselineDateChange = (taskId: string, field: 'start' | 'end', date: Date | undefined) => {
     if (!date || !onProjectChange) return;
     const task = tasks.find(t => t.id === taskId);
