@@ -1458,6 +1458,35 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                 </div>
                                   );
                                 })()}
+
+                                {/* Linha tracejada: intervalo Real → Previsto (apontamento diário) */}
+                                {(() => {
+                                  const hasRealData = (task.dailyLogs || []).some(l => (l.actualQuantity ?? 0) > 0) && !!task.current?.startDate;
+                                  if (!hasRealData) return null;
+                                  const realStartISO = task.current!.startDate;
+                                  const previstoISO = task.current!.forecastEndDate || task.current!.endDate;
+                                  if (!previstoISO) return null;
+                                  const realStart = parseISODateLocal(realStartISO);
+                                  const previsto = parseISODateLocal(previstoISO);
+                                  const leftDays = diffDays(projectStart, realStart);
+                                  const spanDays = Math.max(1, diffDays(realStart, previsto) + 1);
+                                  const left = leftDays * dayWidth;
+                                  const width = spanDays * dayWidth;
+                                  const plannedEndISO = dateToISO(addDays(parseISODateLocal(task.startDate), task.duration));
+                                  const isLate = previstoISO > plannedEndISO;
+                                  const color = isLate ? 'hsl(var(--destructive))' : 'hsl(var(--success))';
+                                  return (
+                                    <div
+                                      className="absolute pointer-events-none"
+                                      style={{ left, width, top: 32, height: 8, zIndex: 11 }}
+                                      title={`Real: ${formatDateFull(realStartISO)} → Previsto: ${formatDateFull(previstoISO)}`}
+                                    >
+                                      <div style={{ position: 'absolute', top: 3, left: 0, right: 0, borderTop: `2px dashed ${color}` }} />
+                                      <div style={{ position: 'absolute', left: -1, top: 0, width: 2, height: 8, background: color }} />
+                                      <div style={{ position: 'absolute', right: -1, top: 0, width: 2, height: 8, background: color }} />
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             );
                           })}
