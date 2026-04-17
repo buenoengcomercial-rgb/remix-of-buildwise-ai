@@ -461,16 +461,13 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
     );
     const result = propagateAllDependencies(allTasks, taskId);
     const tempMap = new Map<string, { startDate: string }>();
-    if (result.changed) {
-      result.tasks.forEach(t => {
-        const orig = tasks.find(ot => ot.id === t.id);
-        if (orig && t.startDate !== orig.startDate && t.id !== taskId) {
-          tempMap.set(t.id, { startDate: t.startDate });
-        }
-      });
-    }
+    result.tasks.forEach(t => {
+      if (t.id !== taskId) {
+        tempMap.set(t.id, { startDate: t.startDate });
+      }
+    });
     return tempMap;
-  }, [project, tasks]);
+  }, [project]);
 
   const handleMouseDown = (e: React.MouseEvent, taskId: string, barLeft: number) => {
     e.preventDefault();
@@ -1437,7 +1434,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                             } else if (isDragPropagated) {
                               // Real-time propagation: move successor bar
                               const tempData = dragTempTasks.get(task.id)!;
-                              const tempStart = diffDays(projectStart, new Date(tempData.startDate));
+                              const tempStart = diffDays(projectStart, parseISODateLocal(tempData.startDate));
                               currentLeft = tempStart * dayWidth;
                             }
 
