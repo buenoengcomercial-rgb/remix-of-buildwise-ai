@@ -1099,6 +1099,30 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                   );
                                 })()}
                               </div>
+                              {/* % Concluído */}
+                              <div className="text-center">
+                                {(() => {
+                                  const pct = Math.round(task.physicalProgress ?? task.percentComplete ?? 0);
+                                  // Esperado pelo tempo decorrido
+                                  const start = parseISODateLocal(task.startDate);
+                                  const totalDays = Math.max(1, task.duration);
+                                  const elapsed = Math.max(0, Math.min(totalDays, diffDays(start, today) + 1));
+                                  const expected = Math.round((elapsed / totalDays) * 100);
+                                  const hasData = (task.percentComplete ?? 0) > 0 || (task.physicalProgress ?? 0) > 0 || (task.dailyLogs?.length ?? 0) > 0;
+                                  const color = !hasData
+                                    ? '#6b7280'
+                                    : pct >= expected ? '#166534' : '#991b1b';
+                                  return (
+                                    <span
+                                      className="text-[10px] font-bold"
+                                      style={{ color, filter: 'drop-shadow(0 0 1px white)' }}
+                                      title={`Concluído: ${pct}% • Esperado: ${expected}%`}
+                                    >
+                                      {pct}%
+                                    </span>
+                                  );
+                                })()}
+                              </div>
                               <div className="text-center">
                                 <input
                                   className={`w-full text-[9px] bg-transparent border-b border-border/50 text-center focus:outline-none focus:border-primary ${rowTeamDef ? 'opacity-80' : 'text-muted-foreground'}`}
