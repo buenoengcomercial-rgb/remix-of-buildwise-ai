@@ -626,8 +626,8 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
     return result.dias === 0;
   }, [obraConfig]);
 
- const sidebarCols = '24px 1fr 28px 20px 78px 78px 44px 44px 56px';
- const sidebarWidth = 536;
+  const sidebarCols = '24px 1fr 28px 20px 78px 78px 42px 44px 44px 56px';
+ const sidebarWidth = 578;
 
   // Toggle duration mode and recalculate if switching to RUP
   const toggleDurationMode = (taskId: string) => {
@@ -826,6 +826,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                 <span className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider text-center" title="Modo: RUP ou Manual">M</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Início</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Fim</span>
+                <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center" title="Percentual concluído">% Concl.</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Dep</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Tipo</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Equipe</span>
@@ -881,8 +882,20 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                             />
                           </PopoverContent>
                         </Popover>
-                        <span className="text-muted-foreground ml-auto">
-                          <span className="font-medium text-foreground">{diasUteis.dias}d</span> / <span className="font-medium text-foreground">{diasUteis.horas}h</span> úteis
+                        <span className="text-muted-foreground ml-auto flex items-center gap-2">
+                          {(() => {
+                            const items = phase.tasks;
+                            if (items.length === 0) return null;
+                            const totalDur = items.reduce((s, t) => s + Math.max(1, t.duration), 0) || 1;
+                            const weighted = items.reduce((s, t) => s + (t.physicalProgress ?? t.percentComplete ?? 0) * Math.max(1, t.duration), 0);
+                            const pct = Math.round(weighted / totalDur);
+                            return (
+                              <span className="font-bold" style={{ color: pct >= 100 ? '#166534' : '#1e40af' }} title="Percentual concluído do capítulo (média ponderada por duração)">
+                                {pct}%
+                              </span>
+                            );
+                          })()}
+                          <span><span className="font-medium text-foreground">{diasUteis.dias}d</span> / <span className="font-medium text-foreground">{diasUteis.horas}h</span> úteis</span>
                         </span>
                       </div>
                     </div>
@@ -923,9 +936,9 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                 {noWorkDays && <AlertTriangle className="w-3 h-3 flex-shrink-0" style={{ color: '#b45309', filter: 'drop-shadow(0 0 1px white)' }} />}
                                 <p className={`text-[11px] font-medium line-clamp-2 break-words leading-tight ${rowTeamDef ? '' : 'text-foreground'}`}>{task.name}</p>
                               </div>
-                              <div className="text-center">
+                              <div className="text-center relative">
                                 <input
-                                  className={`w-full text-[10px] font-bold bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-primary rounded ${
+                                  className={`w-full text-[10px] font-bold bg-transparent text-center pr-2.5 focus:outline-none focus:ring-1 focus:ring-primary rounded ${
                                     rowTeamDef ? '' : ((task.durationMode || 'manual') === 'rup' ? 'text-primary' : 'text-foreground')
                                   }`}
                                   style={rowTeamDef ? { color: rowTeamDef.textColor } : undefined}
@@ -956,6 +969,10 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                     ? `RUP: ${task.bottleneckRole || '—'} — edite para desvincular`
                                     : 'Duração manual (dias)'}
                                 />
+                                <span
+                                  className="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] opacity-60 pointer-events-none"
+                                  style={rowTeamDef ? { color: rowTeamDef.textColor } : undefined}
+                                >d</span>
                               </div>
                               <div className="text-center">
                                 <Tooltip>
@@ -996,7 +1013,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                   );
                                   const realLine = hasRealData ? (
                                     <span
-                                      className="text-[9px] font-semibold leading-none"
+                                      className="text-[9px] font-medium leading-none"
                                       style={{ color: '#1e40af', filter: 'drop-shadow(0 0 1px white)' }}
                                     >
                                       Real: {formatDateFull(task.current!.startDate)}
@@ -1051,7 +1068,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                   const isLate = !!previsto && previsto > endDate;
                                   const prevLine = hasRealData && previsto ? (
                                     <span
-                                      className="text-[9px] font-semibold leading-none"
+                                      className="text-[9px] font-medium leading-none"
                                       style={{
                                         color: isLate ? '#991b1b' : '#166534',
                                         filter: 'drop-shadow(0 0 1px white)',
@@ -1091,6 +1108,30 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                         />
                                       </PopoverContent>
                                     </Popover>
+                                  );
+                                })()}
+                              </div>
+                              {/* % Concluído */}
+                              <div className="text-center">
+                                {(() => {
+                                  const pct = Math.round(task.physicalProgress ?? task.percentComplete ?? 0);
+                                  // Esperado pelo tempo decorrido
+                                  const start = parseISODateLocal(task.startDate);
+                                  const totalDays = Math.max(1, task.duration);
+                                  const elapsed = Math.max(0, Math.min(totalDays, diffDays(start, today) + 1));
+                                  const expected = Math.round((elapsed / totalDays) * 100);
+                                  const hasData = (task.percentComplete ?? 0) > 0 || (task.physicalProgress ?? 0) > 0 || (task.dailyLogs?.length ?? 0) > 0;
+                                  const color = !hasData
+                                    ? '#6b7280'
+                                    : pct >= expected ? '#166534' : '#991b1b';
+                                  return (
+                                    <span
+                                      className="text-[10px] font-bold"
+                                      style={{ color, filter: 'drop-shadow(0 0 1px white)' }}
+                                      title={`Concluído: ${pct}% • Esperado: ${expected}%`}
+                                    >
+                                      {pct}%
+                                    </span>
                                   );
                                 })()}
                               </div>
@@ -1551,6 +1592,27 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                           boxShadow: '0 0 0 1px hsl(var(--background))',
                                         }}
                                       />
+                                      {/* Badge % concluído sobre a linha tracejada */}
+                                      {(() => {
+                                        const pct = Math.round(task.physicalProgress ?? task.percentComplete ?? 0);
+                                        return (
+                                          <span
+                                            className="absolute text-[9px] font-bold px-1 rounded leading-none"
+                                            style={{
+                                              left: '50%',
+                                              top: '50%',
+                                              transform: 'translate(-50%, -50%)',
+                                              color,
+                                              background: 'white',
+                                              boxShadow: `0 0 0 1px ${color}`,
+                                              filter: 'drop-shadow(0 0 1px white)',
+                                            }}
+                                            title={`Concluído: ${pct}%`}
+                                          >
+                                            {pct}%
+                                          </span>
+                                        );
+                                      })()}
                                     </div>
                                   );
                                 })()}
