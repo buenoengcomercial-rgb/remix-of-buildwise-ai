@@ -920,7 +920,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                               <div className="min-w-0 flex items-center gap-1 pl-1">
                                 {task.isCritical && <div className="w-1.5 h-1.5 rounded-full bg-destructive flex-shrink-0" />}
                                 {hasViolation && <AlertTriangle className="w-3 h-3 flex-shrink-0" style={{ color: 'hsl(0, 75%, 38%)', filter: 'drop-shadow(0 0 1px white)' }} />}
-                                {noWorkDays && <AlertTriangle className="w-3 h-3 flex-shrink-0" style={{ color: 'hsl(35, 90%, 32%)', filter: 'drop-shadow(0 0 1px white)' }} />}
+                                {noWorkDays && <AlertTriangle className="w-3 h-3 flex-shrink-0" style={{ color: '#b45309', filter: 'drop-shadow(0 0 1px white)' }} />}
                                 <p className={`text-[11px] font-medium line-clamp-2 break-words leading-tight ${rowTeamDef ? '' : 'text-foreground'}`}>{task.name}</p>
                               </div>
                               <div className="text-center">
@@ -990,7 +990,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                   const startNonUtil = !isDiaUtil(parseISODateLocal(task.startDate), obraConfig.uf, obraConfig.municipio, obraConfig.trabalhaSabado);
                                   const labelEl = (
                                     <span className={`text-[9px] ${rowTeamDef ? '' : 'text-foreground'} font-medium inline-flex items-center justify-center gap-0.5`}>
-                                      {startNonUtil && <AlertTriangle className="w-2.5 h-2.5 flex-shrink-0" style={{ color: 'hsl(35, 90%, 32%)', filter: 'drop-shadow(0 0 1px white)' }} aria-label="Início em dia não útil" />}
+                                      {startNonUtil && <AlertTriangle className="w-2.5 h-2.5 flex-shrink-0" style={{ color: '#b45309', filter: 'drop-shadow(0 0 1px white)' }} aria-label="Início em dia não útil" />}
                                       {formatDateFull(task.startDate)}
                                     </span>
                                   );
@@ -1043,7 +1043,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                   const endNonUtil = !isDiaUtil(parseISODateLocal(endDate), obraConfig.uf, obraConfig.municipio, obraConfig.trabalhaSabado);
                                   const labelEl = (
                                     <span className={`text-[9px] ${rowTeamDef ? '' : 'text-foreground'} font-medium inline-flex items-center justify-center gap-0.5`}>
-                                      {endNonUtil && <AlertTriangle className="w-2.5 h-2.5 flex-shrink-0" style={{ color: 'hsl(35, 90%, 32%)', filter: 'drop-shadow(0 0 1px white)' }} aria-label="Fim em dia não útil" />}
+                                      {endNonUtil && <AlertTriangle className="w-2.5 h-2.5 flex-shrink-0" style={{ color: '#b45309', filter: 'drop-shadow(0 0 1px white)' }} aria-label="Fim em dia não útil" />}
                                       {formatDateFull(endDate)}
                                     </span>
                                   );
