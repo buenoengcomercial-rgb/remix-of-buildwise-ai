@@ -147,6 +147,44 @@ export default function DailyLogsPanel({ task, onChange }: DailyLogsPanelProps) 
           </div>
         </div>
 
+        {(() => {
+          const logsComQty = sortedLogs.filter(l => (l.actualQuantity ?? 0) > 0);
+          if (logsComQty.length === 0) return null;
+          const realStart = logsComQty[0].date;
+          const executedTotal = logsComQty.reduce((s, l) => s + (l.actualQuantity || 0), 0);
+          const remaining = Math.max(0, (task.quantity || 0) - executedTotal);
+          const progress = task.quantity ? Math.min(100, (executedTotal / task.quantity) * 100) : 0;
+          const avgDaily = executedTotal / logsComQty.length;
+          const daysRemaining = avgDaily > 0 ? Math.ceil(remaining / avgDaily) : 0;
+          const lastDate = logsComQty[logsComQty.length - 1].date;
+          const [ly, lm, ld] = lastDate.split('-').map(Number);
+          const fd = new Date(ly, lm - 1, ld + daysRemaining);
+          const forecastISO = `${fd.getFullYear()}-${String(fd.getMonth() + 1).padStart(2, '0')}-${String(fd.getDate()).padStart(2, '0')}`;
+          const plannedEndISO = task.baseline?.endDate ?? task.current?.endDate ?? task.startDate;
+          const isLate = forecastISO > plannedEndISO;
+          return (
+            <div className="grid grid-cols-3 gap-2 p-2 bg-muted/30 rounded-lg">
+              <div className="text-center">
+                <div className="text-[9px] text-muted-foreground uppercase">Início real</div>
+                <div className="text-[11px] font-semibold text-info">{formatBR(realStart)}</div>
+              </div>
+              <div className="text-center">
+                <div className="text-[9px] text-muted-foreground uppercase">Executado</div>
+                <div className="text-[11px] font-semibold text-foreground">
+                  {executedTotal.toFixed(1)} / {task.quantity ?? 0} {unit}
+                </div>
+                <div className="text-[10px] font-bold text-primary">{progress.toFixed(1)}%</div>
+              </div>
+              <div className="text-center">
+                <div className="text-[9px] text-muted-foreground uppercase">Prev. término</div>
+                <div className={`text-[11px] font-semibold ${isLate ? 'text-destructive' : 'text-success'}`}>
+                  {formatBR(forecastISO)}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         <div className="grid grid-cols-8 gap-2 text-[10px] font-semibold text-muted-foreground uppercase">
           <div>Data</div>
           <div className="text-center">Meta ({unit})</div>
