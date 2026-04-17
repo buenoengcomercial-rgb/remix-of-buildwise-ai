@@ -626,8 +626,8 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
     return result.dias === 0;
   }, [obraConfig]);
 
-  const sidebarCols = '24px 1fr 22px 92px 92px 56px 52px 60px 56px';
-  const sidebarWidth = 562;
+  const sidebarCols = '24px 1fr 22px 88px 88px 44px 52px 48px 56px 56px';
+  const sidebarWidth = 586;
 
   // Toggle duration mode and recalculate if switching to RUP
   const toggleDurationMode = (taskId: string) => {
@@ -825,6 +825,7 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                 <span className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider text-center" title="Modo: RUP ou Manual">M</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Início</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Fim</span>
+                <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center" title="Duração em dias">Dur.</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center" title="Percentual concluído">% Concl.</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Dep</span>
                 <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center">Tipo</span>
@@ -1072,6 +1073,12 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                     </Popover>
                                   );
                                 })()}
+                              </div>
+                              {/* Duração (apenas leitura) */}
+                              <div className="text-center">
+                                <span className={`text-[10px] font-medium ${rowTeamDef ? '' : 'text-foreground'}`} title="Duração em dias">
+                                  {task.duration}
+                                </span>
                               </div>
                               {/* % Concluído */}
                               <div className="text-center">
@@ -1567,8 +1574,9 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                           <span
                                             className="absolute text-[9px] font-bold px-1 rounded leading-none whitespace-nowrap"
                                             style={{
-                                              left: offsetPx + 8,
-                                              top: -16,
+                                              left: offsetPx + 10,
+                                              top: '50%',
+                                              transform: 'translateY(-50%)',
                                               color,
                                               background: 'white',
                                               boxShadow: `0 0 0 1px ${color}`,
