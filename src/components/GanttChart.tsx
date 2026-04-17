@@ -1519,8 +1519,8 @@ export default function GanttChart({ project, onProjectChange }: GanttChartProps
                                           top: overlayHeight / 2 - 1,
                                           left: 2,
                                           right: 2,
-                                          borderTop: `2px dashed ${color}`,
-                                          filter: 'drop-shadow(0 0 1px hsl(var(--foreground) / 0.6))',
+                                          borderTop: `3px dashed ${color}`,
+                                          filter: 'drop-shadow(0 1px 0 white) drop-shadow(0 -1px 0 white)',
                                         }}
                                       />
                                       {/* Marcador início (Real) */}
