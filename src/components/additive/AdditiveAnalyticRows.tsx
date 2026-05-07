@@ -189,22 +189,22 @@ function AdditiveAnalyticRowsImpl({ c, bdi, globalDiscount, isLocked, cb, onUpda
               <tr key={i.id} className="border-t border-border/50">
                 <td className="px-1.5 py-1 font-mono align-middle">
                   {editable ? (
-                    <Input value={i.code} onChange={e => patchInput(i.id, { code: e.target.value })} className="h-6 w-full text-[11px] font-mono px-1" />
+                    <TextCell value={i.code} onCommit={v => patchInput(i.id, { code: v })} className="h-6 w-full text-[11px] font-mono px-1" />
                   ) : i.code}
                 </td>
                 <td className="px-1.5 py-1 align-middle">
                   {editable ? (
-                    <Input value={i.bank} onChange={e => patchInput(i.id, { bank: e.target.value })} className="h-6 w-full text-[11px] px-1" />
+                    <TextCell value={i.bank} onCommit={v => patchInput(i.id, { bank: v })} className="h-6 w-full text-[11px] px-1" />
                   ) : i.bank}
                 </td>
                 <td className="px-1.5 py-1 align-middle">
                   {editable ? (
-                    <Input value={i.description} onChange={e => patchInput(i.id, { description: e.target.value })} className="h-6 w-full text-[11px] px-1" />
+                    <TextCell value={i.description} onCommit={v => patchInput(i.id, { description: v })} className="h-6 w-full text-[11px] px-1" />
                   ) : i.description}
                 </td>
                 <td className="px-1.5 py-1 align-middle">
                   {editable ? (
-                    <Input value={i.unit} onChange={e => patchInput(i.id, { unit: e.target.value })} className="h-6 w-full text-[11px] px-1" />
+                    <TextCell value={i.unit} onCommit={v => patchInput(i.id, { unit: v })} className="h-6 w-full text-[11px] px-1" />
                   ) : i.unit}
                 </td>
                 <td className="px-1.5 py-1 text-right align-middle">
