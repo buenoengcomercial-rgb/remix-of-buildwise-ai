@@ -30,7 +30,7 @@ interface Props {
 export default function AdditiveTable(props: Props) {
   const { filteredComps, groupTree, orphanRows, hasEapLink } = props;
 
-  const renderRow = (c: AdditiveComposition) => (
+  const renderRow = (c: AdditiveComposition, idx: number) => (
     <AdditiveCompositionRow
       key={c.id}
       c={c}
@@ -40,6 +40,7 @@ export default function AdditiveTable(props: Props) {
       isOpen={props.expanded.has(c.id)}
       isMemoryOpen={props.expandedMemory.has(c.id)}
       showAnalytic={props.showAnalytic}
+      rowIndex={idx}
       onToggleExpand={props.onToggleExpand}
       onToggleMemory={props.onToggleMemory}
       onUpdateComposition={props.onUpdateComposition}
