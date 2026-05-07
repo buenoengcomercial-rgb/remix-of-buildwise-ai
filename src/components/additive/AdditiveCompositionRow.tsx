@@ -246,3 +246,5 @@ function AdditiveCompositionRowImpl({
     </Fragment>
   );
 }
+
+export default memo(AdditiveCompositionRowImpl);
