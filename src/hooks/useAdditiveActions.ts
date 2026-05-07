@@ -627,6 +627,7 @@ export function useAdditiveActions({ project, onProjectChange, state }: Params) 
     handleAddNewService,
     handleRemoveComposition,
     handleContractAdditive,
+    syntheticConflict,
   };
 }
 
