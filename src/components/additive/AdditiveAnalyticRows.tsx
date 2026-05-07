@@ -38,11 +38,14 @@ const parseDecimalInput = (v: string): number => {
 
 /** Input numérico — local até blur/Enter. */
 function NumCell({
-  value, onCommit, className,
+  value, onCommit, className, gridId, rowIndex, colIndex,
 }: {
   value: number;
   onCommit: (n: number) => void;
   className?: string;
+  gridId?: string;
+  rowIndex?: number;
+  colIndex?: number;
 }) {
   const fmt = (n: number) => (n ? String(n).replace('.', ',') : '');
   const [local, setLocal] = useState<string>(() => fmt(value));
@@ -60,28 +63,36 @@ function NumCell({
       type="text"
       inputMode="decimal"
       value={local}
-      onFocus={() => setFocused(true)}
+      data-grid-id={gridId}
+      data-row-index={rowIndex}
+      data-col-index={colIndex}
+      onFocus={e => { setFocused(true); e.currentTarget.select(); }}
       onChange={e => {
         const v = e.target.value;
         if (/^-?[0-9]*[.,]?[0-9]*$/.test(v)) setLocal(v);
       }}
       onBlur={() => { setFocused(false); commit(); }}
       onKeyDown={e => {
+        handleGridKeyDown(e);
+        if (e.defaultPrevented) return;
         if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
       }}
-      className={className}
+      className={`no-spinner ${className ?? ''}`}
     />
   );
 }
 
 /** Input texto — local até blur/Enter. */
 function TextCell({
-  value, onCommit, className, mono,
+  value, onCommit, className, mono, gridId, rowIndex, colIndex,
 }: {
   value: string;
   onCommit: (v: string) => void;
   className?: string;
   mono?: boolean;
+  gridId?: string;
+  rowIndex?: number;
+  colIndex?: number;
 }) {
   const [local, setLocal] = useState(value ?? '');
   const [focused, setFocused] = useState(false);
@@ -91,10 +102,15 @@ function TextCell({
   return (
     <Input
       value={local}
-      onFocus={() => setFocused(true)}
+      data-grid-id={gridId}
+      data-row-index={rowIndex}
+      data-col-index={colIndex}
+      onFocus={e => { setFocused(true); e.currentTarget.select(); }}
       onChange={e => setLocal(e.target.value)}
       onBlur={() => { setFocused(false); if (local !== value) onCommit(local); }}
       onKeyDown={e => {
+        handleGridKeyDown(e);
+        if (e.defaultPrevented) return;
         if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
       }}
       className={className}
