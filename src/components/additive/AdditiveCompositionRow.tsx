@@ -8,6 +8,9 @@ import { memoryTotals } from '@/lib/calculationMemory';
 import { fmtBRL, fmtNum, fmtQty2, fmtPct, COL_COUNT, G_BG, BORDER_L } from './types';
 import AdditiveAnalyticRows from './AdditiveAnalyticRows';
 import AdditiveCalculationMemory from './AdditiveCalculationMemory';
+import { handleGridKeyDown } from '@/lib/gridKeyboardNavigation';
+
+const MAIN_GRID = 'additive-main-table';
 
 /** Parse pt-BR/EN decimal string -> number. Empty => null. */
 const parseDec = (s: string): number | null => {
