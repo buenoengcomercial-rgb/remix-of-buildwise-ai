@@ -127,7 +127,7 @@ export function useAdditiveState(project: Project, opts: Options = {}) {
     showAnalytic, setShowAnalytic,
     expanded, toggleExpand,
     expandedMemory, toggleExpandMemory,
-    collapsed, toggleCollapsed,
+    collapsed, toggleCollapsed, collapseAllGroups, expandAllGroups,
     importDialogOpen, setImportDialogOpen,
     importName, setImportName,
     pendingFile, setPendingFile,
