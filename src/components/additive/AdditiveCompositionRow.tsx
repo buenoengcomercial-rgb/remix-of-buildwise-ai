@@ -5,7 +5,7 @@ import { ChevronRight, ChevronDown, Trash2, Calculator } from 'lucide-react';
 import type { AdditiveComposition, AdditiveCalculationMemoryRow } from '@/types/project';
 import { computeAdditiveRow, computeCompositionWithBDI } from '@/lib/additiveImport';
 import { memoryTotals } from '@/lib/calculationMemory';
-import { fmtBRL, fmtNum, fmtPct, COL_COUNT } from './types';
+import { fmtBRL, fmtNum, fmtPct, COL_COUNT, G_BG, BORDER_L } from './types';
 import AdditiveAnalyticRows from './AdditiveAnalyticRows';
 import AdditiveCalculationMemory from './AdditiveCalculationMemory';
 
