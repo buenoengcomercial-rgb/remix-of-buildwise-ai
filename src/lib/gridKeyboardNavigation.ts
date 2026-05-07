@@ -89,7 +89,7 @@ function findInCol(cells: CellInfo[], idx: number, row: number, col: number, dir
 
 function focusCell(el: HTMLElement) {
   try {
-    el.focus({ preventScroll: false });
+    el.focus({ preventScroll: true });
   } catch { el.focus(); }
   if ('select' in el) {
     try { (el as HTMLInputElement).select(); } catch { /* noop */ }
