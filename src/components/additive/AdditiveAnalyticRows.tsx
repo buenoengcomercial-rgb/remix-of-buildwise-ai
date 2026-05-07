@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import type { AdditiveComposition, AdditiveInput } from '@/types/project';
 import { sumAnalyticTotalNoBDI, money2, truncar2 } from '@/lib/additiveImport';
 import { fmtBRL } from './types';
+import { handleGridKeyDown } from '@/lib/gridKeyboardNavigation';
 
 interface Props {
   c: AdditiveComposition;
