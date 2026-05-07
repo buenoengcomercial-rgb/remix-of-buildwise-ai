@@ -17,6 +17,7 @@ interface Props {
   isOpen: boolean;
   isMemoryOpen: boolean;
   showAnalytic: boolean;
+  rowIndex?: number;
   onToggleExpand: (id: string) => void;
   onToggleMemory: (id: string) => void;
   onUpdateComposition: (id: string, patch: Partial<AdditiveComposition>) => void;
@@ -26,7 +27,7 @@ interface Props {
 }
 
 function AdditiveCompositionRowImpl({
-  c, bdi, globalDiscount, isLocked, isOpen, isMemoryOpen, showAnalytic,
+  c, bdi, globalDiscount, isLocked, isOpen, isMemoryOpen, showAnalytic, rowIndex = 0,
   onToggleExpand, onToggleMemory, onUpdateComposition, onUpdateQuantity,
   onRemoveComposition, onChangeMemory,
 }: Props) {
@@ -44,7 +45,7 @@ function AdditiveCompositionRowImpl({
 
   return (
     <Fragment>
-      <tr className={`border-b hover:bg-muted/30 align-top ${isNew ? 'bg-sky-50/40' : ''}`}>
+      <tr className={`border-b align-top hover:bg-slate-100/60 ${isNew ? 'bg-sky-50/30' : (rowIndex % 2 === 1 ? 'bg-slate-50/50' : 'bg-white')}`}>
         <td className="px-1 py-2 text-center">
           <button
             onClick={() => onToggleExpand(c.id)}

@@ -48,7 +48,7 @@ function AdditiveGroupRowImpl(props: Props) {
           </div>
         </td>
       </tr>
-      {!isCollapsed && g.rows.map(c => (
+      {!isCollapsed && g.rows.map((c, idx) => (
         <AdditiveCompositionRow
           key={c.id}
           c={c}
@@ -58,6 +58,7 @@ function AdditiveGroupRowImpl(props: Props) {
           isOpen={props.expanded.has(c.id)}
           isMemoryOpen={props.expandedMemory.has(c.id)}
           showAnalytic={props.showAnalytic}
+          rowIndex={idx}
           onToggleExpand={props.onToggleExpand}
           onToggleMemory={props.onToggleMemory}
           onUpdateComposition={props.onUpdateComposition}
