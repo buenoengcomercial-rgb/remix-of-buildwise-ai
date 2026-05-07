@@ -96,3 +96,6 @@ function AdditiveGroupRowImpl(props: Props) {
     </Fragment>
   );
 }
+
+const AdditiveGroupRow = memo(AdditiveGroupRowImpl);
+export default AdditiveGroupRow;
