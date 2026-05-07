@@ -94,7 +94,7 @@ function ensureSingleTrailingDraftRow(
   return [...filled, makeMemoryRow(lastType)];
 }
 
-export default function AdditiveCalculationMemory({
+function AdditiveCalculationMemoryImpl({
   c, isLocked, onChange, onChangeColumns,
 }: Props) {
   const labels = resolveMemoryColumnLabels(c.calculationMemoryColumns);
