@@ -9,6 +9,7 @@ import { fmtBRL, fmtNum, fmtQty2, fmtPct, COL_COUNT, G_BG, BORDER_L } from './ty
 import AdditiveAnalyticRows from './AdditiveAnalyticRows';
 import AdditiveCalculationMemory from './AdditiveCalculationMemory';
 import { handleGridKeyDown } from '@/lib/gridKeyboardNavigation';
+import { requestMemoryFocus, type AdditiveMemoryQtyType } from '@/lib/additiveMemoryFocus';
 
 const MAIN_GRID = 'additive-main-table';
 
@@ -22,7 +23,7 @@ const parseDec = (s: string): number | null => {
 
 /** Célula numérica com estado local. Mostra vazio quando valor=0 e allowEmptyZero. */
 function QtyCell({
-  value, disabled, onCommit, className, allowEmptyZero, gridId, rowIndex, colIndex,
+  value, disabled, onCommit, className, allowEmptyZero, gridId, rowIndex, colIndex, onFocusCell,
 }: {
   value: number;
   disabled?: boolean;
@@ -32,6 +33,7 @@ function QtyCell({
   gridId?: string;
   rowIndex?: number;
   colIndex?: number;
+  onFocusCell?: () => void;
 }) {
   const fmtView = (n: number) =>
     n === 0 && allowEmptyZero ? '' : fmtQty2(n);
@@ -47,7 +49,7 @@ function QtyCell({
       data-grid-id={gridId}
       data-row-index={rowIndex}
       data-col-index={colIndex}
-      onFocus={e => { setFocused(true); e.currentTarget.select(); }}
+      onFocus={e => { setFocused(true); e.currentTarget.select(); onFocusCell?.(); }}
       onChange={e => {
         const v = e.target.value;
         if (/^-?[0-9.,]*$/.test(v)) setLocal(v);
@@ -150,6 +152,12 @@ function AdditiveCompositionRowImpl({
   const hasMemory = memTotals.hasMemory;
   const canOpenAnalytic = hasInputs || isNew;
   const shouldShowAnalyticRows = isOpen && (showAnalytic || isNew) && canOpenAnalytic;
+
+  const openMemoryFor = (type: AdditiveMemoryQtyType) => {
+    if (isLocked) return;
+    requestMemoryFocus(c.id, type);
+    if (!isMemoryOpen) onToggleMemory(c.id);
+  };
 
   return (
     <Fragment>
@@ -281,7 +289,10 @@ function AdditiveCompositionRowImpl({
             gridId={MAIN_GRID} rowIndex={rowIndex} colIndex={4}
           />
         </td>
-        <td className={`px-1 py-1 text-right ${G_BG.suppressed} text-rose-700`}>
+        <td
+          className={`px-1 py-1 text-right ${G_BG.suppressed} text-rose-700`}
+          onClick={isLocked ? undefined : () => openMemoryFor('suprimida')}
+        >
           <QtyCell
             value={c.suppressedQuantity ?? 0}
             disabled={isLocked || hasMemory}
@@ -289,9 +300,13 @@ function AdditiveCompositionRowImpl({
             onCommit={n => { onUpdateComposition(c.id, { suppressedQuantity: n }); onUpdateQuantity(c.id, 'suppressedQuantity', n); }}
             className="h-7 w-full text-xs text-right px-1 border-rose-200 text-rose-700"
             gridId={MAIN_GRID} rowIndex={rowIndex} colIndex={5}
+            onFocusCell={isLocked ? undefined : () => openMemoryFor('suprimida')}
           />
         </td>
-        <td className={`px-1 py-1 text-right ${G_BG.added} text-emerald-700`}>
+        <td
+          className={`px-1 py-1 text-right ${G_BG.added} text-emerald-700`}
+          onClick={isLocked ? undefined : () => openMemoryFor('acrescida')}
+        >
           <QtyCell
             value={c.addedQuantity ?? 0}
             disabled={isLocked || hasMemory}
@@ -299,6 +314,7 @@ function AdditiveCompositionRowImpl({
             onCommit={n => { onUpdateComposition(c.id, { addedQuantity: n }); onUpdateQuantity(c.id, 'addedQuantity', n); }}
             className="h-7 w-full text-xs text-right px-1 border-emerald-200 text-emerald-700"
             gridId={MAIN_GRID} rowIndex={rowIndex} colIndex={6}
+            onFocusCell={isLocked ? undefined : () => openMemoryFor('acrescida')}
           />
         </td>
         <td className={`px-1 py-1 text-right font-medium ${G_BG.qty}`}>{fmtQty2(r.qtdFinal)}</td>
