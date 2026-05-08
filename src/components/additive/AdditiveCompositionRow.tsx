@@ -13,6 +13,79 @@ import { requestMemoryFocus, type AdditiveMemoryQtyType } from '@/lib/additiveMe
 
 const MAIN_GRID = 'additive-main-table';
 
+/** Célula de texto (input) com estado local; commit em blur/Enter/Tab. */
+function TextCommitCell({
+  value, onCommit, className, placeholder, gridId, rowIndex, colIndex,
+}: {
+  value: string;
+  onCommit: (v: string) => void;
+  className?: string;
+  placeholder?: string;
+  gridId?: string;
+  rowIndex?: number;
+  colIndex?: number;
+}) {
+  const [local, setLocal] = useState<string>(value ?? '');
+  const [focused, setFocused] = useState(false);
+  useEffect(() => { if (!focused) setLocal(value ?? ''); }, [value, focused]);
+  const commit = () => { if ((local ?? '') !== (value ?? '')) onCommit(local); };
+  return (
+    <Input
+      value={local}
+      placeholder={placeholder}
+      data-grid-id={gridId}
+      data-row-index={rowIndex}
+      data-col-index={colIndex}
+      onFocus={() => setFocused(true)}
+      onChange={e => setLocal(e.target.value)}
+      onBlur={() => { setFocused(false); commit(); }}
+      onKeyDown={e => {
+        handleGridKeyDown(e);
+        if (e.defaultPrevented) return;
+        if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); }
+      }}
+      className={className}
+    />
+  );
+}
+
+/** Célula de texto (textarea) com estado local; commit em blur. */
+function TextareaCommitCell({
+  value, onCommit, className, placeholder, rows, gridId, rowIndex, colIndex,
+}: {
+  value: string;
+  onCommit: (v: string) => void;
+  className?: string;
+  placeholder?: string;
+  rows?: number;
+  gridId?: string;
+  rowIndex?: number;
+  colIndex?: number;
+}) {
+  const [local, setLocal] = useState<string>(value ?? '');
+  const [focused, setFocused] = useState(false);
+  useEffect(() => { if (!focused) setLocal(value ?? ''); }, [value, focused]);
+  const commit = () => { if ((local ?? '') !== (value ?? '')) onCommit(local); };
+  return (
+    <textarea
+      value={local}
+      placeholder={placeholder}
+      rows={rows}
+      data-grid-id={gridId}
+      data-row-index={rowIndex}
+      data-col-index={colIndex}
+      onFocus={() => setFocused(true)}
+      onChange={e => setLocal(e.target.value)}
+      onBlur={() => { setFocused(false); commit(); }}
+      onKeyDown={e => {
+        handleGridKeyDown(e);
+        if (e.defaultPrevented) return;
+      }}
+      className={className}
+    />
+  );
+}
+
 /** Parse pt-BR/EN decimal string -> number. Empty => null. */
 const parseDec = (s: string): number | null => {
   const t = String(s ?? '').trim().replace(/\./g, '').replace(',', '.');
@@ -176,13 +249,10 @@ function AdditiveCompositionRowImpl({
         <td className={`px-1 py-1 ${G_BG.id}`}>{c.itemNumber || c.item}</td>
         <td className={`px-1 py-1 font-mono text-[11px] break-words whitespace-normal ${G_BG.id}`}>
           {isNew && !isLocked ? (
-            <Input
+            <TextCommitCell
               value={c.code}
-              data-grid-id={MAIN_GRID}
-              data-row-index={rowIndex}
-              data-col-index={0}
-              onKeyDown={handleGridKeyDown}
-              onChange={e => onUpdateComposition(c.id, { code: e.target.value })}
+              gridId={MAIN_GRID} rowIndex={rowIndex} colIndex={0}
+              onCommit={v => onUpdateComposition(c.id, { code: v })}
               className="h-7 w-full text-[11px] font-mono"
               placeholder="Código"
             />
@@ -190,13 +260,10 @@ function AdditiveCompositionRowImpl({
         </td>
         <td className={`px-1 py-1 break-words whitespace-normal ${G_BG.id}`}>
           {isNew && !isLocked ? (
-            <Input
+            <TextCommitCell
               value={c.bank}
-              data-grid-id={MAIN_GRID}
-              data-row-index={rowIndex}
-              data-col-index={1}
-              onKeyDown={handleGridKeyDown}
-              onChange={e => onUpdateComposition(c.id, { bank: e.target.value })}
+              gridId={MAIN_GRID} rowIndex={rowIndex} colIndex={1}
+              onCommit={v => onUpdateComposition(c.id, { bank: v })}
               className="h-7 w-full text-xs"
               placeholder="Banco"
             />
@@ -204,13 +271,10 @@ function AdditiveCompositionRowImpl({
         </td>
         <td className={`px-1 py-1 ${G_BG.id}`}>
           {isNew && !isLocked ? (
-            <textarea
+            <TextareaCommitCell
               value={c.description}
-              data-grid-id={MAIN_GRID}
-              data-row-index={rowIndex}
-              data-col-index={2}
-              onKeyDown={handleGridKeyDown}
-              onChange={e => onUpdateComposition(c.id, { description: e.target.value })}
+              gridId={MAIN_GRID} rowIndex={rowIndex} colIndex={2}
+              onCommit={v => onUpdateComposition(c.id, { description: v })}
               className="w-full text-xs rounded-md border border-input bg-background px-2 py-1.5 leading-snug focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y min-h-[40px]"
               rows={2}
               placeholder="Descrição do novo serviço"
@@ -267,13 +331,10 @@ function AdditiveCompositionRowImpl({
         </td>
         <td className={`px-1 py-1 ${G_BG.id}`}>
           {isNew && !isLocked ? (
-            <Input
+            <TextCommitCell
               value={c.unit}
-              data-grid-id={MAIN_GRID}
-              data-row-index={rowIndex}
-              data-col-index={3}
-              onKeyDown={handleGridKeyDown}
-              onChange={e => onUpdateComposition(c.id, { unit: e.target.value })}
+              gridId={MAIN_GRID} rowIndex={rowIndex} colIndex={3}
+              onCommit={v => onUpdateComposition(c.id, { unit: v })}
               className="h-7 w-full text-xs"
               placeholder="Un"
             />
