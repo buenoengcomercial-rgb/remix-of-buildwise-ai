@@ -78,8 +78,9 @@ export function useAdditiveState(project: Project, opts: Options = {}) {
 
   const toggleExpandMemory = useCallback((id: string) =>
     setExpandedMemory(prev => {
-      const n = new Set(prev);
-      if (n.has(id)) n.delete(id); else n.add(id);
+      // Single-open: abrir uma memória fecha qualquer outra.
+      const n = new Set<string>();
+      if (!prev.has(id)) n.add(id);
       persistUi({ expandedMemoryIds: Array.from(n) });
       return n;
     }), [persistUi]);
