@@ -163,6 +163,7 @@ function AdditiveCalculationMemoryImpl({
 
   /** Foca por consulta ao DOM (data-grid-id + data-row-index + data-col-index). */
   const gridId = `additive-memory-${c.id}`;
+  const skipNextBlurCommitRef = useRef(false);
 
   const focusMemoryCell = (row: number, col: number) => {
     const selector = `[data-grid-id="${gridId}"][data-row-index="${row}"][data-col-index="${col}"]`;
@@ -218,8 +219,15 @@ function AdditiveCalculationMemoryImpl({
   const handleBlur = (e: React.FocusEvent<HTMLElement>) => {
     if (isLocked) return;
     const next = e.relatedTarget as HTMLElement | null;
-    if (next?.getAttribute('data-grid-id') === gridId) return;
+    if (skipNextBlurCommitRef.current || next?.getAttribute('data-grid-id') === gridId) return;
     reconcile();
+  };
+
+  const handleMemoryContainerKeyDownCapture = (e: React.KeyboardEvent) => {
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Tab'].includes(e.key)) return;
+    skipNextBlurCommitRef.current = true;
+    handleGridContainerKeyDownCapture(e);
+    requestAnimationFrame(() => { skipNextBlurCommitRef.current = false; });
   };
 
   /** Botão "+ Acrescida" / "+ Suprimida": força linha vazia com o tipo escolhido. */
@@ -306,7 +314,7 @@ function AdditiveCalculationMemoryImpl({
   return (
     <div
       className="border rounded-md bg-background p-2 space-y-2"
-      onKeyDownCapture={handleGridContainerKeyDownCapture}
+      onKeyDownCapture={handleMemoryContainerKeyDownCapture}
     >
       <div className="flex items-center justify-between">
         <div className="text-[11px] font-semibold text-muted-foreground">
