@@ -62,15 +62,24 @@ export function useAdditiveGroups(
         .filter((g): g is CompGroup => g !== null);
       if (directRows.length === 0 && childGroups.length === 0) return null;
 
+      let subtotalTotalFonte = 0;
       let subtotalContratado = 0;
+      let subtotalSuprimido = 0;
+      let subtotalAcrescido = 0;
       let subtotalFinal = 0;
       directRows.forEach(c => {
         const r = computeAdditiveRow(c, bdi, globalDiscount);
+        subtotalTotalFonte += r.totalFonte;
         subtotalContratado += r.valorContratadoOriginalPreservado;
+        subtotalSuprimido += r.valorSuprimido;
+        subtotalAcrescido += r.valorAcrescido;
         subtotalFinal += r.valorFinal;
       });
       childGroups.forEach(c => {
+        subtotalTotalFonte += c.subtotalTotalFonte;
         subtotalContratado += c.subtotalContratado;
+        subtotalSuprimido += c.subtotalSuprimido;
+        subtotalAcrescido += c.subtotalAcrescido;
         subtotalFinal += c.subtotalFinal;
       });
       return {
@@ -80,8 +89,12 @@ export function useAdditiveGroups(
         depth,
         rows: directRows,
         children: childGroups,
+        subtotalTotalFonte,
         subtotalContratado,
+        subtotalSuprimido,
+        subtotalAcrescido,
         subtotalFinal,
+        subtotalDiferenca: subtotalFinal - subtotalContratado,
       };
     };
 
