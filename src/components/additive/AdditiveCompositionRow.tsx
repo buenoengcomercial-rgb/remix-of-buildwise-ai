@@ -331,13 +331,10 @@ function AdditiveCompositionRowImpl({
         </td>
         <td className={`px-1 py-1 ${G_BG.id}`}>
           {isNew && !isLocked ? (
-            <Input
+            <TextCommitCell
               value={c.unit}
-              data-grid-id={MAIN_GRID}
-              data-row-index={rowIndex}
-              data-col-index={3}
-              onKeyDown={handleGridKeyDown}
-              onChange={e => onUpdateComposition(c.id, { unit: e.target.value })}
+              gridId={MAIN_GRID} rowIndex={rowIndex} colIndex={3}
+              onCommit={v => onUpdateComposition(c.id, { unit: v })}
               className="h-7 w-full text-xs"
               placeholder="Un"
             />
