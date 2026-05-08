@@ -646,6 +646,10 @@ export function useAdditiveActions({ project, onProjectChange, state }: Params) 
     if (rows.length > 0) {
       patch.addedQuantity = totalsAdded;
       patch.suppressedQuantity = totalsSuppressed;
+    } else {
+      // Memória esvaziada: zera quantidades calculadas pela memória.
+      patch.addedQuantity = 0;
+      patch.suppressedQuantity = 0;
     }
     updateComposition(compId, patch);
     const impactAdded = rows.length > 0 && totalsAdded !== beforeAdded;
