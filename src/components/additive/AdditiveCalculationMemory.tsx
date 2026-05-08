@@ -1,7 +1,22 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Plus, Copy, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Copy, Trash2, AlertTriangle, Clipboard, ClipboardPaste } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import type {
   AdditiveComposition,
   AdditiveCalculationMemoryRow,
@@ -18,6 +33,27 @@ import {
 import { handleGridContainerKeyDownCapture } from '@/lib/gridKeyboardNavigation';
 import { fmtNum } from './types';
 import { consumeMemoryPreferredType, onMemoryFocus } from '@/lib/additiveMemoryFocus';
+
+// ===== Clipboard local da Memória de Cálculo (escopo Aditivo / sessão) =====
+type MemoryClip = {
+  rows: AdditiveCalculationMemoryRow[];
+  columns?: AdditiveCalculationMemoryColumns;
+};
+let _memoryClip: MemoryClip | null = null;
+const _clipListeners = new Set<() => void>();
+function setMemoryClip(clip: MemoryClip | null) {
+  _memoryClip = clip;
+  _clipListeners.forEach(fn => { try { fn(); } catch { /* noop */ } });
+}
+function getMemoryClip(): MemoryClip | null { return _memoryClip; }
+function subscribeMemoryClip(fn: () => void) {
+  _clipListeners.add(fn);
+  return () => { _clipListeners.delete(fn); };
+}
+function useMemoryClip(): MemoryClip | null {
+  return useSyncExternalStore(subscribeMemoryClip, getMemoryClip, () => null);
+}
+const newRowId = () => Math.random().toString(36).slice(2, 10);
 
 interface Props {
   c: AdditiveComposition;
