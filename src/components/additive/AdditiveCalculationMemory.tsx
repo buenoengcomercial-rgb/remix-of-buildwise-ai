@@ -395,6 +395,9 @@ function AdditiveCalculationMemoryImpl({
                       ref={setCellRef(r.id, 'type') as any}
                       value={r.type}
                       disabled={isLocked}
+                      data-grid-id={`additive-memory-${c.id}`}
+                      data-row-index={rowIndex}
+                      data-col-index={0}
                       onChange={e => onCellChange(r.id, 'type', e.target.value)}
                       onBlur={handleBlur}
                       onKeyDown={e => handleKeyDown(e, rowIndex, 0)}
@@ -409,6 +412,9 @@ function AdditiveCalculationMemoryImpl({
                       ref={setCellRef(r.id, 'comment') as any}
                       value={r.comment ?? ''}
                       disabled={isLocked}
+                      data-grid-id={`additive-memory-${c.id}`}
+                      data-row-index={rowIndex}
+                      data-col-index={1}
                       onChange={e => onCellChange(r.id, 'comment', e.target.value)}
                       onBlur={handleBlur}
                       onKeyDown={e => handleKeyDown(e, rowIndex, 1)}
@@ -421,6 +427,9 @@ function AdditiveCalculationMemoryImpl({
                       ref={setCellRef(r.id, 'formula') as any}
                       value={r.formula ?? ''}
                       disabled={isLocked}
+                      data-grid-id={`additive-memory-${c.id}`}
+                      data-row-index={rowIndex}
+                      data-col-index={2}
                       onChange={e => onCellChange(r.id, 'formula', e.target.value)}
                       onBlur={handleBlur}
                       onKeyDown={e => handleKeyDown(e, rowIndex, 2)}
@@ -437,6 +446,9 @@ function AdditiveCalculationMemoryImpl({
                         step="0.0001"
                         value={r[k] ?? ''}
                         disabled={isLocked}
+                        data-grid-id={`additive-memory-${c.id}`}
+                        data-row-index={rowIndex}
+                        data-col-index={3 + kIdx}
                         onChange={e => onCellChange(r.id, k, e.target.value)}
                         onBlur={handleBlur}
                         onKeyDown={e => handleKeyDown(e, rowIndex, 3 + kIdx)}
