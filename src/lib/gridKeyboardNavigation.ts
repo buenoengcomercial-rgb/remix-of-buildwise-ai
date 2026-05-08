@@ -189,8 +189,9 @@ if (typeof window !== 'undefined' && !(window as any).__gridKeyGuardInstalled) {
         }
       }
       // ArrowUp/Down/PageUp/PageDown sempre bloqueados na grade — evita scroll.
+      // Importante: NÃO chamar stopPropagation aqui, senão o handler React
+      // (handleGridKeyDown) não recebe o evento e a navegação vertical quebra.
       e.preventDefault();
-      e.stopPropagation();
     },
     { capture: true },
   );
