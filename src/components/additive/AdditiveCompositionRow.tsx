@@ -222,6 +222,7 @@ function AdditiveCompositionRowImpl({
   onToggleExpand, onToggleMemory, onUpdateComposition, onUpdateQuantity,
   onRemoveComposition, onChangeMemory,
 }: Props) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const r = computeAdditiveRow(c, bdi, globalDiscount);
   const cb = computeCompositionWithBDI(c, bdi);
   const hasInputs = c.inputs.length > 0;
