@@ -16,6 +16,7 @@ import {
   validMemoryRows,
 } from '@/lib/calculationMemory';
 import { fmtNum } from './types';
+import { handleGridKeyDown } from '@/lib/gridKeyboardNavigation';
 
 interface Props {
   c: AdditiveComposition;
@@ -31,9 +32,9 @@ const numOrUndef = (v: string): number | undefined => {
   return Number.isFinite(n) ? n : undefined;
 };
 
-/** Campos editáveis e ordem de navegação. */
-const EDIT_FIELDS = ['type', 'comment', 'formula', 'a', 'b', 'c', 'd'] as const;
-type EditField = typeof EDIT_FIELDS[number];
+/** Campos editáveis por índice de coluna (igual à grade do DOM). */
+type EditField = 'type' | 'comment' | 'formula' | 'a' | 'b' | 'c' | 'd';
+const FIELD_BY_COL: EditField[] = ['type', 'comment', 'formula', 'a', 'b', 'c', 'd'];
 
 /** Cabeçalho editável por duplo clique. */
 function EditableHeader({
@@ -152,20 +153,15 @@ function AdditiveCalculationMemoryImpl({
     onChange(next.filter(isMemoryRowFilled));
   }, [onChange]);
 
-  /** Refs por célula para navegação. */
-  const cellRefs = useRef<Map<string, HTMLElement>>(new Map());
-  const setCellRef = (rowId: string, field: EditField) => (el: HTMLElement | null) => {
-    const k = `${rowId}:${field}`;
-    if (el) cellRefs.current.set(k, el); else cellRefs.current.delete(k);
-  };
-  const focusCell = (rowId: string, field: EditField) => {
+  /** Foca por consulta ao DOM (data-grid-id + data-row-index + data-col-index). */
+  const gridId = `additive-memory-${c.id}`;
+  const focusCellByCoords = (rowIndex: number, colIndex: number) => {
     requestAnimationFrame(() => {
-      const el = cellRefs.current.get(`${rowId}:${field}`);
-      if (el) {
-        try { (el as HTMLInputElement).focus({ preventScroll: true }); }
-        catch { (el as HTMLInputElement).focus(); }
-        if ('select' in el) try { (el as HTMLInputElement).select(); } catch { /* noop */ }
-      }
+      const sel = `[data-grid-id="${gridId}"][data-row-index="${rowIndex}"][data-col-index="${colIndex}"]`;
+      const el = document.querySelector<HTMLElement>(sel);
+      if (!el) return;
+      try { el.focus({ preventScroll: true }); } catch { el.focus(); }
+      if ('select' in el) try { (el as HTMLInputElement).select(); } catch { /* noop */ }
     });
   };
 
@@ -191,7 +187,7 @@ function AdditiveCalculationMemoryImpl({
   /**
    * Reconciliação: garante linha vazia única no fim.
    * Chamada após eventos de confirmação (blur, enter, tab, dup, del, +).
-   * Persiste no projeto e devolve as linhas finais (para focar próxima linha se necessário).
+   * Persiste no projeto e devolve as linhas finais.
    */
   const reconcile = useCallback((preferredType?: 'acrescida' | 'suprimida') => {
     let finalRows: AdditiveCalculationMemoryRow[] = [];
@@ -199,7 +195,6 @@ function AdditiveCalculationMemoryImpl({
       finalRows = ensureSingleTrailingDraftRow(prev, preferredType);
       return finalRows;
     });
-    // Persistência fora do setter para não duplicar.
     requestAnimationFrame(() => commit(finalRows));
     return finalRows;
   }, [commit]);
@@ -209,64 +204,24 @@ function AdditiveCalculationMemoryImpl({
     reconcile();
   };
 
-  /** Navegação por teclado entre células (Enter/Tab + setas tipo planilha). */
-  const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLElement>,
-    rowIndex: number,
-    fieldIndex: number,
-  ) => {
+  /**
+   * Navegação 100% delegada ao helper global (mesmo padrão da Analítica).
+   * Após Enter/Tab/ArrowDown também garantimos a linha vazia no fim,
+   * para preservar a regra "criar nova linha apenas após confirmar/navegar".
+   */
+  const onCellKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     if (isLocked) return;
-    const target = e.target as HTMLInputElement | HTMLSelectElement;
-    const isInput = target.tagName === 'INPUT';
-    const isText = isInput && (target as HTMLInputElement).type !== 'number';
-    const caretAtStart = isInput ? (target as HTMLInputElement).selectionStart === 0 : true;
-    const caretAtEnd = isInput
-      ? (target as HTMLInputElement).selectionEnd === (target as HTMLInputElement).value.length
-      : true;
-
-    let dir: 'next' | 'prev' | 'up' | 'down' | null = null;
-    if (e.key === 'Enter' || e.key === 'Tab') dir = e.shiftKey ? 'prev' : 'next';
-    else if (e.key === 'ArrowRight' && (!isText || caretAtEnd)) dir = 'next';
-    else if (e.key === 'ArrowLeft' && (!isText || caretAtStart)) dir = 'prev';
-    else if (e.key === 'ArrowDown') dir = 'down';
-    else if (e.key === 'ArrowUp') dir = 'up';
-    if (!dir) return;
-
-    // Bloqueia ANTES de qualquer outra coisa — impede scroll da página
-    // e saída do escopo da grade, mesmo que não exista célula destino.
-    e.preventDefault();
-    e.stopPropagation();
-
-    let nextRow = rowIndex;
-    let nextField = fieldIndex;
-    if (dir === 'next') {
-      nextField = fieldIndex + 1;
-      if (nextField >= EDIT_FIELDS.length) { nextField = 0; nextRow = rowIndex + 1; }
-    } else if (dir === 'prev') {
-      nextField = fieldIndex - 1;
-      if (nextField < 0) { nextField = EDIT_FIELDS.length - 1; nextRow = rowIndex - 1; }
-    } else if (dir === 'down') {
-      nextRow = rowIndex + 1;
-    } else if (dir === 'up') {
-      nextRow = rowIndex - 1;
+    handleGridKeyDown(e);
+    if (e.key === 'Enter' || e.key === 'Tab' || e.key === 'ArrowDown') {
+      reconcile();
     }
-
-    // Reconcilia (cria linha vazia se necessário) ANTES de focar.
-    const finalRows = reconcile();
-
-    // Clampa nos limites: se nextRow < 0 mantém o foco; se passar do fim, fica na última.
-    if (nextRow < 0) return;
-    const safeRow = Math.min(Math.max(nextRow, 0), finalRows.length - 1);
-    const tgt = finalRows[safeRow];
-    if (tgt) focusCell(tgt.id, EDIT_FIELDS[nextField]);
   };
 
   /** Botão "+ Acrescida" / "+ Suprimida": força linha vazia com o tipo escolhido. */
   const addManual = (type: 'acrescida' | 'suprimida') => {
     const finalRows = reconcile(type);
-    // Foca o comentário da última linha (vazia).
-    const last = finalRows[finalRows.length - 1];
-    if (last) focusCell(last.id, 'comment');
+    // Foca o comentário (col 1) da última linha (vazia).
+    focusCellByCoords(finalRows.length - 1, 1);
   };
 
   const dupRow = (id: string) => {
@@ -315,7 +270,7 @@ function AdditiveCalculationMemoryImpl({
     if (isLocked) return;
     if (displayed.length > 0 && !isMemoryRowFilled(displayed[displayed.length - 1])) {
       didInitialFocusRef.current = true;
-      focusCell(displayed[displayed.length - 1].id, 'comment');
+      focusCellByCoords(displayed.length - 1, 1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -393,15 +348,14 @@ function AdditiveCalculationMemoryImpl({
                   </td>
                   <td className="px-1.5 py-1">
                     <select
-                      ref={setCellRef(r.id, 'type') as any}
                       value={r.type}
                       disabled={isLocked}
-                      data-grid-id={`additive-memory-${c.id}`}
+                      data-grid-id={gridId}
                       data-row-index={rowIndex}
                       data-col-index={0}
                       onChange={e => onCellChange(r.id, 'type', e.target.value)}
                       onBlur={handleBlur}
-                      onKeyDown={e => handleKeyDown(e, rowIndex, 0)}
+                      onKeyDown={onCellKeyDown}
                       className="h-7 w-full text-[11px] border border-input rounded-md bg-background px-1"
                     >
                       <option value="acrescida">Acrescida</option>
@@ -410,30 +364,28 @@ function AdditiveCalculationMemoryImpl({
                   </td>
                   <td className="px-1.5 py-1">
                     <Input
-                      ref={setCellRef(r.id, 'comment') as any}
                       value={r.comment ?? ''}
                       disabled={isLocked}
-                      data-grid-id={`additive-memory-${c.id}`}
+                      data-grid-id={gridId}
                       data-row-index={rowIndex}
                       data-col-index={1}
                       onChange={e => onCellChange(r.id, 'comment', e.target.value)}
                       onBlur={handleBlur}
-                      onKeyDown={e => handleKeyDown(e, rowIndex, 1)}
+                      onKeyDown={onCellKeyDown}
                       className="h-7 text-[11px]"
                       placeholder={isDraftRow ? 'Justificativa (digite para iniciar)' : 'Justificativa'}
                     />
                   </td>
                   <td className="px-1.5 py-1">
                     <Input
-                      ref={setCellRef(r.id, 'formula') as any}
                       value={r.formula ?? ''}
                       disabled={isLocked}
-                      data-grid-id={`additive-memory-${c.id}`}
+                      data-grid-id={gridId}
                       data-row-index={rowIndex}
                       data-col-index={2}
                       onChange={e => onCellChange(r.id, 'formula', e.target.value)}
                       onBlur={handleBlur}
-                      onKeyDown={e => handleKeyDown(e, rowIndex, 2)}
+                      onKeyDown={onCellKeyDown}
                       className={`h-7 text-[11px] font-mono ${isInvalid ? 'border-rose-400' : ''}`}
                       placeholder={placeholder}
                       title={isInvalid ? ev.error : `Fórmula opcional. Use A, B, C, D, +, -, *, /, ( ). Padrão: ${placeholder}`}
@@ -442,12 +394,11 @@ function AdditiveCalculationMemoryImpl({
                   {(['a', 'b', 'c', 'd'] as const).map((k, kIdx) => (
                     <td key={k} className="px-1.5 py-1">
                       <Input
-                        ref={setCellRef(r.id, k) as any}
                         type="text"
                         inputMode="decimal"
                         value={r[k] == null ? '' : String(r[k]).replace('.', ',')}
                         disabled={isLocked}
-                        data-grid-id={`additive-memory-${c.id}`}
+                        data-grid-id={gridId}
                         data-row-index={rowIndex}
                         data-col-index={3 + kIdx}
                         onChange={e => {
@@ -455,7 +406,7 @@ function AdditiveCalculationMemoryImpl({
                           if (v === '' || /^-?[0-9]*[.,]?[0-9]*$/.test(v)) onCellChange(r.id, k, v);
                         }}
                         onBlur={handleBlur}
-                        onKeyDown={e => handleKeyDown(e, rowIndex, 3 + kIdx)}
+                        onKeyDown={onCellKeyDown}
                         onFocus={e => e.currentTarget.select()}
                         className="h-7 text-[11px] text-right px-1 no-spinner"
                       />
