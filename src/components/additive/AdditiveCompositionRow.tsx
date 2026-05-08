@@ -1,7 +1,15 @@
 import { Fragment, memo, useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, ChevronDown, Trash2, Calculator } from 'lucide-react';
+import { ChevronRight, ChevronDown, Trash2, Calculator, MoreVertical } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { buttonVariants } from '@/components/ui/button';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import type { AdditiveComposition, AdditiveCalculationMemoryRow } from '@/types/project';
 import { computeAdditiveRow, computeCompositionWithBDI } from '@/lib/additiveImport';
 import { memoryTotals } from '@/lib/calculationMemory';
