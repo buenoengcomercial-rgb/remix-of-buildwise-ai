@@ -25,8 +25,6 @@ interface Props {
   /** Recebe SOMENTE linhas preenchidas (a linha vazia visual é estado local). */
   onChange: (rows: AdditiveCalculationMemoryRow[]) => void;
   onChangeColumns?: (cols: AdditiveCalculationMemoryColumns) => void;
-  /** Disparado quando o foco sai completamente do container da memória. */
-  onAutoClose?: () => void;
 }
 
 const numOrUndef = (v: string): number | undefined => {
@@ -84,24 +82,30 @@ function EditableHeader({
 }
 
 /**
- * Garante exatamente UMA linha vazia ao final.
- * - Remove linhas vazias intermediárias (mantém preenchidas).
- * - Adiciona uma única linha vazia no fim com tipo herdado.
+ * Garante exatamente UMA linha vazia ao final, PRESERVANDO o id da linha vazia
+ * existente quando ela já estiver no fim — isso evita remontar inputs e perder foco
+ * durante navegação por teclado.
  */
 function ensureSingleTrailingDraftRow(
   rows: AdditiveCalculationMemoryRow[],
   preferredType?: 'acrescida' | 'suprimida',
 ): AdditiveCalculationMemoryRow[] {
   const filled = rows.filter(isMemoryRowFilled);
+  const last = rows[rows.length - 1];
+  const hasTrailingEmpty = last && !isMemoryRowFilled(last);
+  if (hasTrailingEmpty) {
+    // Mantém o MESMO id; aplica preferredType se vier explicito.
+    const kept = preferredType ? { ...last, type: preferredType } : last;
+    return [...filled, kept];
+  }
   const lastType = preferredType
     ?? (filled.length > 0 ? filled[filled.length - 1].type : 'acrescida');
   return [...filled, makeMemoryRow(lastType)];
 }
 
 function AdditiveCalculationMemoryImpl({
-  c, isLocked, onChange, onChangeColumns, onAutoClose,
+  c, isLocked, onChange, onChangeColumns,
 }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const labels = resolveMemoryColumnLabels(c.calculationMemoryColumns);
   const placeholder = `${labels.a}*${labels.b}*${labels.c}*${labels.d}`;
 
@@ -209,14 +213,14 @@ function AdditiveCalculationMemoryImpl({
   };
 
   /**
-   * Navegação 100% delegada ao helper global (mesmo padrão da Analítica).
-   * Após Enter/Tab/ArrowDown também garantimos a linha vazia no fim,
-   * para preservar a regra "criar nova linha apenas após confirmar/navegar".
+   * Navegação delegada ao helper global. Setas APENAS navegam — não reconciliam,
+   * pois reconciliar pode remontar inputs e perder o foco. Enter/Tab confirmam
+   * (commit) preservando o id da linha vazia existente.
    */
   const onCellKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
     if (isLocked) return;
     handleGridKeyDown(e);
-    if (e.key === 'Enter' || e.key === 'Tab' || e.key === 'ArrowDown') {
+    if (e.key === 'Enter' || e.key === 'Tab') {
       reconcile();
     }
   };
@@ -289,8 +293,7 @@ function AdditiveCalculationMemoryImpl({
     if (isLocked) return;
     const apply = (type: 'acrescida' | 'suprimida') => {
       setRows(prev => {
-        const filled = prev.filter(isMemoryRowFilled);
-        const next = [...filled, makeMemoryRow(type)];
+        const next = ensureSingleTrailingDraftRow(prev, type);
         focusCellByCoords(next.length - 1, 1);
         return next;
       });
@@ -303,26 +306,9 @@ function AdditiveCalculationMemoryImpl({
     return off;
   }, [c.id, isLocked]);
 
-  const handleContainerBlurCapture = (e: React.FocusEvent<HTMLDivElement>) => {
-    if (isLocked) return;
-    if (!onAutoClose) return;
-    const next = e.relatedTarget as Node | null;
-    if (next && containerRef.current?.contains(next)) return;
-    // Salva antes de fechar.
-    reconcile();
-    // Defere para permitir que cliques em botões internos (mousedown sem foco) sejam processados.
-    setTimeout(() => {
-      const active = document.activeElement;
-      if (active && containerRef.current?.contains(active)) return;
-      onAutoClose();
-    }, 0);
-  };
-
   return (
     <div
-      ref={containerRef}
       className="border rounded-md bg-background p-2 space-y-2"
-      onBlurCapture={handleContainerBlurCapture}
     >
       <div className="flex items-center justify-between">
         <div className="text-[11px] font-semibold text-muted-foreground">
