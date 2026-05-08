@@ -78,13 +78,17 @@ function findInRow(cells: CellInfo[], idx: number, row: number, col: number, dir
   return domNext?.el ?? null;
 }
 
-function findInCol(cells: CellInfo[], idx: number, row: number, col: number, dir: 1 | -1): HTMLElement | null {
-  // Mesma coluna lógica, próxima/anterior linha em ordem DOM
-  const list = dir === 1 ? cells.slice(idx + 1) : cells.slice(0, idx).reverse();
-  const sameCol = list.find(c => c.col === col && c.row !== row);
-  if (sameCol) return sameCol.el;
-  // Fallback: qualquer próxima célula em DOM
-  return list[0]?.el ?? null;
+function findCell(cells: CellInfo[], row: number, col: number): HTMLElement | null {
+  return cells.find(c => c.row === row && c.col === col)?.el ?? null;
+}
+
+function findInCol(cells: CellInfo[], _idx: number, row: number, col: number, dir: 1 | -1): HTMLElement | null {
+  // Mesma coluna, linha mais próxima na direção informada (sem fallback DOM,
+  // para não pular para colunas erradas durante ArrowUp/ArrowDown).
+  const sameCol = cells
+    .filter(c => c.col === col && (dir === 1 ? c.row > row : c.row < row))
+    .sort((a, b) => dir === 1 ? a.row - b.row : b.row - a.row);
+  return sameCol[0]?.el ?? null;
 }
 
 function focusCell(el: HTMLElement) {
@@ -185,8 +189,9 @@ if (typeof window !== 'undefined' && !(window as any).__gridKeyGuardInstalled) {
         }
       }
       // ArrowUp/Down/PageUp/PageDown sempre bloqueados na grade — evita scroll.
+      // Importante: NÃO chamar stopPropagation aqui, senão o handler React
+      // (handleGridKeyDown) não recebe o evento e a navegação vertical quebra.
       e.preventDefault();
-      e.stopPropagation();
     },
     { capture: true },
   );
