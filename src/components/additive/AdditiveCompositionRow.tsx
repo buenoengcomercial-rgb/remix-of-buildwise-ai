@@ -23,7 +23,7 @@ const parseDec = (s: string): number | null => {
 
 /** Célula numérica com estado local. Mostra vazio quando valor=0 e allowEmptyZero. */
 function QtyCell({
-  value, disabled, onCommit, className, allowEmptyZero, gridId, rowIndex, colIndex,
+  value, disabled, onCommit, className, allowEmptyZero, gridId, rowIndex, colIndex, onFocusCell,
 }: {
   value: number;
   disabled?: boolean;
@@ -33,6 +33,7 @@ function QtyCell({
   gridId?: string;
   rowIndex?: number;
   colIndex?: number;
+  onFocusCell?: () => void;
 }) {
   const fmtView = (n: number) =>
     n === 0 && allowEmptyZero ? '' : fmtQty2(n);
@@ -48,7 +49,7 @@ function QtyCell({
       data-grid-id={gridId}
       data-row-index={rowIndex}
       data-col-index={colIndex}
-      onFocus={e => { setFocused(true); e.currentTarget.select(); }}
+      onFocus={e => { setFocused(true); e.currentTarget.select(); onFocusCell?.(); }}
       onChange={e => {
         const v = e.target.value;
         if (/^-?[0-9.,]*$/.test(v)) setLocal(v);
