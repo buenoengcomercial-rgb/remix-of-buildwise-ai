@@ -225,6 +225,13 @@ function AdditiveCompositionRowImpl({
   const hasMemory = memTotals.hasMemory;
   const canOpenAnalytic = hasInputs || isNew;
   const shouldShowAnalyticRows = isOpen && (showAnalytic || isNew) && canOpenAnalytic;
+  const isAlteredContracted = !isNew && (
+    (c.addedQuantity ?? 0) > 0 ||
+    (c.suppressedQuantity ?? 0) > 0 ||
+    r.valorAcrescido > 0 ||
+    r.valorSuprimido > 0 ||
+    Math.abs(r.diferenca) > 0.005
+  );
 
   const openMemoryFor = (type: AdditiveMemoryQtyType) => {
     if (isLocked) return;
@@ -234,7 +241,13 @@ function AdditiveCompositionRowImpl({
 
   return (
     <Fragment>
-      <tr className={`border-b align-top ${isNew ? 'bg-sky-50 hover:bg-sky-100/70 border-l-4 border-l-sky-500' : `hover:bg-slate-100/60 ${rowIndex % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'}`}`}>
+      <tr className={`border-b align-top ${
+        isNew
+          ? 'bg-sky-50 hover:bg-sky-100/70 border-l-4 border-l-sky-500'
+          : isAlteredContracted
+            ? 'bg-amber-50 hover:bg-amber-100/60 border-l-4 border-l-amber-500'
+            : `hover:bg-slate-100/60 ${rowIndex % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'}`
+      }`}>
         <td className="px-1 py-2 text-center">
           <button
             onClick={() => onToggleExpand(c.id)}
@@ -286,6 +299,11 @@ function AdditiveCompositionRowImpl({
             {isNew && (
               <Badge variant="outline" className="text-[10px] font-semibold text-sky-800 border-sky-500 bg-sky-100 px-2">
                 Novo serviço aditivado
+              </Badge>
+            )}
+            {isAlteredContracted && (
+              <Badge variant="outline" className="text-[10px] font-semibold text-amber-800 border-amber-500 bg-amber-100 px-2">
+                Item contratado alterado
               </Badge>
             )}
             {noAnalytic && <Badge variant="outline" className="text-[9px] text-amber-700 border-amber-400">Sem analítico</Badge>}
