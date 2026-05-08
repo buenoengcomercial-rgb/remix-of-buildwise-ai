@@ -16,7 +16,6 @@ import {
   validMemoryRows,
 } from '@/lib/calculationMemory';
 import { fmtNum } from './types';
-import { handleGridKeyDown } from '@/lib/gridKeyboardNavigation';
 import { consumeMemoryPreferredType, onMemoryFocus } from '@/lib/additiveMemoryFocus';
 
 interface Props {
@@ -163,13 +162,22 @@ function AdditiveCalculationMemoryImpl({
 
   /** Foca por consulta ao DOM (data-grid-id + data-row-index + data-col-index). */
   const gridId = `additive-memory-${c.id}`;
+  const skipNextBlurCommitRef = useRef(false);
+
+  const focusMemoryCell = (row: number, col: number) => {
+    const selector = `[data-grid-id="${gridId}"][data-row-index="${row}"][data-col-index="${col}"]`;
+    const el = document.querySelector<HTMLElement>(selector);
+    if (!el) return false;
+    el.focus({ preventScroll: true });
+    if ('select' in el) {
+      try { (el as HTMLInputElement).select(); } catch { /* noop */ }
+    }
+    return true;
+  };
+
   const focusCellByCoords = (rowIndex: number, colIndex: number) => {
     requestAnimationFrame(() => {
-      const sel = `[data-grid-id="${gridId}"][data-row-index="${rowIndex}"][data-col-index="${colIndex}"]`;
-      const el = document.querySelector<HTMLElement>(sel);
-      if (!el) return;
-      try { el.focus({ preventScroll: true }); } catch { el.focus(); }
-      if ('select' in el) try { (el as HTMLInputElement).select(); } catch { /* noop */ }
+      focusMemoryCell(rowIndex, colIndex);
     });
   };
 
@@ -207,22 +215,11 @@ function AdditiveCalculationMemoryImpl({
     return finalRows;
   }, [commit]);
 
-  const handleBlur = () => {
+  const handleBlur = (e: React.FocusEvent<HTMLElement>) => {
     if (isLocked) return;
+    const next = e.relatedTarget as HTMLElement | null;
+    if (skipNextBlurCommitRef.current || next?.getAttribute('data-grid-id') === gridId) return;
     reconcile();
-  };
-
-  /**
-   * Navegação delegada ao helper global. Setas APENAS navegam — não reconciliam,
-   * pois reconciliar pode remontar inputs e perder o foco. Enter/Tab confirmam
-   * (commit) preservando o id da linha vazia existente.
-   */
-  const onCellKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
-    if (isLocked) return;
-    handleGridKeyDown(e);
-    if (e.key === 'Enter' || e.key === 'Tab') {
-      reconcile();
-    }
   };
 
   /** Botão "+ Acrescida" / "+ Suprimida": força linha vazia com o tipo escolhido. */
