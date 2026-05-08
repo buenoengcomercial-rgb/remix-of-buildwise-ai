@@ -15,6 +15,7 @@ import {
   resolveMemoryColumnLabels,
   validMemoryRows,
 } from '@/lib/calculationMemory';
+import { handleGridContainerKeyDownCapture } from '@/lib/gridKeyboardNavigation';
 import { fmtNum } from './types';
 import { consumeMemoryPreferredType, onMemoryFocus } from '@/lib/additiveMemoryFocus';
 
@@ -162,7 +163,6 @@ function AdditiveCalculationMemoryImpl({
 
   /** Foca por consulta ao DOM (data-grid-id + data-row-index + data-col-index). */
   const gridId = `additive-memory-${c.id}`;
-  const skipNextBlurCommitRef = useRef(false);
 
   const focusMemoryCell = (row: number, col: number) => {
     const selector = `[data-grid-id="${gridId}"][data-row-index="${row}"][data-col-index="${col}"]`;
@@ -218,7 +218,7 @@ function AdditiveCalculationMemoryImpl({
   const handleBlur = (e: React.FocusEvent<HTMLElement>) => {
     if (isLocked) return;
     const next = e.relatedTarget as HTMLElement | null;
-    if (skipNextBlurCommitRef.current || next?.getAttribute('data-grid-id') === gridId) return;
+    if (next?.getAttribute('data-grid-id') === gridId) return;
     reconcile();
   };
 
@@ -267,60 +267,6 @@ function AdditiveCalculationMemoryImpl({
 
   // Linhas exibidas: estado local (sem draft extra, pois `rows` já contém).
   const displayed = isLocked ? rows.filter(isMemoryRowFilled) : rows;
-
-  const handleMemoryKeyDown = (
-    e: React.KeyboardEvent<HTMLElement>,
-    rowIndex: number,
-    colIndex: number,
-  ) => {
-    const keys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Tab'];
-    if (isLocked || !keys.includes(e.key)) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    let nextRow = rowIndex;
-    let nextCol = colIndex;
-
-    if (e.key === 'ArrowUp') nextRow = rowIndex - 1;
-    if (e.key === 'ArrowDown') nextRow = rowIndex + 1;
-    if (e.key === 'ArrowLeft') nextCol = colIndex - 1;
-    if (e.key === 'ArrowRight') nextCol = colIndex + 1;
-
-    if (e.key === 'Enter' || e.key === 'Tab') {
-      nextCol = e.shiftKey ? colIndex - 1 : colIndex + 1;
-    }
-
-    const maxCol = 6;
-    const maxRow = displayed.length - 1;
-
-    if (nextCol > maxCol) {
-      nextCol = 0;
-      nextRow = rowIndex + 1;
-    }
-
-    if (nextCol < 0) {
-      nextCol = maxCol;
-      nextRow = rowIndex - 1;
-    }
-
-    if (nextRow < 0) nextRow = 0;
-    if (nextRow > maxRow) nextRow = maxRow;
-
-    skipNextBlurCommitRef.current = true;
-
-    if (e.key === 'Enter' || e.key === 'Tab') {
-      reconcile();
-      requestAnimationFrame(() => {
-        focusMemoryCell(nextRow, nextCol);
-        skipNextBlurCommitRef.current = false;
-      });
-      return;
-    }
-
-    focusMemoryCell(nextRow, nextCol);
-    requestAnimationFrame(() => { skipNextBlurCommitRef.current = false; });
-  };
 
   // Foco inicial ao abrir sem nenhuma linha preenchida: foca o comentário da linha vazia.
   const didInitialFocusRef = useRef(false);
