@@ -492,20 +492,21 @@ export async function exportAdditiveSyntheticCompletePro(project: Project, add: 
       sDif += r.diferenca;
     });
     const fill = COLOR.subtotal;
-    const label = `${'    '.repeat(depth)}Subtotal ${number} ${name}`;
+    const label = `${'    '.repeat(depth)}Subtotal ${number} — ${name}`;
+    const r0 = rows.length;
     rows.push([
-      tCell(label, fill, true), tCell('', fill), tCell('', fill), tCell('', fill), tCell('', fill),
-      tCell('', fill), tCell('', fill), tCell('', fill), tCell('', fill),
-      tCell('', fill), tCell('', fill),
-      nCell(money2(sFonte), FMT_BRL, fill, undefined, true),
-      nCell(money2(sContr), FMT_BRL, fill, undefined, true),
-      nCell(money2(sSup), FMT_BRL, fill, COLOR.suprimidoFg, true),
-      nCell(money2(sAcr), FMT_BRL, fill, COLOR.acrescidoFg, true),
-      nCell(money2(sFinal), FMT_BRL, fill, undefined, true),
-      nCell(money2(sDif), FMT_BRL, fill, undefined, true),
+      tCell(label, fill, true, undefined, 'left'),
+      ...Array(10).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: fill } } } }),
+      nCell(moneyExcel(sFonte), FMT_BRL, fill, undefined, true),
+      nCell(moneyExcel(sContr), FMT_BRL, fill, undefined, true),
+      nCell(moneyExcel(sSup), FMT_BRL, fill, COLOR.suprimidoFg, true),
+      nCell(moneyExcel(sAcr), FMT_BRL, fill, COLOR.acrescidoFg, true),
+      nCell(moneyExcel(sFinal), FMT_BRL, fill, undefined, true),
+      nCell(moneyExcel(sDif), FMT_BRL, fill, undefined, true),
       tCell('', fill), tCell('', fill),
     ]);
-    rowHeights.push(20);
+    merges.push({ s: { r: r0, c: 0 }, e: { r: r0, c: 10 } });
+    rowHeights.push(18);
   };
 
   walkByChapters(project, add, () => true, {
@@ -519,23 +520,23 @@ export async function exportAdditiveSyntheticCompletePro(project: Project, add: 
   const t = additiveTotals(add);
   const fillT = COLOR.totalGeralBg;
   const fgT = COLOR.totalGeralFg;
+  const totalRowIdx = rows.length;
   rows.push([
-    tCell('TOTAL GERAL', fillT, true, fgT), tCell('', fillT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    tCell('', fillT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    tCell('', fillT), tCell('', fillT),
+    tCell('TOTAL GERAL', fillT, true, fgT, 'left'),
+    ...Array(10).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: fillT } } } }),
     tCell('', fillT),
-    nCell(t.totalContratadoOriginal, FMT_BRL, fillT, fgT, true),
-    nCell(t.totalSuprimido, FMT_BRL, fillT, fgT, true),
-    nCell(t.totalAcrescido, FMT_BRL, fillT, fgT, true),
-    nCell(t.valorFinal, FMT_BRL, fillT, fgT, true),
-    nCell(t.diferencaLiquida, FMT_BRL, fillT, fgT, true),
-    nCell(t.percentVariacaoLiquida, FMT_PCT, fillT, fgT, true),
+    nCell(moneyExcel(t.totalContratadoOriginal), FMT_BRL, fillT, fgT, true),
+    nCell(moneyExcel(t.totalSuprimido), FMT_BRL, fillT, fgT, true),
+    nCell(moneyExcel(t.totalAcrescido), FMT_BRL, fillT, fgT, true),
+    nCell(moneyExcel(t.valorFinal), FMT_BRL, fillT, fgT, true),
+    nCell(moneyExcel(t.diferencaLiquida), FMT_BRL, fillT, fgT, true),
+    nCell(pctExcel(t.percentVariacaoLiquida), FMT_PCT, fillT, fgT, true),
     tCell('', fillT),
   ]);
+  merges.push({ s: { r: totalRowIdx, c: 0 }, e: { r: totalRowIdx, c: 10 } });
   rowHeights.push(24);
 
   const ws = XLSX.utils.aoa_to_sheet(rows.map(r => r.map(c => (c && typeof c === 'object') ? (c as any).v : c)));
-  // Aplica células estilizadas substituindo
   for (let r = 0; r < rows.length; r++) {
     for (let c = 0; c < rows[r].length; c++) {
       const cell = rows[r][c];
@@ -546,15 +547,21 @@ export async function exportAdditiveSyntheticCompletePro(project: Project, add: 
     }
   }
   ws['!cols'] = [
-    { wch: 9 }, { wch: 14 }, { wch: 10 }, { wch: 50 }, { wch: 7 },
-    { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 },
-    { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 },
-    { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 9 },
-    { wch: 22 },
+    { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 38 }, { wch: 6 },
+    { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 10 },
+    { wch: 12 }, { wch: 13 }, { wch: 13 }, { wch: 14 },
+    { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 8 },
+    { wch: 18 },
   ];
   ws['!merges'] = merges;
   ws['!rows'] = rowHeights.map(h => ({ hpt: h }));
-  (ws as any)['!views'] = [{ state: 'frozen', ySplit: 11 }];
+  const subHeaderRowIdx = hdr.rows.length + 1;
+  const firstDataRowIdx = subHeaderRowIdx + 1;
+  (ws as any)['!views'] = [{ state: 'frozen', ySplit: firstDataRowIdx }];
+  const lastRowIdx = rows.length - 1;
+  ws['!autofilter'] = {
+    ref: `${XLSX.utils.encode_cell({ r: subHeaderRowIdx, c: 0 })}:${XLSX.utils.encode_cell({ r: lastRowIdx, c: totalCols - 1 })}`,
+  };
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Sintética Completa');
