@@ -809,23 +809,27 @@ export async function exportAdditiveCalculationMemoryPro(project: Project, add: 
             tCell(m.b ?? '', undefined, false, undefined, 'right'),
             tCell(m.c ?? '', undefined, false, undefined, 'right'),
             tCell(m.d ?? '', undefined, false, undefined, 'right'),
-            nCell(partial, FMT_QTD, fill, fg, true),
+            nCell(q2(partial), FMT_QTD, fill, fg, true),
           ]);
           rowHeights.push(18);
           if (isSup) totS += partial; else totA += partial;
         });
+        const rA = rows.length;
         rows.push([
-          tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('Total Acrescida', COLOR.subtotal, true, COLOR.acrescidoFg),
-          tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('', COLOR.subtotal),
-          nCell(money2(totA), FMT_QTD, COLOR.subtotal, COLOR.acrescidoFg, true),
+          tCell('Total Acrescida', COLOR.subtotal, true, COLOR.acrescidoFg, 'right'),
+          ...Array(7).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: COLOR.subtotal } } } }),
+          nCell(q2(totA), FMT_QTD, COLOR.subtotal, COLOR.acrescidoFg, true),
         ]);
-        rowHeights.push(20);
+        merges.push({ s: { r: rA, c: 0 }, e: { r: rA, c: 7 } });
+        rowHeights.push(18);
+        const rS = rows.length;
         rows.push([
-          tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('Total Suprimida', COLOR.subtotal, true, COLOR.suprimidoFg),
-          tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('', COLOR.subtotal),
-          nCell(money2(totS), FMT_QTD, COLOR.subtotal, COLOR.suprimidoFg, true),
+          tCell('Total Suprimida', COLOR.subtotal, true, COLOR.suprimidoFg, 'right'),
+          ...Array(7).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: COLOR.subtotal } } } }),
+          nCell(q2(totS), FMT_QTD, COLOR.subtotal, COLOR.suprimidoFg, true),
         ]);
-        rowHeights.push(20);
+        merges.push({ s: { r: rS, c: 0 }, e: { r: rS, c: 7 } });
+        rowHeights.push(18);
         grandAcr = money2(grandAcr + totA);
         grandSup = money2(grandSup + totS);
       }
@@ -842,23 +846,29 @@ export async function exportAdditiveCalculationMemoryPro(project: Project, add: 
   });
 
   const fillT = COLOR.totalGeralBg, fgT = COLOR.totalGeralFg;
+  const rGA = rows.length;
   rows.push([
-    tCell('TOTAL GERAL ACRESCIDO', fillT, true, fgT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    tCell('', fillT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    nCell(grandAcr, FMT_QTD, fillT, fgT, true),
+    tCell('TOTAL GERAL ACRESCIDO', fillT, true, fgT, 'right'),
+    ...Array(7).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: fillT } } } }),
+    nCell(q2(grandAcr), FMT_QTD, fillT, fgT, true),
   ]);
+  merges.push({ s: { r: rGA, c: 0 }, e: { r: rGA, c: 7 } });
   rowHeights.push(22);
+  const rGS = rows.length;
   rows.push([
-    tCell('TOTAL GERAL SUPRIMIDO', fillT, true, fgT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    tCell('', fillT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    nCell(grandSup, FMT_QTD, fillT, fgT, true),
+    tCell('TOTAL GERAL SUPRIMIDO', fillT, true, fgT, 'right'),
+    ...Array(7).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: fillT } } } }),
+    nCell(q2(grandSup), FMT_QTD, fillT, fgT, true),
   ]);
+  merges.push({ s: { r: rGS, c: 0 }, e: { r: rGS, c: 7 } });
   rowHeights.push(22);
+  const rDL = rows.length;
   rows.push([
-    tCell('DIFERENÇA LÍQUIDA', fillT, true, fgT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    tCell('', fillT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    nCell(money2(grandAcr - grandSup), FMT_QTD, fillT, fgT, true),
+    tCell('DIFERENÇA LÍQUIDA', fillT, true, fgT, 'right'),
+    ...Array(7).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: fillT } } } }),
+    nCell(q2(grandAcr - grandSup), FMT_QTD, fillT, fgT, true),
   ]);
+  merges.push({ s: { r: rDL, c: 0 }, e: { r: rDL, c: 7 } });
   rowHeights.push(22);
 
   const ws = XLSX.utils.aoa_to_sheet(rows.map(r => r.map(c => (c && typeof c === 'object') ? (c as any).v : c)));
@@ -867,12 +877,13 @@ export async function exportAdditiveCalculationMemoryPro(project: Project, add: 
     if (cell && typeof cell === 'object') ws[XLSX.utils.encode_cell({ r, c })] = cell;
   }
   ws['!cols'] = [
-    { wch: 6 }, { wch: 12 }, { wch: 38 }, { wch: 18 },
-    { wch: 10 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 14 },
+    { wch: 6 }, { wch: 12 }, { wch: 32 }, { wch: 22 },
+    { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 12 },
   ];
   ws['!merges'] = merges;
   ws['!rows'] = rowHeights.map(h => ({ hpt: h }));
-  (ws as any)['!views'] = [{ state: 'frozen', ySplit: 9 }];
+  const subFreeze = hdr.rows.length + 1;
+  (ws as any)['!views'] = [{ state: 'frozen', ySplit: subFreeze }];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Memória de Cálculo');
