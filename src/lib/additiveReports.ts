@@ -944,7 +944,7 @@ export async function exportAdditiveCalculationMemoryPro(project: Project, add: 
           nCell(q2(totA), FMT_QTD, COLOR.subtotal, COLOR.acrescidoFg, true),
         ]);
         merges.push({ s: { r: rA, c: 0 }, e: { r: rA, c: 7 } });
-        rowHeights.push(18);
+        rowHeights.push(24);
         const rS = rows.length;
         rows.push([
           tCell('Total Suprimida', COLOR.subtotal, true, COLOR.suprimidoFg, 'right'),
