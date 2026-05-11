@@ -650,11 +650,11 @@ export function computeCompositionWithBDI(comp: AdditiveComposition, bdiPercent:
     : truncar2(sumAnalyticNoBDI * fator);
   // Total analítico c/ BDI = TRUNC(unit c/ BDI × quantidade, 2) — segue o Excel.
   const totalAnalyticWithBDI = truncar2(analyticUnitWithBDI * qty);
-  const diff = money2(totalAnalyticWithBDI - totalSyntheticWithBDI);
+  const diff = truncar2(totalAnalyticWithBDI - totalSyntheticWithBDI);
   // Impacto financeiro = (added − suppressed) × preço unitário.
   const effQty = money2(effectiveQuantity(comp));
-  const impactoSemBDI = money2(truncar2(unitPriceNoBDI * effQty));
-  const impactoComBDI = money2(truncar2(unitPriceWithBDI * effQty));
+  const impactoSemBDI = truncar2(unitPriceNoBDI * effQty);
+  const impactoComBDI = truncar2(unitPriceWithBDI * effQty);
   return {
     unitPriceWithBDI, totalSyntheticWithBDI, sumAnalyticNoBDI,
     analyticUnitWithBDI, totalAnalyticWithBDI, diff,
