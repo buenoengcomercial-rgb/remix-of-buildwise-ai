@@ -209,7 +209,7 @@ type Row = Cell[];
 function tCell(v: string | number, fill?: string, bold = false, color?: string, hAlign?: 'left' | 'center' | 'right'): any {
   const s: any = {
     font: { name: 'Arial', sz: 10, bold, color: color ? { rgb: color } : { rgb: '111827' } },
-    alignment: { vertical: 'center', horizontal: hAlign ?? (typeof v === 'number' ? 'right' : 'left'), wrapText: true },
+    alignment: { vertical: typeof v === 'number' ? 'center' : 'top', horizontal: hAlign ?? (typeof v === 'number' ? 'right' : 'left'), wrapText: true },
     border: {
       top: { style: 'thin', color: { rgb: COLOR.border } },
       bottom: { style: 'thin', color: { rgb: COLOR.border } },
