@@ -49,6 +49,31 @@ const FMT_BRL = 'R$ #,##0.00;[Red](R$ #,##0.00);-';
 const FMT_QTD = '#,##0.00';
 const FMT_PCT = '0.00%';
 
+// ---------- Normalizadores numéricos para a planilha ----------
+// Truncam (não arredondam) para evitar números do tipo 32.996846999999995.
+function q2(v: unknown): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.trunc(n * 100) / 100;
+}
+function moneyExcel(v: unknown): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.trunc(n * 100) / 100;
+}
+function pctExcel(v: unknown): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.trunc(n * 10000) / 10000;
+}
+function estimateRowHeight(description: string): number {
+  const len = (description || '').length;
+  if (len <= 60) return 22;
+  if (len <= 120) return 34;
+  if (len <= 220) return 46;
+  return 58;
+}
+
 function downloadXlsxBlob(XLSX: any, wb: any, fileName: string) {
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([wbout], {
@@ -437,22 +462,22 @@ export async function exportAdditiveSyntheticCompletePro(project: Project, add: 
       tCell(c.bank || '', rowFill),
       tCell(c.description || '', rowFill),
       tCell(c.unit || '', rowFill, false, undefined, 'center'),
-      nCell(r.qtdContratada, FMT_QTD, rowFill),
-      nCell(r.qtdSuprimida, FMT_QTD, supBg, supFg),
-      nCell(r.qtdAcrescida, FMT_QTD, acrBg, acrFg),
-      nCell(r.qtdFinal, FMT_QTD, rowFill),
-      nCell(r.unitPriceNoBDI, FMT_BRL, rowFill),
-      nCell(r.unitPriceWithBDI, FMT_BRL, rowFill),
-      nCell(r.totalFonte, FMT_BRL, rowFill),
-      nCell(r.valorContratadoOriginalPreservado, FMT_BRL, rowFill),
-      nCell(r.valorSuprimido, FMT_BRL, supBg, supFg),
-      nCell(r.valorAcrescido, FMT_BRL, acrBg, acrFg),
-      nCell(r.valorFinal, FMT_BRL, rowFill),
-      nCell(r.diferenca, FMT_BRL, rowFill),
-      nCell(r.percentVar, FMT_PCT, rowFill),
+      nCell(q2(r.qtdContratada), FMT_QTD, rowFill),
+      nCell(q2(r.qtdSuprimida), FMT_QTD, supBg, supFg),
+      nCell(q2(r.qtdAcrescida), FMT_QTD, acrBg, acrFg),
+      nCell(q2(r.qtdFinal), FMT_QTD, rowFill),
+      nCell(moneyExcel(r.unitPriceNoBDI), FMT_BRL, rowFill),
+      nCell(moneyExcel(r.unitPriceWithBDI), FMT_BRL, rowFill),
+      nCell(moneyExcel(r.totalFonte), FMT_BRL, rowFill),
+      nCell(moneyExcel(r.valorContratadoOriginalPreservado), FMT_BRL, rowFill),
+      nCell(moneyExcel(r.valorSuprimido), FMT_BRL, supBg, supFg),
+      nCell(moneyExcel(r.valorAcrescido), FMT_BRL, acrBg, acrFg),
+      nCell(moneyExcel(r.valorFinal), FMT_BRL, rowFill),
+      nCell(moneyExcel(r.diferenca), FMT_BRL, rowFill),
+      nCell(pctExcel(r.percentVar), FMT_PCT, rowFill),
       tCell(situacao, rowFill, false, undefined, 'left'),
     ]);
-    rowHeights.push(18);
+    rowHeights.push(estimateRowHeight(c.description || ''));
   };
 
   const pushSubtotal = (number: string, name: string, depth: number, descendants: AdditiveComposition[]) => {
@@ -467,20 +492,21 @@ export async function exportAdditiveSyntheticCompletePro(project: Project, add: 
       sDif += r.diferenca;
     });
     const fill = COLOR.subtotal;
-    const label = `${'    '.repeat(depth)}Subtotal ${number} ${name}`;
+    const label = `${'    '.repeat(depth)}Subtotal ${number} — ${name}`;
+    const r0 = rows.length;
     rows.push([
-      tCell(label, fill, true), tCell('', fill), tCell('', fill), tCell('', fill), tCell('', fill),
-      tCell('', fill), tCell('', fill), tCell('', fill), tCell('', fill),
-      tCell('', fill), tCell('', fill),
-      nCell(money2(sFonte), FMT_BRL, fill, undefined, true),
-      nCell(money2(sContr), FMT_BRL, fill, undefined, true),
-      nCell(money2(sSup), FMT_BRL, fill, COLOR.suprimidoFg, true),
-      nCell(money2(sAcr), FMT_BRL, fill, COLOR.acrescidoFg, true),
-      nCell(money2(sFinal), FMT_BRL, fill, undefined, true),
-      nCell(money2(sDif), FMT_BRL, fill, undefined, true),
+      tCell(label, fill, true, undefined, 'left'),
+      ...Array(10).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: fill } } } }),
+      nCell(moneyExcel(sFonte), FMT_BRL, fill, undefined, true),
+      nCell(moneyExcel(sContr), FMT_BRL, fill, undefined, true),
+      nCell(moneyExcel(sSup), FMT_BRL, fill, COLOR.suprimidoFg, true),
+      nCell(moneyExcel(sAcr), FMT_BRL, fill, COLOR.acrescidoFg, true),
+      nCell(moneyExcel(sFinal), FMT_BRL, fill, undefined, true),
+      nCell(moneyExcel(sDif), FMT_BRL, fill, undefined, true),
       tCell('', fill), tCell('', fill),
     ]);
-    rowHeights.push(20);
+    merges.push({ s: { r: r0, c: 0 }, e: { r: r0, c: 10 } });
+    rowHeights.push(18);
   };
 
   walkByChapters(project, add, () => true, {
@@ -494,23 +520,23 @@ export async function exportAdditiveSyntheticCompletePro(project: Project, add: 
   const t = additiveTotals(add);
   const fillT = COLOR.totalGeralBg;
   const fgT = COLOR.totalGeralFg;
+  const totalRowIdx = rows.length;
   rows.push([
-    tCell('TOTAL GERAL', fillT, true, fgT), tCell('', fillT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    tCell('', fillT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    tCell('', fillT), tCell('', fillT),
+    tCell('TOTAL GERAL', fillT, true, fgT, 'left'),
+    ...Array(10).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: fillT } } } }),
     tCell('', fillT),
-    nCell(t.totalContratadoOriginal, FMT_BRL, fillT, fgT, true),
-    nCell(t.totalSuprimido, FMT_BRL, fillT, fgT, true),
-    nCell(t.totalAcrescido, FMT_BRL, fillT, fgT, true),
-    nCell(t.valorFinal, FMT_BRL, fillT, fgT, true),
-    nCell(t.diferencaLiquida, FMT_BRL, fillT, fgT, true),
-    nCell(t.percentVariacaoLiquida, FMT_PCT, fillT, fgT, true),
+    nCell(moneyExcel(t.totalContratadoOriginal), FMT_BRL, fillT, fgT, true),
+    nCell(moneyExcel(t.totalSuprimido), FMT_BRL, fillT, fgT, true),
+    nCell(moneyExcel(t.totalAcrescido), FMT_BRL, fillT, fgT, true),
+    nCell(moneyExcel(t.valorFinal), FMT_BRL, fillT, fgT, true),
+    nCell(moneyExcel(t.diferencaLiquida), FMT_BRL, fillT, fgT, true),
+    nCell(pctExcel(t.percentVariacaoLiquida), FMT_PCT, fillT, fgT, true),
     tCell('', fillT),
   ]);
+  merges.push({ s: { r: totalRowIdx, c: 0 }, e: { r: totalRowIdx, c: 10 } });
   rowHeights.push(24);
 
   const ws = XLSX.utils.aoa_to_sheet(rows.map(r => r.map(c => (c && typeof c === 'object') ? (c as any).v : c)));
-  // Aplica células estilizadas substituindo
   for (let r = 0; r < rows.length; r++) {
     for (let c = 0; c < rows[r].length; c++) {
       const cell = rows[r][c];
@@ -521,15 +547,21 @@ export async function exportAdditiveSyntheticCompletePro(project: Project, add: 
     }
   }
   ws['!cols'] = [
-    { wch: 9 }, { wch: 14 }, { wch: 10 }, { wch: 50 }, { wch: 7 },
-    { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 },
-    { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 },
-    { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 16 }, { wch: 9 },
-    { wch: 22 },
+    { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 38 }, { wch: 6 },
+    { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 10 },
+    { wch: 12 }, { wch: 13 }, { wch: 13 }, { wch: 14 },
+    { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 8 },
+    { wch: 18 },
   ];
   ws['!merges'] = merges;
   ws['!rows'] = rowHeights.map(h => ({ hpt: h }));
-  (ws as any)['!views'] = [{ state: 'frozen', ySplit: 11 }];
+  const subHeaderRowIdx = hdr.rows.length + 1;
+  const firstDataRowIdx = subHeaderRowIdx + 1;
+  (ws as any)['!views'] = [{ state: 'frozen', ySplit: firstDataRowIdx }];
+  const lastRowIdx = rows.length - 1;
+  ws['!autofilter'] = {
+    ref: `${XLSX.utils.encode_cell({ r: subHeaderRowIdx, c: 0 })}:${XLSX.utils.encode_cell({ r: lastRowIdx, c: totalCols - 1 })}`,
+  };
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Sintética Completa');
@@ -600,17 +632,17 @@ export async function exportAdditiveNewServicesPro(project: Project, add: Additi
         tCell(c.bank || '', rowFill),
         tCell(c.description || '', rowFill),
         tCell(c.unit || '', rowFill, false, undefined, 'center'),
-        nCell(r.qtdAcrescida, FMT_QTD, COLOR.acrescidoBg, COLOR.acrescidoFg),
-        nCell(refUnit, FMT_BRL, rowFill),
-        nCell((discount || 0) / 100, FMT_PCT, rowFill),
-        nCell(r.unitPriceNoBDIWithDiscount, FMT_BRL, rowFill),
-        nCell((bdi || 0) / 100, FMT_PCT, rowFill),
-        nCell(r.unitPriceWithBDI, FMT_BRL, rowFill),
-        nCell(r.valorAcrescido, FMT_BRL, COLOR.acrescidoBg, COLOR.acrescidoFg),
-        nCell(r.valorFinal, FMT_BRL, rowFill),
+        nCell(q2(r.qtdAcrescida), FMT_QTD, COLOR.acrescidoBg, COLOR.acrescidoFg),
+        nCell(moneyExcel(refUnit), FMT_BRL, rowFill),
+        nCell(pctExcel((discount || 0) / 100), FMT_PCT, rowFill),
+        nCell(moneyExcel(r.unitPriceNoBDIWithDiscount), FMT_BRL, rowFill),
+        nCell(pctExcel((bdi || 0) / 100), FMT_PCT, rowFill),
+        nCell(moneyExcel(r.unitPriceWithBDI), FMT_BRL, rowFill),
+        nCell(moneyExcel(r.valorAcrescido), FMT_BRL, COLOR.acrescidoBg, COLOR.acrescidoFg),
+        nCell(moneyExcel(r.valorFinal), FMT_BRL, rowFill),
         tCell(obs, rowFill),
       ]);
-      rowHeights.push(18);
+      rowHeights.push(estimateRowHeight(c.description || ''));
       totAcr = money2(totAcr + r.valorAcrescido);
       totFinal = money2(totFinal + r.valorFinal);
     },
@@ -623,14 +655,15 @@ export async function exportAdditiveNewServicesPro(project: Project, add: Additi
   });
 
   const fillT = COLOR.totalGeralBg, fgT = COLOR.totalGeralFg;
+  const totalRowIdx = rows.length;
   rows.push([
-    tCell('TOTAL NOVAS COMPOSIÇÕES', fillT, true, fgT), tCell('', fillT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    tCell('', fillT),
-    tCell('', fillT), tCell('', fillT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    nCell(totAcr, FMT_BRL, fillT, fgT, true),
-    nCell(totFinal, FMT_BRL, fillT, fgT, true),
+    tCell('TOTAL NOVAS COMPOSIÇÕES', fillT, true, fgT, 'left'),
+    ...Array(10).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: fillT } } } }),
+    nCell(moneyExcel(totAcr), FMT_BRL, fillT, fgT, true),
+    nCell(moneyExcel(totFinal), FMT_BRL, fillT, fgT, true),
     tCell('', fillT),
   ]);
+  merges.push({ s: { r: totalRowIdx, c: 0 }, e: { r: totalRowIdx, c: 10 } });
   rowHeights.push(24);
 
   const ws = XLSX.utils.aoa_to_sheet(rows.map(r => r.map(c => (c && typeof c === 'object') ? (c as any).v : c)));
@@ -639,15 +672,21 @@ export async function exportAdditiveNewServicesPro(project: Project, add: Additi
     if (cell && typeof cell === 'object') ws[XLSX.utils.encode_cell({ r, c })] = cell;
   }
   ws['!cols'] = [
-    { wch: 9 }, { wch: 14 }, { wch: 10 }, { wch: 48 }, { wch: 7 },
-    { wch: 14 },
-    { wch: 18 }, { wch: 12 }, { wch: 20 }, { wch: 9 }, { wch: 16 },
-    { wch: 16 }, { wch: 16 },
-    { wch: 28 },
+    { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 38 }, { wch: 6 },
+    { wch: 12 },
+    { wch: 14 }, { wch: 11 }, { wch: 16 }, { wch: 8 }, { wch: 13 },
+    { wch: 14 }, { wch: 14 },
+    { wch: 22 },
   ];
   ws['!merges'] = merges;
   ws['!rows'] = rowHeights.map(h => ({ hpt: h }));
-  (ws as any)['!views'] = [{ state: 'frozen', ySplit: 11 }];
+  const subHeaderRowIdx = hdr.rows.length + 1;
+  const firstDataRowIdx = subHeaderRowIdx + 1;
+  (ws as any)['!views'] = [{ state: 'frozen', ySplit: firstDataRowIdx }];
+  const lastRowIdx = rows.length - 1;
+  ws['!autofilter'] = {
+    ref: `${XLSX.utils.encode_cell({ r: subHeaderRowIdx, c: 0 })}:${XLSX.utils.encode_cell({ r: lastRowIdx, c: totalCols - 1 })}`,
+  };
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Novas Composições');
@@ -700,12 +739,12 @@ export async function exportAdditiveCalculationMemoryPro(project: Project, add: 
       tCell(c.bank || '', fillRow),
       tCell(c.description || '', fillRow),
       tCell(c.unit || '', fillRow, false, undefined, 'center'),
-      nCell(c.originalQuantity ?? 0, FMT_QTD, fillRow),
-      nCell(c.suppressedQuantity ?? 0, FMT_QTD, (c.suppressedQuantity ?? 0) > 0 ? COLOR.suprimidoBg : fillRow, (c.suppressedQuantity ?? 0) > 0 ? COLOR.suprimidoFg : undefined),
-      nCell(c.addedQuantity ?? 0, FMT_QTD, (c.addedQuantity ?? 0) > 0 ? COLOR.acrescidoBg : fillRow, (c.addedQuantity ?? 0) > 0 ? COLOR.acrescidoFg : undefined),
-      nCell(totalAfterAdditive(c), FMT_QTD, fillRow),
+      nCell(q2(c.originalQuantity ?? 0), FMT_QTD, fillRow),
+      nCell(q2(c.suppressedQuantity ?? 0), FMT_QTD, (c.suppressedQuantity ?? 0) > 0 ? COLOR.suprimidoBg : fillRow, (c.suppressedQuantity ?? 0) > 0 ? COLOR.suprimidoFg : undefined),
+      nCell(q2(c.addedQuantity ?? 0), FMT_QTD, (c.addedQuantity ?? 0) > 0 ? COLOR.acrescidoBg : fillRow, (c.addedQuantity ?? 0) > 0 ? COLOR.acrescidoFg : undefined),
+      nCell(q2(totalAfterAdditive(c)), FMT_QTD, fillRow),
     ]);
-    rowHeights.push(18);
+    rowHeights.push(estimateRowHeight(c.description || ''));
   };
 
   const pushMemHead = (c: AdditiveComposition) => {
@@ -770,23 +809,27 @@ export async function exportAdditiveCalculationMemoryPro(project: Project, add: 
             tCell(m.b ?? '', undefined, false, undefined, 'right'),
             tCell(m.c ?? '', undefined, false, undefined, 'right'),
             tCell(m.d ?? '', undefined, false, undefined, 'right'),
-            nCell(partial, FMT_QTD, fill, fg, true),
+            nCell(q2(partial), FMT_QTD, fill, fg, true),
           ]);
           rowHeights.push(18);
           if (isSup) totS += partial; else totA += partial;
         });
+        const rA = rows.length;
         rows.push([
-          tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('Total Acrescida', COLOR.subtotal, true, COLOR.acrescidoFg),
-          tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('', COLOR.subtotal),
-          nCell(money2(totA), FMT_QTD, COLOR.subtotal, COLOR.acrescidoFg, true),
+          tCell('Total Acrescida', COLOR.subtotal, true, COLOR.acrescidoFg, 'right'),
+          ...Array(7).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: COLOR.subtotal } } } }),
+          nCell(q2(totA), FMT_QTD, COLOR.subtotal, COLOR.acrescidoFg, true),
         ]);
-        rowHeights.push(20);
+        merges.push({ s: { r: rA, c: 0 }, e: { r: rA, c: 7 } });
+        rowHeights.push(18);
+        const rS = rows.length;
         rows.push([
-          tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('Total Suprimida', COLOR.subtotal, true, COLOR.suprimidoFg),
-          tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('', COLOR.subtotal), tCell('', COLOR.subtotal),
-          nCell(money2(totS), FMT_QTD, COLOR.subtotal, COLOR.suprimidoFg, true),
+          tCell('Total Suprimida', COLOR.subtotal, true, COLOR.suprimidoFg, 'right'),
+          ...Array(7).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: COLOR.subtotal } } } }),
+          nCell(q2(totS), FMT_QTD, COLOR.subtotal, COLOR.suprimidoFg, true),
         ]);
-        rowHeights.push(20);
+        merges.push({ s: { r: rS, c: 0 }, e: { r: rS, c: 7 } });
+        rowHeights.push(18);
         grandAcr = money2(grandAcr + totA);
         grandSup = money2(grandSup + totS);
       }
@@ -803,23 +846,29 @@ export async function exportAdditiveCalculationMemoryPro(project: Project, add: 
   });
 
   const fillT = COLOR.totalGeralBg, fgT = COLOR.totalGeralFg;
+  const rGA = rows.length;
   rows.push([
-    tCell('TOTAL GERAL ACRESCIDO', fillT, true, fgT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    tCell('', fillT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    nCell(grandAcr, FMT_QTD, fillT, fgT, true),
+    tCell('TOTAL GERAL ACRESCIDO', fillT, true, fgT, 'right'),
+    ...Array(7).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: fillT } } } }),
+    nCell(q2(grandAcr), FMT_QTD, fillT, fgT, true),
   ]);
+  merges.push({ s: { r: rGA, c: 0 }, e: { r: rGA, c: 7 } });
   rowHeights.push(22);
+  const rGS = rows.length;
   rows.push([
-    tCell('TOTAL GERAL SUPRIMIDO', fillT, true, fgT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    tCell('', fillT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    nCell(grandSup, FMT_QTD, fillT, fgT, true),
+    tCell('TOTAL GERAL SUPRIMIDO', fillT, true, fgT, 'right'),
+    ...Array(7).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: fillT } } } }),
+    nCell(q2(grandSup), FMT_QTD, fillT, fgT, true),
   ]);
+  merges.push({ s: { r: rGS, c: 0 }, e: { r: rGS, c: 7 } });
   rowHeights.push(22);
+  const rDL = rows.length;
   rows.push([
-    tCell('DIFERENÇA LÍQUIDA', fillT, true, fgT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    tCell('', fillT), tCell('', fillT), tCell('', fillT), tCell('', fillT),
-    nCell(money2(grandAcr - grandSup), FMT_QTD, fillT, fgT, true),
+    tCell('DIFERENÇA LÍQUIDA', fillT, true, fgT, 'right'),
+    ...Array(7).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: fillT } } } }),
+    nCell(q2(grandAcr - grandSup), FMT_QTD, fillT, fgT, true),
   ]);
+  merges.push({ s: { r: rDL, c: 0 }, e: { r: rDL, c: 7 } });
   rowHeights.push(22);
 
   const ws = XLSX.utils.aoa_to_sheet(rows.map(r => r.map(c => (c && typeof c === 'object') ? (c as any).v : c)));
@@ -828,12 +877,13 @@ export async function exportAdditiveCalculationMemoryPro(project: Project, add: 
     if (cell && typeof cell === 'object') ws[XLSX.utils.encode_cell({ r, c })] = cell;
   }
   ws['!cols'] = [
-    { wch: 6 }, { wch: 12 }, { wch: 38 }, { wch: 18 },
-    { wch: 10 }, { wch: 11 }, { wch: 11 }, { wch: 11 }, { wch: 14 },
+    { wch: 6 }, { wch: 12 }, { wch: 32 }, { wch: 22 },
+    { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 12 },
   ];
   ws['!merges'] = merges;
   ws['!rows'] = rowHeights.map(h => ({ hpt: h }));
-  (ws as any)['!views'] = [{ state: 'frozen', ySplit: 9 }];
+  const subFreeze = hdr.rows.length + 1;
+  (ws as any)['!views'] = [{ state: 'frozen', ySplit: subFreeze }];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Memória de Cálculo');
