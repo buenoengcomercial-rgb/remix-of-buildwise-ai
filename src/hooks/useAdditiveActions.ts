@@ -382,6 +382,33 @@ export function useAdditiveActions({ project, onProjectChange, state }: Params) 
     } catch { toast.error('Falha ao gerar Excel'); }
   };
 
+  const handleExportSyntheticCompleteExcel = async () => {
+    if (!active) return;
+    try {
+      await exportAdditiveSyntheticCompleteToExcel(project, active);
+      toast.success('Sintética Completa exportada');
+      logAdd(active.id, { action: 'exported', title: 'Sintética Completa exportada em Excel' });
+    } catch (e) { console.error(e); toast.error('Falha ao gerar Sintética Completa'); }
+  };
+
+  const handleExportNewServicesExcel = async () => {
+    if (!active) return;
+    try {
+      await exportAdditiveNewServicesToExcel(project, active);
+      toast.success('Novas Composições exportadas');
+      logAdd(active.id, { action: 'exported', title: 'Novas Composições exportadas em Excel' });
+    } catch (e) { console.error(e); toast.error('Falha ao gerar Novas Composições'); }
+  };
+
+  const handleExportCalculationMemoryExcel = async () => {
+    if (!active) return;
+    try {
+      await exportAdditiveCalculationMemoryToExcel(project, active);
+      toast.success('Memória de Cálculo exportada');
+      logAdd(active.id, { action: 'exported', title: 'Memória de Cálculo exportada em Excel' });
+    } catch (e) { console.error(e); toast.error('Falha ao gerar Memória de Cálculo'); }
+  };
+
   const handleExportPdf = async (showAnalytic: boolean) => {
     if (!active) return;
     try {
