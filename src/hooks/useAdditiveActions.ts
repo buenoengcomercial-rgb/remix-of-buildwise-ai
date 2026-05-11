@@ -851,6 +851,8 @@ export function useAdditiveActions({ project, onProjectChange, state }: Params) 
     handleExportSyntheticCompletePdf,
     handleExportNewServicesPdf,
     handleExportCalculationMemoryPdf,
+    handleExportPackageExcel,
+    handleExportPackagePdf,
     handleDeleteAdditive,
     handleChangeBdi,
     handleSendForReview,
