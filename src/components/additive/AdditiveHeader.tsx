@@ -148,9 +148,25 @@ export default function AdditiveHeader({
             {active.isContracted ? 'Aditivo Contratado' : 'Marcar como Contratado'}
           </Button>
         )}
-        <Button variant="outline" size="sm" disabled={!active} onClick={onExportExcel}>
-          <Download className="w-4 h-4 mr-1" /> Exportar Excel
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" disabled={!active}>
+              <Download className="w-4 h-4 mr-1" /> Exportar Excel
+              <ChevronDown className="w-3 h-3 ml-1 opacity-70" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuItem onClick={onExportSyntheticComplete}>
+              Exportar Sintética Completa
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExportNewServices}>
+              Exportar Novas Composições
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExportCalculationMemory}>
+              Exportar Memória de Cálculo
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button variant="outline" size="sm" disabled={!active} onClick={onExportPdf}>
           <Printer className="w-4 h-4 mr-1" /> Imprimir / PDF
         </Button>
