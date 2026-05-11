@@ -1403,3 +1403,26 @@ export async function exportAdditiveCalculationMemoryPdf(project: Project, add: 
   pdfFooter(doc);
   downloadPdfBlob(doc, `aditivo_memoria_calculo_${safeFile(add.name)}.pdf`);
 }
+
+// ============================================================
+// PACOTE COMPLETO — gera os 3 documentos sequencialmente
+// ============================================================
+function delay(ms: number) {
+  return new Promise<void>(resolve => window.setTimeout(resolve, ms));
+}
+
+export async function exportAdditivePackagePro(project: Project, add: Additive) {
+  await exportAdditiveSyntheticCompletePro(project, add);
+  await delay(400);
+  await exportAdditiveNewServicesPro(project, add);
+  await delay(400);
+  await exportAdditiveCalculationMemoryPro(project, add);
+}
+
+export async function exportAdditivePackagePdf(project: Project, add: Additive) {
+  await exportAdditiveSyntheticCompletePdf(project, add);
+  await delay(400);
+  await exportAdditiveNewServicesPdf(project, add);
+  await delay(400);
+  await exportAdditiveCalculationMemoryPdf(project, add);
+}
