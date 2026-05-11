@@ -15,6 +15,7 @@ import {
   buildAdditiveFromSyntheticBudgetItems,
   createNewServiceComposition, contractAdditive,
 } from '@/lib/additiveImport';
+import { trunc2 } from '@/lib/financialEngine';
 import {
   exportAdditiveSyntheticCompletePro,
   exportAdditiveNewServicesPro,
@@ -779,10 +780,10 @@ export function useAdditiveActions({ project, onProjectChange, state }: Params) 
     const beforeSuppressed = comp.suppressedQuantity ?? 0;
     const totalsAdded = rows
       .filter(r => r.type !== 'suprimida')
-      .reduce((acc, r) => acc + (Number.isFinite(r.partial) ? r.partial : 0), 0);
+      .reduce((acc, r) => trunc2(acc + trunc2(Number.isFinite(r.partial) ? r.partial : 0)), 0);
     const totalsSuppressed = rows
       .filter(r => r.type === 'suprimida')
-      .reduce((acc, r) => acc + (Number.isFinite(r.partial) ? r.partial : 0), 0);
+      .reduce((acc, r) => trunc2(acc + trunc2(Number.isFinite(r.partial) ? r.partial : 0)), 0);
     const patch: Partial<import('@/types/project').AdditiveComposition> = {
       calculationMemory: rows,
     };

@@ -16,6 +16,7 @@ import {
   totalAfterAdditive,
   money2,
 } from './additiveImport';
+import { trunc2 } from './financialEngine';
 import { resolveMemoryColumnLabels, validMemoryRows } from './calculationMemory';
 import { getChapterTree, getChapterNumbering, type ChapterNode } from './chapters';
 import { loadCompanyLogoForPdf, company } from './companyBranding';
@@ -694,8 +695,8 @@ export async function exportAdditiveNewServicesPro(project: Project, add: Additi
         tCell(obs, rowFill),
       ]);
       rowHeights.push(estimateRowHeight(c.description || ''));
-      totAcr = money2(totAcr + r.valorAcrescido);
-      totFinal = money2(totFinal + r.valorFinal);
+      totAcr = trunc2(totAcr + r.valorAcrescido);
+      totFinal = trunc2(totFinal + r.valorFinal);
     },
     onOrphanStart: () => {
       const r0 = rows.length;
@@ -889,8 +890,8 @@ export async function exportAdditiveCalculationMemoryPro(project: Project, add: 
         ]);
         merges.push({ s: { r: rS, c: 0 }, e: { r: rS, c: 7 } });
         rowHeights.push(18);
-        grandAcr = money2(grandAcr + totA);
-        grandSup = money2(grandSup + totS);
+        grandAcr = trunc2(grandAcr + totA);
+        grandSup = trunc2(grandSup + totS);
       }
       // separador
       rows.push(Array(totalCols).fill(''));

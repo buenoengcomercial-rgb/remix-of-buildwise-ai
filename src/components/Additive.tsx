@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Upload } from 'lucide-react';
@@ -53,7 +54,7 @@ export default function Additive({ project, onProjectChange, undoButton }: Props
     toggleExpand, toggleExpandMemory, toggleCollapsed, collapseAllGroups, expandAllGroups,
   } = state;
 
-  const totals = active ? additiveTotals(active) : null;
+  const totals = useMemo(() => (active ? additiveTotals(active) : null), [active]);
 
   const openReview = (preset: 'approve' | 'reject') => {
     if (preset === 'approve') {
