@@ -30,6 +30,9 @@ interface Props {
   onExportNewServices: () => void;
   onExportCalculationMemory: () => void;
   onExportPdf: () => void;
+  onExportSyntheticCompletePdf: () => void;
+  onExportNewServicesPdf: () => void;
+  onExportCalculationMemoryPdf: () => void;
   onOpenHistory: () => void;
 }
 
@@ -37,7 +40,9 @@ export default function AdditiveHeader({
   project, active, status, bdi, globalDiscount, isLocked, fileRef, undoButton,
   onChangeBdi, onChangeGlobalDiscount, onFileSelected, onUseSynthetic,
   onContract, onExportExcel, onExportSyntheticComplete, onExportNewServices,
-  onExportCalculationMemory, onExportPdf, onOpenHistory,
+  onExportCalculationMemory, onExportPdf,
+  onExportSyntheticCompletePdf, onExportNewServicesPdf, onExportCalculationMemoryPdf,
+  onOpenHistory,
 }: Props) {
   const lastLog = active ? (project.auditLogs ?? [])
     .filter(l => l.entityType === 'additive' && l.entityId === active.id)
@@ -167,9 +172,28 @@ export default function AdditiveHeader({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="outline" size="sm" disabled={!active} onClick={onExportPdf}>
-          <Printer className="w-4 h-4 mr-1" /> Imprimir / PDF
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" disabled={!active}>
+              <Printer className="w-4 h-4 mr-1" /> Imprimir / PDF
+              <ChevronDown className="w-3 h-3 ml-1 opacity-70" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuItem onClick={onExportSyntheticCompletePdf}>
+              Sintética Completa (PDF)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExportNewServicesPdf}>
+              Novas Composições (PDF)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExportCalculationMemoryPdf}>
+              Memória de Cálculo (PDF)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExportPdf}>
+              PDF Completo (com analítica)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button variant="outline" size="sm" disabled={!active} onClick={onOpenHistory}>
           <History className="w-4 h-4 mr-1" /> Histórico
         </Button>
