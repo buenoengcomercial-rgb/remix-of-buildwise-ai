@@ -107,7 +107,7 @@ export default function AdditiveHeaderInfo({
                 step="0.01"
                 value={Number.isFinite(bdi) ? bdi : 0}
                 disabled={isLocked}
-                onChange={e => onChangeBdi(Number(e.target.value))}
+                onChange={e => onChangeBdi(e.target.value)}
               />
             </Field>
             <Field label="Desconto Licit. (%)">
