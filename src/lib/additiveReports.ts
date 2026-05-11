@@ -952,7 +952,7 @@ export async function exportAdditiveCalculationMemoryPro(project: Project, add: 
           nCell(q2(totS), FMT_QTD, COLOR.subtotal, COLOR.suprimidoFg, true),
         ]);
         merges.push({ s: { r: rS, c: 0 }, e: { r: rS, c: 7 } });
-        rowHeights.push(18);
+        rowHeights.push(24);
         grandAcr = trunc2(grandAcr + totA);
         grandSup = trunc2(grandSup + totS);
       }
