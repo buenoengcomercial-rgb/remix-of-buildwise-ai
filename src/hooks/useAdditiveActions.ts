@@ -456,6 +456,24 @@ export function useAdditiveActions({ project, onProjectChange, state }: Params) 
     } catch (e) { console.error(e); toast.error('Falha ao gerar PDF da Memória de Cálculo'); }
   };
 
+  const handleExportPackageExcel = async () => {
+    if (!active) return;
+    try {
+      await exportAdditivePackagePro(project, active);
+      toast.success('Pacote completo (Excel) gerado');
+      logAdd(active.id, { action: 'exported', title: 'Pacote completo exportado em Excel' });
+    } catch (e) { console.error(e); toast.error('Falha ao gerar pacote completo (Excel)'); }
+  };
+
+  const handleExportPackagePdf = async () => {
+    if (!active) return;
+    try {
+      await exportAdditivePackagePdf(project, active);
+      toast.success('Pacote completo (PDF) gerado');
+      logAdd(active.id, { action: 'exported', title: 'Pacote completo exportado em PDF' });
+    } catch (e) { console.error(e); toast.error('Falha ao gerar pacote completo (PDF)'); }
+  };
+
 
   const handleDeleteAdditive = (id: string) => {
     const target = (project.additives ?? []).find(a => a.id === id);
