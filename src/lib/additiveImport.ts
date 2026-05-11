@@ -721,12 +721,12 @@ export function computeAdditiveRow(comp: AdditiveComposition, bdiPercent: number
         : comp.total != null
           ? money2(comp.total)
           : money2(unitPriceWithBDI * qtdContratada));
-  const valorContratadoCalc = money2(unitPriceWithBDI * qtdContratada);
-  const valorSuprimido = money2(unitPriceWithBDI * qtdSuprimida);
+  const valorContratadoCalc = truncar2(unitPriceWithBDI * qtdContratada);
+  const valorSuprimido = truncar2(unitPriceWithBDI * qtdSuprimida);
   const valorAcrescido = truncar2(unitPriceWithBDI * qtdAcrescida);
   // Valor final preservando a fonte: original + acrescido − suprimido.
-  const valorFinal = money2(valorContratadoOriginalPreservado + valorAcrescido - valorSuprimido);
-  const diferenca = money2(valorFinal - valorContratadoOriginalPreservado);
+  const valorFinal = truncar2(valorContratadoOriginalPreservado + valorAcrescido - valorSuprimido);
+  const diferenca = truncar2(valorFinal - valorContratadoOriginalPreservado);
   const percentVar = valorContratadoOriginalPreservado > 0 ? diferenca / valorContratadoOriginalPreservado : 0;
   return {
     unitPriceNoBDI, unitPriceNoBDIWithDiscount, unitPriceWithBDI,
