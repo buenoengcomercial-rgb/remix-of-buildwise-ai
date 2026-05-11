@@ -161,13 +161,13 @@ export default function AdditiveHeader({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
-            <DropdownMenuItem onClick={onExportSyntheticComplete}>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void onExportSyntheticComplete(); }}>
               Exportar Sintética Completa
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onExportNewServices}>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void onExportNewServices(); }}>
               Exportar Novas Composições
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onExportCalculationMemory}>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void onExportCalculationMemory(); }}>
               Exportar Memória de Cálculo
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -180,16 +180,16 @@ export default function AdditiveHeader({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
-            <DropdownMenuItem onClick={onExportSyntheticCompletePdf}>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void onExportSyntheticCompletePdf(); }}>
               Sintética Completa (PDF)
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onExportNewServicesPdf}>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void onExportNewServicesPdf(); }}>
               Novas Composições (PDF)
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onExportCalculationMemoryPdf}>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void onExportCalculationMemoryPdf(); }}>
               Memória de Cálculo (PDF)
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={onExportPdf}>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void onExportPdf(); }}>
               PDF Completo (com analítica)
             </DropdownMenuItem>
           </DropdownMenuContent>
