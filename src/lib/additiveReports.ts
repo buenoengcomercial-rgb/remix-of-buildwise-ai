@@ -562,7 +562,7 @@ export async function exportAdditiveSyntheticCompletePro(project: Project, add: 
   });
 
   // TOTAL GERAL
-  const t = additiveTotals(add);
+  const t = additiveTotals(add, project);
   const fillT = COLOR.totalGeralBg;
   const fgT = COLOR.totalGeralFg;
   const totalRowIdx = rows.length;
