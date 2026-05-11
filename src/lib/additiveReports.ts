@@ -766,14 +766,22 @@ export async function exportAdditiveCalculationMemoryPro(project: Project, add: 
   let grandAcr = 0, grandSup = 0;
 
   const pushIdent = (c: AdditiveComposition) => {
-    // Linha 1: cabeçalho de identificação (azul claro)
+    // Linha 1: cabeçalho de identificação (com cor de coluna sup/acr)
     const idHead = ['Item', 'Código', 'Banco', 'Descrição', 'Und', 'Qtd Contrat.', 'Qtd Suprim.', 'Qtd Acresc.', 'Qtd Final'];
-    rows.push(idHead.map(h => ({
+    const idHeadFills = [
+      COLOR.qtyHead, COLOR.qtyHead, COLOR.qtyHead, COLOR.qtyHead, COLOR.qtyHead,
+      COLOR.qtyHead, COLOR.suprimidoBg, COLOR.acrescidoBg, COLOR.qtyHead,
+    ];
+    const idHeadFg = [
+      '0F172A', '0F172A', '0F172A', '0F172A', '0F172A',
+      '0F172A', COLOR.suprimidoFg, COLOR.acrescidoFg, '0F172A',
+    ];
+    rows.push(idHead.map((h, i) => ({
       v: h,
       s: {
-        font: { name: 'Arial', sz: 9, bold: true, color: { rgb: '0F172A' } },
+        font: { name: 'Arial', sz: 9, bold: true, color: { rgb: idHeadFg[i] } },
         alignment: { vertical: 'center', horizontal: 'center', wrapText: true },
-        fill: { patternType: 'solid', fgColor: { rgb: COLOR.qtyHead } },
+        fill: { patternType: 'solid', fgColor: { rgb: idHeadFills[i] } },
         border: {
           top: { style: 'thin', color: { rgb: COLOR.border } },
           bottom: { style: 'thin', color: { rgb: COLOR.border } },
