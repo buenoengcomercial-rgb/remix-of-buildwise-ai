@@ -682,7 +682,7 @@ export async function exportAdditiveNewServicesPro(project: Project, add: Additi
         },
       }, ...Array(totalCols - 1).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: COLOR.chapter } } } })]);
       merges.push({ s: { r: r0, c: 0 }, e: { r: r0, c: totalCols - 1 } });
-      rowHeights.push(20);
+      rowHeights.push(26);
     },
     onComposition: c => {
       const r = computeAdditiveRow(c, bdi, discount);
