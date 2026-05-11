@@ -739,7 +739,21 @@ export function computeAdditiveRow(comp: AdditiveComposition, bdiPercent: number
   };
 }
 
-export function additiveTotals(add: Additive) {
+/**
+ * Total contratado oficial = soma de project.budgetItems com source==='sintetica',
+ * usando totalWithBDI normalizado em 2 casas (mesmo critério da aba Medição).
+ * Retorna `null` se não houver Sintética importada — nesse caso o chamador deve
+ * usar o fallback (reconstrução pelas linhas do Aditivo).
+ */
+export function getOfficialContractedTotal(project: Project | null | undefined): number | null {
+  const items = project?.budgetItems?.filter(b => b.source === 'sintetica') ?? [];
+  if (items.length === 0) return null;
+  let acc = 0;
+  for (const it of items) acc += Number(it.totalWithBDI) || 0;
+  return _money2(acc);
+}
+
+export function additiveTotals(add: Additive, project?: Project | null) {
   const bdi = add.bdiPercent ?? 0;
   const discount = add.globalDiscountPercent ?? 0;
   const compCount = add.compositions.length;
@@ -778,6 +792,14 @@ export function additiveTotals(add: Additive) {
     }
     valorFinal = truncar2(valorFinal + r.valorFinal);
   }
+  // Total contratado oficial: prioriza a Sintética/Medição (project.budgetItems source==='sintetica').
+  // Só cai no fallback (reconstrução por linhas) se não houver Sintética importada.
+  const officialContracted = getOfficialContractedTotal(project ?? null);
+  if (officialContracted != null) {
+    totalContratadoOriginal = officialContracted;
+  }
+  // Recalcula valorFinal a partir do total oficial: oficial - suprimido + acrescido
+  valorFinal = truncar2(totalContratadoOriginal - totalSuprimido + totalAcrescido);
   const diferencaLiquida = truncar2(valorFinal - totalContratadoOriginal);
   const percentVariacaoLiquida = totalContratadoOriginal > 0 ? diferencaLiquida / totalContratadoOriginal : 0;
   const percentSupressao = totalContratadoOriginal > 0 ? totalSuprimido / totalContratadoOriginal : 0;
@@ -798,6 +820,8 @@ export function additiveTotals(add: Additive) {
     diferencaLiquida, percentVariacaoLiquida,
     percentSupressao, percentAcrescimo, percentImpactoLiquido,
     limitPercent, limitStatus,
+    /** True quando o total veio da Sintética/Medição (oficial) e não da reconstrução. */
+    contractedSource: (officialContracted != null ? 'sintetica' : 'fallback') as 'sintetica' | 'fallback',
   };
 }
 
@@ -1340,7 +1364,7 @@ export async function exportAdditiveSyntheticCompleteToExcel(
   });
 
   // TOTAL GERAL
-  const totals = additiveTotals(add);
+  const totals = additiveTotals(add, project);
   aoa.push([]);
   aoa.push([
     'TOTAL GERAL', '', '', '', '', '', '', '', '',
@@ -1724,7 +1748,7 @@ export async function exportAdditiveToPdf(
   });
   cursorY = ((doc as any).lastAutoTable?.finalY ?? cursorY) + 2.5;
 
-  const totals = additiveTotals(add);
+  const totals = additiveTotals(add, project);
   doc.setFontSize(8);
   const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const summary = `Composições: ${totals.compCount} (acrescidas: ${totals.acrescidos} | suprimidas: ${totals.suprimidos})   |   Insumos: ${totals.inputCount}   |   Impacto s/BDI: ${fmtBRL(totals.impactoSemBDI)}   |   Impacto c/BDI: ${fmtBRL(totals.impactoComBDI)}`;
