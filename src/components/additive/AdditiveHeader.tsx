@@ -198,6 +198,9 @@ export default function AdditiveHeader({
             <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void onExportPdf(); }}>
               PDF Completo (com analítica)
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void onExportPackagePdf(); }}>
+              Pacote Completo (PDF)
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <Button variant="outline" size="sm" disabled={!active} onClick={onOpenHistory}>
