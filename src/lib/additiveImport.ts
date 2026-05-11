@@ -739,7 +739,21 @@ export function computeAdditiveRow(comp: AdditiveComposition, bdiPercent: number
   };
 }
 
-export function additiveTotals(add: Additive) {
+/**
+ * Total contratado oficial = soma de project.budgetItems com source==='sintetica',
+ * usando totalWithBDI normalizado em 2 casas (mesmo critério da aba Medição).
+ * Retorna `null` se não houver Sintética importada — nesse caso o chamador deve
+ * usar o fallback (reconstrução pelas linhas do Aditivo).
+ */
+export function getOfficialContractedTotal(project: Project | null | undefined): number | null {
+  const items = project?.budgetItems?.filter(b => b.source === 'sintetica') ?? [];
+  if (items.length === 0) return null;
+  let acc = 0;
+  for (const it of items) acc += Number(it.totalWithBDI) || 0;
+  return _money2(acc);
+}
+
+export function additiveTotals(add: Additive, project?: Project | null) {
   const bdi = add.bdiPercent ?? 0;
   const discount = add.globalDiscountPercent ?? 0;
   const compCount = add.compositions.length;
