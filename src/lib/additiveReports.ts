@@ -69,10 +69,20 @@ function pctExcel(v: unknown): number {
 }
 function estimateRowHeight(description: string): number {
   const len = (description || '').length;
-  if (len <= 60) return 22;
-  if (len <= 120) return 34;
-  if (len <= 220) return 46;
-  return 58;
+  if (len <= 50) return 22;
+  if (len <= 100) return 34;
+  if (len <= 180) return 48;
+  if (len <= 280) return 64;
+  return 82;
+}
+// Recebe vários textos e usa o de maior comprimento para estimar altura.
+function estimateRowHeightFromTexts(...texts: Array<string | undefined | null>): number {
+  let maxLen = 0;
+  for (const t of texts) {
+    const l = (t || '').length;
+    if (l > maxLen) maxLen = l;
+  }
+  return estimateRowHeight('x'.repeat(maxLen));
 }
 
 function downloadXlsxBlob(XLSX: any, wb: any, fileName: string) {
