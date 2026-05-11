@@ -501,7 +501,7 @@ export function useAdditiveActions({ project, onProjectChange, state }: Params) 
   const handleSendForReview = () => {
     if (!active) return;
     setStatus('em_analise');
-    const t = additiveTotals(active);
+    const t = additiveTotals(active, project);
     const errCount = (active.issues ?? []).filter(i => i.level === 'error').length;
     const warnCount = (active.issues ?? []).filter(i => i.level === 'warning').length;
     logAdd(active.id, {
