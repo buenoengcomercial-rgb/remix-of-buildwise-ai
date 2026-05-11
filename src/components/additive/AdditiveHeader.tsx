@@ -173,6 +173,9 @@ export default function AdditiveHeader({
             <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void onExportCalculationMemory(); }}>
               Exportar Memória de Cálculo
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); void onExportPackageExcel(); }}>
+              Exportar Pacote Completo
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <DropdownMenu>
