@@ -635,10 +635,17 @@ export async function exportAdditiveNewServicesPro(project: Project, add: Additi
   ];
   const subFills = [
     COLOR.ident, COLOR.ident, COLOR.ident, COLOR.ident, COLOR.ident,
-    COLOR.qty,
+    COLOR.acrescidoBg,
     COLOR.val, COLOR.val, COLOR.val, COLOR.val, COLOR.val,
-    COLOR.impact, COLOR.impact,
+    COLOR.acrescidoBg, COLOR.impact,
     COLOR.ident,
+  ];
+  const subFontColors: (string | undefined)[] = [
+    undefined, undefined, undefined, undefined, undefined,
+    COLOR.acrescidoFg,
+    undefined, undefined, undefined, undefined, undefined,
+    COLOR.acrescidoFg, undefined,
+    undefined,
   ];
 
   const rows: Row[] = [];
@@ -647,7 +654,7 @@ export async function exportAdditiveNewServicesPro(project: Project, add: Additi
 
   const hdr = buildFormalHeaderBlock(project, add, 'ADITIVO — NOVAS COMPOSIÇÕES', totalCols, null);
   rows.push(...hdr.rows); merges.push(...hdr.merges); rowHeights.push(...hdr.rowHeights);
-  pushGroupHeader(rows, merges, rowHeights, groups, SUB, subFills);
+  pushGroupHeader(rows, merges, rowHeights, groups, SUB, subFills, subFontColors);
 
   const rowFill = COLOR.novoServico;
   let totAcr = 0, totFinal = 0;
