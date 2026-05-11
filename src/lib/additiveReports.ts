@@ -210,10 +210,24 @@ function tCell(v: string | number, fill?: string, bold = false, color?: string, 
   return { v, s };
 }
 
-function nCell(v: number, fmt: string, fill?: string, color?: string, bold = false): any {
-  const c = tCell(v, fill, bold, color, 'right');
+function nCell(v: number, fmt: string, fill?: string, color?: string, bold = false, hAlign: 'left' | 'center' | 'right' = 'center'): any {
+  const c = tCell(v, fill, bold, color, hAlign);
   c.z = fmt;
   return c;
+}
+
+// ---------- Helpers tipados (mantêm formatação consistente) ----------
+function textCell(v: string | number, fill?: string, bold = false, color?: string, hAlign?: 'left' | 'center' | 'right'): any {
+  return tCell(v, fill, bold, color, hAlign);
+}
+function moneyCell(v: unknown, fill?: string, color?: string, bold = false): any {
+  return nCell(moneyExcel(v), FMT_BRL, fill, color, bold, 'center');
+}
+function qtyCell(v: unknown, fill?: string, color?: string, bold = false): any {
+  return nCell(q2(v), FMT_QTD, fill, color, bold, 'center');
+}
+function percentCell(v: unknown, fill?: string, color?: string, bold = false): any {
+  return nCell(pctExcel(v), FMT_PCT, fill, color, bold, 'center');
 }
 
 function buildFormalHeaderBlock(
