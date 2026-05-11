@@ -744,16 +744,16 @@ export function additiveTotals(add: Additive) {
   const discount = add.globalDiscountPercent ?? 0;
   const compCount = add.compositions.length;
   const totalSemBDI = add.compositions.reduce(
-    (a, c) => money2(a + money2(c.totalNoBDI ?? c.unitPriceNoBDI * c.quantity)),
+    (a, c) => truncar2(a + money2(c.totalNoBDI ?? c.unitPriceNoBDI * c.quantity)),
     0,
   );
   const totalComBDI = add.compositions.reduce((a, c) => {
     const { totalSyntheticWithBDI } = computeCompositionWithBDI(c, bdi);
-    return money2(a + totalSyntheticWithBDI);
+    return truncar2(a + totalSyntheticWithBDI);
   }, 0);
   // Impacto líquido (acrescido positivo, suprimido negativo)
-  const impactoSemBDI = add.compositions.reduce((a, c) => money2(a + computeCompositionWithBDI(c, bdi).impactoSemBDI), 0);
-  const impactoComBDI = add.compositions.reduce((a, c) => money2(a + computeCompositionWithBDI(c, bdi).impactoComBDI), 0);
+  const impactoSemBDI = add.compositions.reduce((a, c) => truncar2(a + computeCompositionWithBDI(c, bdi).impactoSemBDI), 0);
+  const impactoComBDI = add.compositions.reduce((a, c) => truncar2(a + computeCompositionWithBDI(c, bdi).impactoComBDI), 0);
   const inputCount = add.compositions.reduce((a, c) => a + c.inputs.length, 0);
   const semAnalitico = add.compositions.filter(c => c.inputs.length === 0).length;
   const acrescidos = add.compositions.filter(c => (c.addedQuantity ?? 0) > 0).length;
@@ -768,17 +768,17 @@ export function additiveTotals(add: Additive) {
   let valorFinal = 0;
   for (const c of add.compositions) {
     const r = computeAdditiveRow(c, bdi, discount);
-    totalContratadoOriginal = money2(totalContratadoOriginal + r.valorContratadoOriginalPreservado);
-    totalSuprimido = money2(totalSuprimido + r.valorSuprimido);
-    totalAcrescido = money2(totalAcrescido + r.valorAcrescido);
+    totalContratadoOriginal = truncar2(totalContratadoOriginal + r.valorContratadoOriginalPreservado);
+    totalSuprimido = truncar2(totalSuprimido + r.valorSuprimido);
+    totalAcrescido = truncar2(totalAcrescido + r.valorAcrescido);
     if (r.isNewService) {
-      totalNovosServicos = money2(totalNovosServicos + r.valorAcrescido);
+      totalNovosServicos = truncar2(totalNovosServicos + r.valorAcrescido);
     } else {
-      totalAcrescidoExistentes = money2(totalAcrescidoExistentes + r.valorAcrescido);
+      totalAcrescidoExistentes = truncar2(totalAcrescidoExistentes + r.valorAcrescido);
     }
-    valorFinal = money2(valorFinal + r.valorFinal);
+    valorFinal = truncar2(valorFinal + r.valorFinal);
   }
-  const diferencaLiquida = money2(valorFinal - totalContratadoOriginal);
+  const diferencaLiquida = truncar2(valorFinal - totalContratadoOriginal);
   const percentVariacaoLiquida = totalContratadoOriginal > 0 ? diferencaLiquida / totalContratadoOriginal : 0;
   const percentSupressao = totalContratadoOriginal > 0 ? totalSuprimido / totalContratadoOriginal : 0;
   const percentAcrescimo = totalContratadoOriginal > 0 ? totalAcrescido / totalContratadoOriginal : 0;
