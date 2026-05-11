@@ -462,22 +462,22 @@ export async function exportAdditiveSyntheticCompletePro(project: Project, add: 
       tCell(c.bank || '', rowFill),
       tCell(c.description || '', rowFill),
       tCell(c.unit || '', rowFill, false, undefined, 'center'),
-      nCell(r.qtdContratada, FMT_QTD, rowFill),
-      nCell(r.qtdSuprimida, FMT_QTD, supBg, supFg),
-      nCell(r.qtdAcrescida, FMT_QTD, acrBg, acrFg),
-      nCell(r.qtdFinal, FMT_QTD, rowFill),
-      nCell(r.unitPriceNoBDI, FMT_BRL, rowFill),
-      nCell(r.unitPriceWithBDI, FMT_BRL, rowFill),
-      nCell(r.totalFonte, FMT_BRL, rowFill),
-      nCell(r.valorContratadoOriginalPreservado, FMT_BRL, rowFill),
-      nCell(r.valorSuprimido, FMT_BRL, supBg, supFg),
-      nCell(r.valorAcrescido, FMT_BRL, acrBg, acrFg),
-      nCell(r.valorFinal, FMT_BRL, rowFill),
-      nCell(r.diferenca, FMT_BRL, rowFill),
-      nCell(r.percentVar, FMT_PCT, rowFill),
+      nCell(q2(r.qtdContratada), FMT_QTD, rowFill),
+      nCell(q2(r.qtdSuprimida), FMT_QTD, supBg, supFg),
+      nCell(q2(r.qtdAcrescida), FMT_QTD, acrBg, acrFg),
+      nCell(q2(r.qtdFinal), FMT_QTD, rowFill),
+      nCell(moneyExcel(r.unitPriceNoBDI), FMT_BRL, rowFill),
+      nCell(moneyExcel(r.unitPriceWithBDI), FMT_BRL, rowFill),
+      nCell(moneyExcel(r.totalFonte), FMT_BRL, rowFill),
+      nCell(moneyExcel(r.valorContratadoOriginalPreservado), FMT_BRL, rowFill),
+      nCell(moneyExcel(r.valorSuprimido), FMT_BRL, supBg, supFg),
+      nCell(moneyExcel(r.valorAcrescido), FMT_BRL, acrBg, acrFg),
+      nCell(moneyExcel(r.valorFinal), FMT_BRL, rowFill),
+      nCell(moneyExcel(r.diferenca), FMT_BRL, rowFill),
+      nCell(pctExcel((r.percentVar ?? 0) / 100), FMT_PCT, rowFill),
       tCell(situacao, rowFill, false, undefined, 'left'),
     ]);
-    rowHeights.push(18);
+    rowHeights.push(estimateRowHeight(c.description || ''));
   };
 
   const pushSubtotal = (number: string, name: string, depth: number, descendants: AdditiveComposition[]) => {
