@@ -561,7 +561,7 @@ export async function exportAdditiveSyntheticCompletePro(project: Project, add: 
       tCell('', fill), tCell('', fill),
     ]);
     merges.push({ s: { r: r0, c: 0 }, e: { r: r0, c: 10 } });
-    rowHeights.push(18);
+    rowHeights.push(24);
   };
 
   walkByChapters(project, add, () => true, {
