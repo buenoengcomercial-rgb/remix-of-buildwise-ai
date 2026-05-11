@@ -15,6 +15,7 @@ import {
   buildAdditiveFromSyntheticBudgetItems,
   createNewServiceComposition, contractAdditive,
 } from '@/lib/additiveImport';
+import { trunc2 } from '@/lib/financialEngine';
 import {
   exportAdditiveSyntheticCompletePro,
   exportAdditiveNewServicesPro,
