@@ -14,8 +14,8 @@ interface Props {
   globalDiscount: number;
   isLocked: boolean;
   onProjectChange: (next: Project | ((prev: Project) => Project)) => void;
-  onChangeBdi: (v: number) => void;
-  onChangeGlobalDiscount: (v: number) => void;
+  onChangeBdi: (v: string) => void;
+  onChangeGlobalDiscount: (v: string) => void;
   onUpdateAdditive: (mutator: (a: Additive) => Additive) => void;
 }
 
