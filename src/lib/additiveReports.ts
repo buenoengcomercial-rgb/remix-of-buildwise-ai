@@ -934,7 +934,7 @@ export async function exportAdditiveCalculationMemoryPro(project: Project, add: 
             tCell(m.d ?? '', undefined, false, undefined, 'right'),
             nCell(q2(partial), FMT_QTD, fill, fg, true),
           ]);
-          rowHeights.push(18);
+          rowHeights.push(estimateRowHeightFromTexts(m.comment, m.formula));
           if (isSup) totS += partial; else totA += partial;
         });
         const rA = rows.length;
