@@ -334,14 +334,14 @@ export function parseAdditiveSyntheticWorkbook(
   const compositions: AdditiveComposition[] = synthItems.map(s => {
     // Preserva EXATAMENTE os valores vindos da Sintética (planilha pronta).
     // Só recalcula como fallback quando a planilha não trouxer o valor.
-    const upNoBDI = money2(s.unitPriceNoBDI);
+    const upNoBDI = truncar2(s.unitPriceNoBDI);
     const upWithBDI = s.unitPriceWithBDI > 0
-      ? money2(s.unitPriceWithBDI)
-      : truncar2(upNoBDI * fator);
+      ? truncar2(s.unitPriceWithBDI)
+      : calculateUnitPriceWithBDI(upNoBDI, bdiPercent);
     const tWithBDI = s.total > 0
       ? money2(s.total)
-      : truncar2(upWithBDI * s.quantity);
-    const tNoBDI = truncar2(upNoBDI * s.quantity);
+      : calculateLineTotal(upWithBDI, s.quantity);
+    const tNoBDI = calculateLineTotal(upNoBDI, s.quantity);
     return {
       id: uid(),
       item: s.item,
