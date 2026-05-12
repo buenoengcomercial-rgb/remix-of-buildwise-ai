@@ -66,6 +66,23 @@ describe('Aditivo trunc2 nas operações', () => {
     expect(Math.round(t.valorFinal * 100) / 100).toBe(t.valorFinal);
 });
 
+  it('quantidade vinda da memória (32.99684699999995) é truncada para 32.99', () => {
+    expect(trunc2(32.99684699999995)).toBe(32.99);
+    expect(trunc2(34.74 * trunc2(32.99684699999995))).toBe(1146.07);
+  });
+
+  it('computeAdditiveRow trunca qty antes de multiplicar (32.996... × 34,74 = 1.146,07)', () => {
+    const r = computeAdditiveRow(comp({
+      addedQuantity: 32.99684699999995,
+      unitPriceNoBDI: 34.74,
+      unitPriceWithBDI: 34.74,
+      quantity: 0, originalQuantity: 0, total: 0, totalWithBDI: 0,
+    }), 0, 0);
+    expect(r.qtdAcrescida).toBe(32.99);
+    expect(r.valorAcrescido).toBe(1146.07);
+    expect(r.valorAcrescido).not.toBe(1146.31);
+  });
+
 describe('Total contratado oficial vem da Sintética', () => {
   const mkBudget = (id: string, totalWithBDI: number): BudgetItem => ({
     id, item: id, code: id, bank: 'SINAPI', description: id, unit: 'un',
