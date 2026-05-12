@@ -322,8 +322,8 @@ function AdditiveCompositionRowImpl({
               value={c.description}
               gridId={MAIN_GRID} rowIndex={rowIndex} colIndex={2}
               onCommit={v => onUpdateComposition(c.id, { description: v })}
-              className="w-full text-xs rounded-md border border-input bg-background px-2 py-1.5 leading-snug focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y min-h-[40px]"
-              rows={2}
+              className="w-full text-xs rounded-md border border-input bg-background px-2 py-1.5 leading-snug focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[40px] whitespace-pre-wrap break-words"
+              rows={1}
               placeholder="Descrição do novo serviço"
             />
           ) : (
