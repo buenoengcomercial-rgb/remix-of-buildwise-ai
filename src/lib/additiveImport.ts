@@ -627,13 +627,13 @@ export function effectiveQuantity(c: AdditiveComposition): number {
   const hasNewFields =
     c.addedQuantity != null || c.suppressedQuantity != null || c.originalQuantity != null;
   if (hasNewFields) {
-    const add = c.addedQuantity ?? 0;
-    const sup = c.suppressedQuantity ?? 0;
-    return add - sup;
+    const add = truncar2(c.addedQuantity ?? 0);
+    const sup = truncar2(c.suppressedQuantity ?? 0);
+    return truncar2(add - sup);
   }
-  if (c.changeKind === 'suprimido') return -(c.quantity ?? 0);
+  if (c.changeKind === 'suprimido') return truncar2(-(c.quantity ?? 0));
   if (c.changeKind === 'sem_alteracao') return 0;
-  return c.quantity ?? 0;
+  return truncar2(c.quantity ?? 0);
 }
 
 /** Quantidade total após o aditivo (originalQuantity + addedQuantity − suppressedQuantity). */
@@ -720,10 +720,11 @@ export function computeAdditiveRow(comp: AdditiveComposition, bdiPercent: number
     : hasReadyValue(comp.unitPriceWithBDI)
       ? truncar2(comp.unitPriceWithBDI)
       : calculateUnitPriceWithBDI(unitPriceNoBDI, bdiPercent || 0);
-  const qtdContratada = comp.originalQuantity ?? comp.quantity ?? 0;
-  const qtdSuprimida = comp.suppressedQuantity ?? 0;
-  const qtdAcrescida = comp.addedQuantity ?? 0;
-  const qtdFinal = qtdContratada - qtdSuprimida + qtdAcrescida;
+  // Quantidades SEMPRE truncadas em 2 casas antes de qualquer multiplicação financeira.
+  const qtdContratada = truncar2(comp.originalQuantity ?? comp.quantity ?? 0);
+  const qtdSuprimida = truncar2(comp.suppressedQuantity ?? 0);
+  const qtdAcrescida = truncar2(comp.addedQuantity ?? 0);
+  const qtdFinal = truncar2(qtdContratada - qtdSuprimida + qtdAcrescida);
   // Total Fonte preserva o valor original da Sintética/Medição (não recalcula). Para novos serviços é 0.
   const totalFonte = isNew
     ? 0
