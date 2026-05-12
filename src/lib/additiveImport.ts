@@ -323,10 +323,16 @@ export function parseAdditiveSyntheticWorkbook(
   const fator = 1 + bdiPercent / 100;
 
   const compositions: AdditiveComposition[] = synthItems.map(s => {
-    const unitPriceWithBDI = bdiPercent > 0
-      ? truncar2(s.unitPriceNoBDI * fator)
-      : (s.unitPriceWithBDI || truncar2(s.unitPriceNoBDI * fator));
-    const total = truncar2(unitPriceWithBDI * s.quantity);
+    // Preserva EXATAMENTE os valores vindos da Sintética (planilha pronta).
+    // Só recalcula como fallback quando a planilha não trouxer o valor.
+    const upNoBDI = money2(s.unitPriceNoBDI);
+    const upWithBDI = s.unitPriceWithBDI > 0
+      ? money2(s.unitPriceWithBDI)
+      : truncar2(upNoBDI * fator);
+    const tWithBDI = s.total > 0
+      ? money2(s.total)
+      : truncar2(upWithBDI * s.quantity);
+    const tNoBDI = truncar2(upNoBDI * s.quantity);
     return {
       id: uid(),
       item: s.item,
@@ -335,9 +341,11 @@ export function parseAdditiveSyntheticWorkbook(
       description: s.description,
       quantity: s.quantity,
       unit: s.unit,
-      unitPriceNoBDI: s.unitPriceNoBDI,
-      unitPriceWithBDI,
-      total,
+      unitPriceNoBDI: upNoBDI,
+      unitPriceWithBDI: upWithBDI,
+      total: tWithBDI,
+      totalNoBDI: tNoBDI,
+      totalWithBDI: tWithBDI,
       inputs: [],
       source: 'excel_aditivo',
       changeKind: 'acrescido',
