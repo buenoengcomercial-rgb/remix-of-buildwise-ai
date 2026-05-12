@@ -1,4 +1,4 @@
-import { Fragment, memo, useEffect, useState } from 'react';
+import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ChevronRight, ChevronDown, Trash2, Calculator, MoreVertical } from 'lucide-react';
@@ -82,29 +82,39 @@ function TextareaCommitCell({
   const [local, setLocal] = useState<string>(value ?? '');
   const [focused, setFocused] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  const autoResize = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  };
   useEffect(() => {
     if (!focused || !dirty) setLocal(value ?? '');
   }, [value, focused, dirty]);
+  useLayoutEffect(() => { autoResize(); }, [local]);
   const commit = () => {
     if (!dirty) return;
     if ((local ?? '') !== (value ?? '')) onCommit(local);
   };
   return (
     <textarea
+      ref={ref}
       value={local}
       placeholder={placeholder}
-      rows={rows}
+      rows={rows ?? 1}
       data-grid-id={gridId}
       data-row-index={rowIndex}
       data-col-index={colIndex}
       onFocus={() => { setFocused(true); setDirty(false); }}
-      onChange={e => { setDirty(true); setLocal(e.target.value); }}
+      onChange={e => { setDirty(true); setLocal(e.target.value); autoResize(); }}
       onBlur={() => { setFocused(false); commit(); setDirty(false); }}
       onKeyDown={e => {
         handleGridKeyDown(e);
         if (e.defaultPrevented) return;
       }}
       className={className}
+      style={{ resize: 'none', overflow: 'hidden' }}
     />
   );
 }
@@ -312,8 +322,8 @@ function AdditiveCompositionRowImpl({
               value={c.description}
               gridId={MAIN_GRID} rowIndex={rowIndex} colIndex={2}
               onCommit={v => onUpdateComposition(c.id, { description: v })}
-              className="w-full text-xs rounded-md border border-input bg-background px-2 py-1.5 leading-snug focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y min-h-[40px]"
-              rows={2}
+              className="w-full text-xs rounded-md border border-input bg-background px-2 py-1.5 leading-snug focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-h-[40px] whitespace-pre-wrap break-words"
+              rows={1}
               placeholder="Descrição do novo serviço"
             />
           ) : (
@@ -424,13 +434,12 @@ function AdditiveCompositionRowImpl({
         </td>
         {/* Quantidades */}
         <td className={`px-1 py-1 text-right ${G_BG.qty} ${BORDER_L}`}>
-          <QtyCell
-            value={c.originalQuantity ?? 0}
-            disabled={isLocked || isNew}
-            onCommit={n => onUpdateComposition(c.id, { originalQuantity: n })}
-            className="h-7 w-full text-xs text-right px-1"
-            gridId={MAIN_GRID} rowIndex={rowIndex} colIndex={4}
-          />
+          <span
+            className="block w-full text-right px-1 text-xs text-muted-foreground select-text"
+            title="Quantidade contratada (somente leitura — vem do contrato original)"
+          >
+            {fmtQty2(c.originalQuantity ?? 0)}
+          </span>
         </td>
         <td
           className={`px-1 py-1 text-right ${G_BG.suppressed} text-rose-700`}
