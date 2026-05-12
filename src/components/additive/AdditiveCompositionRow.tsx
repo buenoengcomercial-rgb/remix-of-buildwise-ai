@@ -434,13 +434,12 @@ function AdditiveCompositionRowImpl({
         </td>
         {/* Quantidades */}
         <td className={`px-1 py-1 text-right ${G_BG.qty} ${BORDER_L}`}>
-          <QtyCell
-            value={c.originalQuantity ?? 0}
-            disabled={isLocked || isNew}
-            onCommit={n => onUpdateComposition(c.id, { originalQuantity: n })}
-            className="h-7 w-full text-xs text-right px-1"
-            gridId={MAIN_GRID} rowIndex={rowIndex} colIndex={4}
-          />
+          <span
+            className="block w-full text-right px-1 text-xs text-muted-foreground select-text"
+            title="Quantidade contratada (somente leitura — vem do contrato original)"
+          >
+            {fmtQty2(c.originalQuantity ?? 0)}
+          </span>
         </td>
         <td
           className={`px-1 py-1 text-right ${G_BG.suppressed} text-rose-700`}
