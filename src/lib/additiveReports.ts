@@ -497,15 +497,49 @@ export async function exportAdditiveSyntheticCompletePro(project: Project, add: 
     rowHeights.push(26);
   };
 
+  // Acumuladores da exportação: garantem que TOTAL GERAL == soma das linhas exportadas.
+  const lineValuesByCompId = new Map<string, {
+    totalFonte: number; valorContratado: number; valorSuprimido: number;
+    valorAcrescido: number; valorFinal: number; diferenca: number;
+  }>();
+  let exportTotalContratado = 0;
+  let exportTotalSuprimido = 0;
+  let exportTotalAcrescido = 0;
+  let exportTotalFinal = 0;
+  let exportTotalDiferenca = 0;
+  let exportTotalFonte = 0;
+
   const pushComp = (c: AdditiveComposition) => {
     const r = computeAdditiveRow(c, bdi, discount);
+    // Normaliza UMA única vez os valores que serão escritos na linha
+    const lineTotalFonte = trunc2(r.totalFonte);
+    const lineValorContratado = trunc2(r.valorContratadoOriginalPreservado);
+    const lineValorSuprimido = trunc2(r.valorSuprimido);
+    const lineValorAcrescido = trunc2(r.valorAcrescido);
+    const lineValorFinal = trunc2(r.valorFinal);
+    const lineDiferenca = trunc2(r.diferenca);
+
+    lineValuesByCompId.set(c.id, {
+      totalFonte: lineTotalFonte,
+      valorContratado: lineValorContratado,
+      valorSuprimido: lineValorSuprimido,
+      valorAcrescido: lineValorAcrescido,
+      valorFinal: lineValorFinal,
+      diferenca: lineDiferenca,
+    });
+    exportTotalFonte = trunc2(exportTotalFonte + lineTotalFonte);
+    exportTotalContratado = trunc2(exportTotalContratado + lineValorContratado);
+    exportTotalSuprimido = trunc2(exportTotalSuprimido + lineValorSuprimido);
+    exportTotalAcrescido = trunc2(exportTotalAcrescido + lineValorAcrescido);
+    exportTotalFinal = trunc2(exportTotalFinal + lineValorFinal);
+    exportTotalDiferenca = trunc2(exportTotalDiferenca + lineDiferenca);
+
     let situacao = 'Sem alteração';
     let rowFill: string | undefined = undefined;
     if (c.isNewService) { situacao = 'Novo serviço aditivado'; rowFill = COLOR.novoServico; }
     else if ((c.suppressedQuantity ?? 0) > 0 || (c.addedQuantity ?? 0) > 0) {
       situacao = 'Item contratado alterado'; rowFill = COLOR.itemAlterado;
     }
-    // Cor de coluna sempre aplicada (igual ao painel), independente do valor.
     const supBg = COLOR.suprimidoBg;
     const acrBg = COLOR.acrescidoBg;
     const supFg = COLOR.suprimidoFg;
@@ -523,12 +557,12 @@ export async function exportAdditiveSyntheticCompletePro(project: Project, add: 
       nCell(q2(r.qtdFinal), FMT_QTD, rowFill),
       nCell(moneyExcel(r.unitPriceNoBDI), FMT_BRL, rowFill),
       nCell(moneyExcel(r.unitPriceWithBDI), FMT_BRL, rowFill),
-      nCell(moneyExcel(r.totalFonte), FMT_BRL, rowFill),
-      nCell(moneyExcel(r.valorContratadoOriginalPreservado), FMT_BRL, rowFill),
-      nCell(moneyExcel(r.valorSuprimido), FMT_BRL, supBg, supFg),
-      nCell(moneyExcel(r.valorAcrescido), FMT_BRL, acrBg, acrFg),
-      nCell(moneyExcel(r.valorFinal), FMT_BRL, rowFill),
-      nCell(moneyExcel(r.diferenca), FMT_BRL, rowFill),
+      nCell(lineTotalFonte, FMT_BRL, rowFill),
+      nCell(lineValorContratado, FMT_BRL, rowFill),
+      nCell(lineValorSuprimido, FMT_BRL, supBg, supFg),
+      nCell(lineValorAcrescido, FMT_BRL, acrBg, acrFg),
+      nCell(lineValorFinal, FMT_BRL, rowFill),
+      nCell(lineDiferenca, FMT_BRL, rowFill),
       nCell(pctExcel(r.percentVar), FMT_PCT, rowFill),
       tCell(situacao, rowFill, false, undefined, 'left'),
     ]);
@@ -536,15 +570,17 @@ export async function exportAdditiveSyntheticCompletePro(project: Project, add: 
   };
 
   const pushSubtotal = (number: string, name: string, depth: number, descendants: AdditiveComposition[]) => {
+    // Subtotais somam EXATAMENTE os valores já escritos nas linhas exportadas.
     let sFonte = 0, sContr = 0, sSup = 0, sAcr = 0, sFinal = 0, sDif = 0;
     descendants.forEach(c => {
-      const r = computeAdditiveRow(c, bdi, discount);
-      sFonte += r.totalFonte;
-      sContr += r.valorContratadoOriginalPreservado;
-      sSup += r.valorSuprimido;
-      sAcr += r.valorAcrescido;
-      sFinal += r.valorFinal;
-      sDif += r.diferenca;
+      const lv = lineValuesByCompId.get(c.id);
+      if (!lv) return;
+      sFonte = trunc2(sFonte + lv.totalFonte);
+      sContr = trunc2(sContr + lv.valorContratado);
+      sSup = trunc2(sSup + lv.valorSuprimido);
+      sAcr = trunc2(sAcr + lv.valorAcrescido);
+      sFinal = trunc2(sFinal + lv.valorFinal);
+      sDif = trunc2(sDif + lv.diferenca);
     });
     const fill = COLOR.subtotal;
     const label = `${'    '.repeat(depth)}Subtotal ${number} — ${name}`;
@@ -552,12 +588,12 @@ export async function exportAdditiveSyntheticCompletePro(project: Project, add: 
     rows.push([
       tCell(label, fill, true, undefined, 'left'),
       ...Array(10).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: fill } } } }),
-      nCell(moneyExcel(sFonte), FMT_BRL, fill, undefined, true),
-      nCell(moneyExcel(sContr), FMT_BRL, fill, undefined, true),
-      nCell(moneyExcel(sSup), FMT_BRL, COLOR.suprimidoBg, COLOR.suprimidoFg, true),
-      nCell(moneyExcel(sAcr), FMT_BRL, COLOR.acrescidoBg, COLOR.acrescidoFg, true),
-      nCell(moneyExcel(sFinal), FMT_BRL, fill, undefined, true),
-      nCell(moneyExcel(sDif), FMT_BRL, fill, undefined, true),
+      nCell(sFonte, FMT_BRL, fill, undefined, true),
+      nCell(sContr, FMT_BRL, fill, undefined, true),
+      nCell(sSup, FMT_BRL, COLOR.suprimidoBg, COLOR.suprimidoFg, true),
+      nCell(sAcr, FMT_BRL, COLOR.acrescidoBg, COLOR.acrescidoFg, true),
+      nCell(sFinal, FMT_BRL, fill, undefined, true),
+      nCell(sDif, FMT_BRL, fill, undefined, true),
       tCell('', fill), tCell('', fill),
     ]);
     merges.push({ s: { r: r0, c: 0 }, e: { r: r0, c: 10 } });
@@ -571,21 +607,23 @@ export async function exportAdditiveSyntheticCompletePro(project: Project, add: 
     onOrphanStart: () => pushChapter('—', 'Sem capítulo (não vinculado à EAP)', 0),
   });
 
-  // TOTAL GERAL
-  const t = additiveTotals(add, project);
+  // TOTAL GERAL — consequência da soma das linhas exportadas (não recalcula).
   const fillT = COLOR.totalGeralBg;
   const fgT = COLOR.totalGeralFg;
   const totalRowIdx = rows.length;
+  const percentVarLiquida = exportTotalContratado > 0
+    ? (exportTotalDiferenca / exportTotalContratado)
+    : 0;
   rows.push([
     tCell('TOTAL GERAL', fillT, true, fgT, 'left'),
     ...Array(10).fill({ v: '', s: { fill: { patternType: 'solid', fgColor: { rgb: fillT } } } }),
-    tCell('', fillT),
-    nCell(moneyExcel(t.totalContratadoOriginal), FMT_BRL, fillT, fgT, true),
-    nCell(moneyExcel(t.totalSuprimido), FMT_BRL, COLOR.suprimidoBg, COLOR.suprimidoFg, true),
-    nCell(moneyExcel(t.totalAcrescido), FMT_BRL, COLOR.acrescidoBg, COLOR.acrescidoFg, true),
-    nCell(moneyExcel(t.valorFinal), FMT_BRL, fillT, fgT, true),
-    nCell(moneyExcel(t.diferencaLiquida), FMT_BRL, fillT, fgT, true),
-    nCell(pctExcel(t.percentVariacaoLiquida), FMT_PCT, fillT, fgT, true),
+    nCell(exportTotalFonte, FMT_BRL, fillT, fgT, true),
+    nCell(exportTotalContratado, FMT_BRL, fillT, fgT, true),
+    nCell(exportTotalSuprimido, FMT_BRL, COLOR.suprimidoBg, COLOR.suprimidoFg, true),
+    nCell(exportTotalAcrescido, FMT_BRL, COLOR.acrescidoBg, COLOR.acrescidoFg, true),
+    nCell(exportTotalFinal, FMT_BRL, fillT, fgT, true),
+    nCell(exportTotalDiferenca, FMT_BRL, fillT, fgT, true),
+    nCell(pctExcel(percentVarLiquida), FMT_PCT, fillT, fgT, true),
     tCell('', fillT),
   ]);
   merges.push({ s: { r: totalRowIdx, c: 0 }, e: { r: totalRowIdx, c: 10 } });
