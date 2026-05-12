@@ -35,7 +35,13 @@ function asString(v: unknown): string {
 }
 
 // Motor financeiro único — não duplicar regras aqui.
-import { trunc2 as _trunc2, money2 as _money2 } from './financialEngine';
+import {
+  trunc2 as _trunc2,
+  money2 as _money2,
+  calculateUnitPriceWithBDI,
+  calculateLineTotal,
+  calculateDiscountedUnitNoBDI,
+} from './financialEngine';
 
 /** Alias histórico — usar trunc2 do financialEngine. */
 export function truncar2(v: number): number {
@@ -45,6 +51,9 @@ export function truncar2(v: number): number {
 export function money2(value: number | null | undefined): number {
   return _money2(value);
 }
+
+const hasReadyValue = (value: unknown): value is number =>
+  value !== null && value !== undefined && Number.isFinite(Number(value));
 
 const norm = (s: string) =>
   s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
