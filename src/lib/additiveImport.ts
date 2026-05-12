@@ -1083,12 +1083,14 @@ export function buildAdditiveFromSyntheticBudgetItems(
 
   const compositions: AdditiveComposition[] = items.map(b => {
     // Preserva EXATAMENTE os valores já normalizados na Medição — não recalcula com BDI.
-    const upNoBDI = money2(b.unitPriceNoBDI);
-    const upWithBDI = money2(b.unitPriceWithBDI);
+    const upNoBDI = truncar2(b.unitPriceNoBDI);
+    const upWithBDI = hasReadyValue(b.unitPriceWithBDI)
+      ? truncar2(b.unitPriceWithBDI)
+      : calculateUnitPriceWithBDI(upNoBDI, bdi);
     const hasTotalNoBDI = b.totalNoBDI !== null && b.totalNoBDI !== undefined;
     const hasTotalWithBDI = b.totalWithBDI !== null && b.totalWithBDI !== undefined;
-    const tNoBDI = hasTotalNoBDI ? money2(b.totalNoBDI) : money2(truncar2(upNoBDI * b.quantity));
-    const tWithBDI = hasTotalWithBDI ? money2(b.totalWithBDI) : money2(truncar2(upWithBDI * b.quantity));
+    const tNoBDI = hasTotalNoBDI ? money2(b.totalNoBDI) : calculateLineTotal(upNoBDI, b.quantity);
+    const tWithBDI = hasTotalWithBDI ? money2(b.totalWithBDI) : calculateLineTotal(upWithBDI, b.quantity);
     if (!hasTotalNoBDI || !hasTotalWithBDI) {
       issues.push({
         level: 'warning',
