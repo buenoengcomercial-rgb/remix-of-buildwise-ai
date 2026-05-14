@@ -4,56 +4,57 @@
  * NÃO altera medição real. Serve apenas para projeção e comparação.
  *
  * Regra:
- *   1. Período planejado da tarefa: [startDate, startDate + duration - 1]
- *   2. Produção diária prevista: baseline.plannedDailyProduction
- *      → quantity / duration → 0
- *   3. Sobreposição com [periodStart, periodEnd] em dias (corridos por enquanto;
- *      ver `countOverlapDays` para evolução para dias úteis).
- *   4. qtyForecast = min(plannedDaily * diasSobrepostos, qtyContracted), trunc2.
- *   5. valueForecast = qtyForecast * unitPriceWithBDI, trunc2.
+ *   1. Período planejado da tarefa: [startDate, getWorkEndDate(start, duration, sab)]
+ *   2. totalPlannedDays = countWorkDays(taskStart, taskEnd, sab)
+ *   3. overlapDays = countWorkDays(overlapStart, overlapEnd, sab)
+ *   4. plannedDaily = qtyContracted / totalPlannedDays
+ *   5. qtyForecast = min(plannedDaily * overlapDays, qtyContracted), trunc2.
+ *   6. valueForecast = qtyForecast * unitPriceWithBDI, trunc2.
+ *
+ * Tarefa de 1 dia: totalPlannedDays = 1; se startDate ∈ [periodStart, periodEnd],
+ * qtyForecast = qtyContracted, senão 0.
  */
 import type { Task } from '@/types/project';
 import { trunc2 } from './financialEngine';
+import {
+  getWorkEndDate,
+  countWorkDays,
+  parseISODateLocal,
+} from '@/components/gantt/utils';
 
-/** Adiciona N dias a uma data ISO yyyy-mm-dd sem deslocamento de timezone. */
-function isoAddDays(iso: string, days: number): string {
-  if (!iso) return iso;
-  const [y, m, d] = iso.split('-').map(Number);
-  const dt = new Date(Date.UTC(y, (m || 1) - 1, d || 1));
-  dt.setUTCDate(dt.getUTCDate() + days);
-  return dt.toISOString().slice(0, 10);
-}
-
-/** Diferença em dias corridos entre duas datas ISO (b - a). */
-function isoDaysBetween(a: string, b: string): number {
-  if (!a || !b) return 0;
-  const [ya, ma, da] = a.split('-').map(Number);
-  const [yb, mb, db] = b.split('-').map(Number);
-  const ta = Date.UTC(ya, (ma || 1) - 1, da || 1);
-  const tb = Date.UTC(yb, (mb || 1) - 1, db || 1);
-  return Math.round((tb - ta) / 86400000);
-}
-
-/**
- * Conta dias sobrepostos (corridos, inclusivos) entre dois intervalos ISO.
- * Isolada para futuramente evoluir para dias úteis (uf/municipio/sábado/feriados).
- */
+/** Conta dias úteis sobrepostos (inclusivos) entre dois intervalos ISO. */
 export function countOverlapDays(
   startA: string, endA: string,
   startB: string, endB: string,
+  trabalhaSabado: boolean = false,
 ): number {
   if (!startA || !endA || !startB || !endB) return 0;
   const start = startA > startB ? startA : startB;
   const end = endA < endB ? endA : endB;
   if (start > end) return 0;
-  return isoDaysBetween(start, end) + 1;
+  return countWorkDays(parseISODateLocal(start), parseISODateLocal(end), trabalhaSabado);
 }
 
 /**
- * Produção diária prevista da tarefa.
- * Prioridade: baseline.plannedDailyProduction → quantity/duration → 0.
+ * Produção diária prevista da tarefa, em unidade contratada / dia útil.
+ * Usa qtyContracted / totalWorkDays — fonte da verdade do Gantt.
+ * Mantém fallback para baseline.plannedDailyProduction quando não houver
+ * datas/duração ou contratação.
  */
-export function getPlannedDailyProduction(task: Pick<Task, 'baseline' | 'quantity' | 'duration'>): number {
+export function getPlannedDailyProduction(
+  task: Pick<Task, 'baseline' | 'quantity' | 'duration' | 'startDate'>,
+  qtyContracted: number = 0,
+  trabalhaSabado: boolean = false,
+): number {
+  if (qtyContracted > 0 && task.startDate && task.duration && task.duration > 0) {
+    const taskEnd = getWorkEndDate(task.startDate, task.duration, trabalhaSabado);
+    const totalDays = countWorkDays(
+      parseISODateLocal(task.startDate),
+      parseISODateLocal(taskEnd),
+      trabalhaSabado,
+    );
+    if (totalDays > 0) return qtyContracted / totalDays;
+  }
   const baseline = task.baseline?.plannedDailyProduction;
   if (baseline && baseline > 0) return baseline;
   const qty = task.quantity ?? 0;
@@ -72,6 +73,8 @@ export interface TaskForecastInput {
   unitPriceWithBDI: number;
   /** Preço unitário s/ BDI (já truncado). */
   unitPriceNoBDI: number;
+  /** Calendário trabalha sábado (0,5 dia). Default false. */
+  trabalhaSabado?: boolean;
 }
 
 export interface TaskForecast {
@@ -85,24 +88,38 @@ export interface TaskForecast {
 /** Calcula a previsão da tarefa dentro do período da medição. */
 export function computeTaskForecast(input: TaskForecastInput): TaskForecast {
   const { task, periodStart, periodEnd, qtyContracted } = input;
+  const trabalhaSabado = input.trabalhaSabado ?? false;
   const unitPriceWithBDI = trunc2(input.unitPriceWithBDI);
   const unitPriceNoBDI = trunc2(input.unitPriceNoBDI);
-  const plannedDaily = getPlannedDailyProduction(task);
 
-  if (!task.startDate || !task.duration || task.duration <= 0 || plannedDaily <= 0) {
-    return {
-      plannedDaily,
-      plannedDaysInPeriod: 0,
-      qtyForecast: 0,
-      valueForecast: 0,
-      valueForecastNoBDI: 0,
-    };
+  if (!task.startDate || !task.duration || task.duration <= 0) {
+    return { plannedDaily: 0, plannedDaysInPeriod: 0, qtyForecast: 0, valueForecast: 0, valueForecastNoBDI: 0 };
   }
 
-  const taskEnd = isoAddDays(task.startDate, Math.max(0, task.duration - 1));
-  const days = countOverlapDays(task.startDate, taskEnd, periodStart, periodEnd);
+  const taskEnd = getWorkEndDate(task.startDate, task.duration, trabalhaSabado);
+  const totalPlannedDays = countWorkDays(
+    parseISODateLocal(task.startDate),
+    parseISODateLocal(taskEnd),
+    trabalhaSabado,
+  );
 
-  let qtyForecast = trunc2(plannedDaily * days);
+  const overlapDays = countOverlapDays(task.startDate, taskEnd, periodStart, periodEnd, trabalhaSabado);
+
+  let plannedDaily = 0;
+  let qtyForecast = 0;
+
+  if (task.duration <= 1) {
+    // Tarefa de 1 dia: tudo ou nada conforme intersecção
+    if (overlapDays > 0 && qtyContracted > 0) {
+      qtyForecast = trunc2(qtyContracted);
+      plannedDaily = qtyContracted;
+    }
+  } else if (totalPlannedDays > 0 && qtyContracted > 0 && overlapDays > 0) {
+    plannedDaily = qtyContracted / totalPlannedDays;
+    qtyForecast = trunc2(plannedDaily * overlapDays);
+  }
+
+  if (qtyForecast < 0) qtyForecast = 0;
   if (qtyContracted > 0 && qtyForecast > qtyContracted) {
     qtyForecast = trunc2(qtyContracted);
   }
@@ -112,7 +129,7 @@ export function computeTaskForecast(input: TaskForecastInput): TaskForecast {
 
   return {
     plannedDaily,
-    plannedDaysInPeriod: days,
+    plannedDaysInPeriod: overlapDays,
     qtyForecast,
     valueForecast,
     valueForecastNoBDI,

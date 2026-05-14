@@ -14,6 +14,7 @@ import {
   estimateTaskValue,
   buildOrderedTasks,
 } from '@/components/measurement/measurementFormat';
+import { loadObraConfig } from '@/components/ConfiguracaoObra';
 
 export interface UseMeasurementRowsParams {
   project: Project;
@@ -96,6 +97,9 @@ export function useMeasurementRows({
     return m;
   }, [project.phases]);
 
+  // Calendário de trabalho (sábado conta meio dia ou não) — mesma fonte do Gantt
+  const trabalhaSabado = useMemo(() => loadObraConfig().trabalhaSabado, []);
+
   // ───────── Cálculo das linhas ─────────
   const rows: Row[] = useMemo(() => {
     if (isSnapshotMode && activeMeasurement) {
@@ -122,6 +126,7 @@ export function useMeasurementRows({
               qtyContracted: it.qtyContracted,
               unitPriceWithBDI: calc.unitPriceWithBDI,
               unitPriceNoBDI: calc.unitPriceNoBDI,
+              trabalhaSabado,
             })
           : { qtyForecast: 0, valueForecast: 0, valueForecastNoBDI: 0, plannedDaily: 0, plannedDaysInPeriod: 0 };
         return {
@@ -335,6 +340,7 @@ export function useMeasurementRows({
         qtyContracted,
         unitPriceWithBDI: calc.unitPriceWithBDI,
         unitPriceNoBDI: calc.unitPriceNoBDI,
+        trabalhaSabado,
       });
 
       return {
@@ -425,7 +431,7 @@ export function useMeasurementRows({
     }
 
     return [...eapRows, ...orphanRows];
-  }, [isSnapshotMode, activeMeasurement, orderedTasks, effStart, effEnd, effBdi, effBdiFactor, priorAccumByTask, hasSyntheticBudget, syntheticBudgetItems, taskById]);
+  }, [isSnapshotMode, activeMeasurement, orderedTasks, effStart, effEnd, effBdi, effBdiFactor, priorAccumByTask, hasSyntheticBudget, syntheticBudgetItems, taskById, trabalhaSabado]);
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
