@@ -431,7 +431,7 @@ export function useMeasurementRows({
     }
 
     return [...eapRows, ...orphanRows];
-  }, [isSnapshotMode, activeMeasurement, orderedTasks, effStart, effEnd, effBdi, effBdiFactor, priorAccumByTask, hasSyntheticBudget, syntheticBudgetItems, taskById]);
+  }, [isSnapshotMode, activeMeasurement, orderedTasks, effStart, effEnd, effBdi, effBdiFactor, priorAccumByTask, hasSyntheticBudget, syntheticBudgetItems, taskById, trabalhaSabado]);
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
