@@ -34,6 +34,7 @@ import {
 import { validateMeasurement, summarizeIssues, type ValidationIssue } from '@/lib/measurementValidation';
 import MeasurementValidationPanel from '@/components/MeasurementValidationPanel';
 import { summarizeDailyReportsForPeriod } from '@/lib/dailyReportSummary';
+import { toast } from '@/hooks/use-toast';
 
 interface MeasurementProps {
   project: Project;
