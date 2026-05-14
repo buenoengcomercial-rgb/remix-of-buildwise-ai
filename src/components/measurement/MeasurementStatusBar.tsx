@@ -21,6 +21,8 @@ interface MeasurementStatusBarProps {
   validationHasBlocking: boolean;
   /** Quando informado, intercepta o clique em "Enviar p/ Fiscal" (ex.: para abrir confirmação). */
   onSendToReview?: () => void;
+  /** Reenviar uma medição reprovada+ajustada para fiscalização. */
+  onResendForReview?: () => void;
 }
 
 export default function MeasurementStatusBar({
