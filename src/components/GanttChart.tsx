@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import DependencyArrows from './gantt/DependencyArrows';
 import ConfiguracaoObra, { ObraConfig, loadObraConfig } from './ConfiguracaoObra';
 import { DAY_WIDTH, ROW_HEIGHT, FlatTask } from './gantt/types';
-import { addDays, diffDays, formatDateFull, formatDateShort, getEndDate, getWorkEndDate, MONTH_NAMES_PT, dateToISO, toISODateLocal, parseISODateLocal } from './gantt/utils';
+import { addDays, diffDays, formatDateFull, formatDateShort, getEndDate, getWorkEndDate, MONTH_NAMES_PT, dateToISO, toISODateLocal, parseISODateLocal, countWorkDays } from './gantt/utils';
 import { getFeriadosMap, FeriadoInfo, calcularDiasUteis, isDiaUtil } from '@/lib/feriados';
 import { calculateRupDuration, propagateAllDependencies, checkDependencyViolation } from '@/lib/calculations';
 import { flattenPhasesByChapter, getChapterNumbering, getChapterTasks } from '@/lib/chapters';
@@ -490,23 +490,31 @@ export default function GanttChart({ project, onProjectChange, undoButton }: Gan
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
+    let updates: Partial<Task>;
     if (field === 'start') {
       if ((task.durationMode || 'manual') === 'manual') {
-        // Manual mode: keep duration, shift end date
-        updateTask(taskId, { startDate: dateToISO(date) });
+        updates = { startDate: dateToISO(date) };
       } else {
-        // Inclusive end-date convention: end = start + duration - 1
         const oldEnd = addDays(parseISODateLocal(task.startDate), Math.max(0, task.duration - 1));
         const newDuration = Math.max(1, diffDays(date, oldEnd) + 1);
-        updateTask(taskId, { startDate: dateToISO(date), duration: newDuration });
+        updates = { startDate: dateToISO(date), duration: newDuration };
       }
     } else {
       const start = parseISODateLocal(task.startDate);
-      // Inclusive end-date: chosen `date` is the last working day
-      const newDuration = Math.max(1, diffDays(start, date) + 1);
-      updateTask(taskId, { duration: newDuration, durationMode: 'manual' });
+      const newDuration = Math.max(1, countWorkDays(start, date, obraConfig.trabalhaSabado));
+      updates = { duration: newDuration, durationMode: 'manual' };
     }
-    setTimeout(() => runPropagation(taskId), 0);
+
+    if (!onProjectChange) return;
+    const updatedProject: Project = {
+      ...project,
+      phases: project.phases.map(phase => ({
+        ...phase,
+        tasks: phase.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t),
+      })),
+    };
+    onProjectChange(updatedProject);
+    setTimeout(() => runPropagation(taskId, updatedProject), 0);
   };
 
   const handleDurationChange = (taskId: string, value: string) => {
