@@ -1,5 +1,6 @@
-import type { Project, Task, Phase } from '@/types/project';
+import type { Project, Task, Phase, SavedMeasurement } from '@/types/project';
 import { getChapterTree, getChapterNumbering, type ChapterNode } from '@/lib/chapters';
+import { buildDailyReportSnapshot, summarizeDailyReportsForPeriod } from '@/lib/dailyReportSummary';
 import type { GroupTotals } from './types';
 
 // ───────────────────────── Helpers de formatação ─────────────────────────
@@ -136,4 +137,120 @@ export function suggestPeriodForNext(
   const start = isoAddDays(last.endDate, 1);
   const end = isoAddDays(start, 29);
   return { startDate: start, endDate: end };
+}
+
+/**
+ * Data inicial do Cronograma/Gantt para sincronizar a 1ª medição.
+ * Prioridade:
+ *  1. startDate da primeira tarefa na ordem da EAP.
+ *  2. menor startDate entre todas as tarefas (fallback).
+ */
+export function getProjectGanttStartDate(project: Project): string | undefined {
+  const ordered = buildOrderedTasks(project);
+  const first = ordered.find(o => !!o.task?.startDate);
+  if (first?.task.startDate) return first.task.startDate;
+  return getProjectStartDate(project);
+}
+
+/**
+ * Constrói N períodos consecutivos de 30 dias corridos a partir de uma data inicial.
+ */
+export function buildMeasurementPeriodsFromStart(
+  startDate: string,
+  count: number,
+): Array<{ startDate: string; endDate: string }> {
+  const out: Array<{ startDate: string; endDate: string }> = [];
+  let cursor = startDate;
+  for (let i = 0; i < count; i++) {
+    const end = isoAddDays(cursor, 29);
+    out.push({ startDate: cursor, endDate: end });
+    cursor = isoAddDays(end, 1);
+  }
+  return out;
+}
+
+const PROTECTED_STATUSES = new Set(['in_review', 'approved']);
+
+export interface SyncMeasurementsResult {
+  project: Project;
+  changed: boolean;
+  protectedCount: number;
+  ganttStart?: string;
+}
+
+/**
+ * Ressincroniza as datas das medições e do rascunho com a data inicial do Gantt.
+ * - Cada medição passa a ter 30 dias corridos.
+ * - Medições com status `in_review` ou `approved` NÃO são alteradas a menos que `force=true`.
+ * - Atualiza `dailyReportSnapshot` quando o período for de fato modificado.
+ * - Atualiza `measurementDraft` para a próxima medição em preparação.
+ */
+export function syncMeasurementDatesWithGantt(
+  project: Project,
+  opts: { force?: boolean } = {},
+): SyncMeasurementsResult {
+  const ganttStart = getProjectGanttStartDate(project);
+  if (!ganttStart) {
+    return { project, changed: false, protectedCount: 0, ganttStart: undefined };
+  }
+
+  const sorted = (project.measurements || []).slice().sort((a, b) => a.number - b.number);
+  let cursor = ganttStart;
+  let changed = false;
+  let protectedCount = 0;
+
+  const updated: SavedMeasurement[] = sorted.map(m => {
+    const isProtected = PROTECTED_STATUSES.has(m.status);
+    if (isProtected && !opts.force) {
+      protectedCount++;
+      cursor = isoAddDays(m.endDate, 1);
+      return m;
+    }
+    const newStart = cursor;
+    const newEnd = isoAddDays(newStart, 29);
+    cursor = isoAddDays(newEnd, 1);
+    if (m.startDate === newStart && m.endDate === newEnd) return m;
+    changed = true;
+    const summary = summarizeDailyReportsForPeriod(project, newStart, newEnd);
+    return {
+      ...m,
+      startDate: newStart,
+      endDate: newEnd,
+      dailyReportSnapshot: buildDailyReportSnapshot(summary),
+    };
+  });
+
+  // Rascunho
+  const lastNum = sorted[sorted.length - 1]?.number || 0;
+  const draftNumber = lastNum + 1;
+  const draftStart = cursor;
+  const draftEnd = isoAddDays(draftStart, 29);
+  const cur = project.measurementDraft;
+  let nextDraft = cur;
+  if (
+    !cur ||
+    cur.number !== draftNumber ||
+    cur.startDate !== draftStart ||
+    cur.endDate !== draftEnd
+  ) {
+    nextDraft = {
+      number: draftNumber,
+      startDate: draftStart,
+      endDate: draftEnd,
+      chapterFilter: cur?.chapterFilter || 'all',
+      search: cur?.search || '',
+    };
+    changed = true;
+  }
+
+  if (!changed) {
+    return { project, changed: false, protectedCount, ganttStart };
+  }
+
+  return {
+    project: { ...project, measurements: updated, measurementDraft: nextDraft },
+    changed: true,
+    protectedCount,
+    ganttStart,
+  };
 }

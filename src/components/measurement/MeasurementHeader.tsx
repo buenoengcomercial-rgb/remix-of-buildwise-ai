@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { ClipboardList, FileSpreadsheet, Printer, History } from 'lucide-react';
+import { ClipboardList, FileSpreadsheet, Printer, History, RefreshCw } from 'lucide-react';
 
 interface MeasurementHeaderProps {
   undoButton?: React.ReactNode;
@@ -7,6 +7,7 @@ interface MeasurementHeaderProps {
   onPrint: () => void;
   showHistory: boolean;
   onOpenHistory: () => void;
+  onSyncWithGantt?: () => void;
 }
 
 export default function MeasurementHeader({
@@ -15,6 +16,7 @@ export default function MeasurementHeader({
   onPrint,
   showHistory,
   onOpenHistory,
+  onSyncWithGantt,
 }: MeasurementHeaderProps) {
   return (
     <div className="flex items-center justify-between flex-wrap gap-3 print:hidden">
@@ -29,6 +31,11 @@ export default function MeasurementHeader({
       </div>
       <div className="flex items-center gap-2">
         {undoButton}
+        {onSyncWithGantt && (
+          <Button variant="outline" size="sm" onClick={onSyncWithGantt} title="Recalcular as datas das medições a partir da data inicial do Cronograma/Gantt">
+            <RefreshCw className="w-4 h-4 mr-1" /> Sincronizar com Gantt
+          </Button>
+        )}
         <Button variant="outline" size="sm" onClick={onExportXLSX}>
           <FileSpreadsheet className="w-4 h-4 mr-1" /> Excel
         </Button>

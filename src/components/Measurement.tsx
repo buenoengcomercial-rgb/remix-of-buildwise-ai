@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Project } from '@/types/project';
 import {
   fmtDateBR,
+  getProjectGanttStartDate,
+  syncMeasurementDatesWithGantt,
 } from '@/components/measurement/measurementFormat';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -32,6 +34,7 @@ import {
 import { validateMeasurement, summarizeIssues, type ValidationIssue } from '@/lib/measurementValidation';
 import MeasurementValidationPanel from '@/components/MeasurementValidationPanel';
 import { summarizeDailyReportsForPeriod } from '@/lib/dailyReportSummary';
+import { toast } from '@/hooks/use-toast';
 
 interface MeasurementProps {
   project: Project;
@@ -251,6 +254,57 @@ export default function Measurement({ project, onProjectChange, undoButton, onOp
     setEditReason,
   });
 
+  // ───────── Sincronização das datas das medições com o Gantt ─────────
+  const ganttStart = useMemo(() => getProjectGanttStartDate(project), [project]);
+  const lastSyncedGanttStartRef = useRef<string | undefined>(ganttStart);
+  const [confirmForceSync, setConfirmForceSync] = useState(false);
+  const [pendingProtectedCount, setPendingProtectedCount] = useState(0);
+
+  const applySync = (force: boolean) => {
+    const result = syncMeasurementDatesWithGantt(projectRef.current, { force });
+    if (!result.changed) {
+      toast({ title: 'Datas já estão sincronizadas com o Gantt' });
+      return;
+    }
+    onProjectChange(result.project);
+    if (activeId === 'live' && result.project.measurementDraft) {
+      setStartDate(result.project.measurementDraft.startDate);
+      setEndDate(result.project.measurementDraft.endDate);
+    }
+    toast({
+      title: 'Medições sincronizadas',
+      description: result.ganttStart ? `Reprogramadas a partir de ${fmtDateBR(result.ganttStart)}.` : undefined,
+    });
+  };
+
+  const handleManualSync = () => {
+    const protectedCount = (project.measurements || []).filter(
+      m => m.status === 'in_review' || m.status === 'approved',
+    ).length;
+    if (protectedCount > 0) {
+      setPendingProtectedCount(protectedCount);
+      setConfirmForceSync(true);
+      return;
+    }
+    applySync(false);
+  };
+
+  // Auto-sincronização quando a data inicial do Gantt muda
+  useEffect(() => {
+    if (!ganttStart) return;
+    if (lastSyncedGanttStartRef.current === ganttStart) return;
+    lastSyncedGanttStartRef.current = ganttStart;
+    const result = syncMeasurementDatesWithGantt(projectRef.current, { force: false });
+    if (result.changed) {
+      onProjectChange(result.project);
+      if (activeId === 'live' && result.project.measurementDraft) {
+        setStartDate(result.project.measurementDraft.startDate);
+        setEndDate(result.project.measurementDraft.endDate);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ganttStart]);
+
   // ───────── EXPORT XLSX / PDF (extraído para useMeasurementExports) ─────────
   const { exportXLSX, handlePrint } = useMeasurementExports({
     project,
@@ -371,6 +425,7 @@ export default function Measurement({ project, onProjectChange, undoButton, onOp
         onPrint={handlePrint}
         showHistory={!!activeMeasurement}
         onOpenHistory={() => setHistoryOpen(true)}
+        onSyncWithGantt={ganttStart ? handleManualSync : undefined}
       />
 
       {/* Seletor de medições salvas + status */}
@@ -634,6 +689,32 @@ export default function Measurement({ project, onProjectChange, undoButton, onOp
                   : 'Enviar para Fiscal'}
               </AlertDialogAction>
             )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Diálogo: Forçar sincronização (medições enviadas/aprovadas) */}
+      <AlertDialog open={confirmForceSync} onOpenChange={setConfirmForceSync}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Existem medições já enviadas ou aprovadas. Deseja reprogramar as datas mesmo assim?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingProtectedCount} medição(ões) em análise ou aprovadas terão suas datas reprogramadas em sequência
+              a partir da data inicial do Cronograma/Gantt. Quantidades, valores e snapshots não serão alterados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmForceSync(false);
+                applySync(true);
+              }}
+            >
+              Reprogramar mesmo assim
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
