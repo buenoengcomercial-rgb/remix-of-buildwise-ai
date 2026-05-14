@@ -693,6 +693,32 @@ export default function Measurement({ project, onProjectChange, undoButton, onOp
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Diálogo: Forçar sincronização (medições enviadas/aprovadas) */}
+      <AlertDialog open={confirmForceSync} onOpenChange={setConfirmForceSync}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Existem medições já enviadas ou aprovadas. Deseja reprogramar as datas mesmo assim?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingProtectedCount} medição(ões) em análise ou aprovadas terão suas datas reprogramadas em sequência
+              a partir da data inicial do Cronograma/Gantt. Quantidades, valores e snapshots não serão alterados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmForceSync(false);
+                applySync(true);
+              }}
+            >
+              Reprogramar mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
