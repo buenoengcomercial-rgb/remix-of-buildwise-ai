@@ -425,6 +425,7 @@ export default function Measurement({ project, onProjectChange, undoButton, onOp
         onPrint={handlePrint}
         showHistory={!!activeMeasurement}
         onOpenHistory={() => setHistoryOpen(true)}
+        onSyncWithGantt={ganttStart ? handleManualSync : undefined}
       />
 
       {/* Seletor de medições salvas + status */}
