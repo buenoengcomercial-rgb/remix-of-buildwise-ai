@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { OrganizationProvider } from "@/hooks/useOrganization";
 import Index from "./pages/Index.tsx";
 import Auth from "./pages/Auth.tsx";
+import ResetPassword from "./pages/ResetPassword.tsx";
 import TeamManagement from "./pages/TeamManagement.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
