@@ -88,4 +88,4 @@ export const STATUS_CLASS: Record<MeasurementStatus, string> = {
 };
 
 export const isLockedStatus = (s: MeasurementStatus) =>
-  s === 'generated' || s === 'in_review' || s === 'approved';
+  s === 'in_review' || s === 'approved';
