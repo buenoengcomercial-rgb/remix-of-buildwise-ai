@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ContractInfo, Project, SavedMeasurement } from '@/types/project';
-import { isoAddDays, suggestPeriodForNext } from '@/components/measurement/measurementFormat';
+import { isoAddDays, suggestPeriodForNext, getProjectStartDate } from '@/components/measurement/measurementFormat';
 
 export interface UseMeasurementStateParams {
   project: Project;
