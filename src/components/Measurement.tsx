@@ -254,6 +254,57 @@ export default function Measurement({ project, onProjectChange, undoButton, onOp
     setEditReason,
   });
 
+  // ───────── Sincronização das datas das medições com o Gantt ─────────
+  const ganttStart = useMemo(() => getProjectGanttStartDate(project), [project]);
+  const lastSyncedGanttStartRef = useRef<string | undefined>(ganttStart);
+  const [confirmForceSync, setConfirmForceSync] = useState(false);
+  const [pendingProtectedCount, setPendingProtectedCount] = useState(0);
+
+  const applySync = (force: boolean) => {
+    const result = syncMeasurementDatesWithGantt(projectRef.current, { force });
+    if (!result.changed) {
+      toast({ title: 'Datas já estão sincronizadas com o Gantt' });
+      return;
+    }
+    onProjectChange(result.project);
+    if (activeId === 'live' && result.project.measurementDraft) {
+      setStartDate(result.project.measurementDraft.startDate);
+      setEndDate(result.project.measurementDraft.endDate);
+    }
+    toast({
+      title: 'Medições sincronizadas',
+      description: result.ganttStart ? `Reprogramadas a partir de ${fmtDateBR(result.ganttStart)}.` : undefined,
+    });
+  };
+
+  const handleManualSync = () => {
+    const protectedCount = (project.measurements || []).filter(
+      m => m.status === 'in_review' || m.status === 'approved',
+    ).length;
+    if (protectedCount > 0) {
+      setPendingProtectedCount(protectedCount);
+      setConfirmForceSync(true);
+      return;
+    }
+    applySync(false);
+  };
+
+  // Auto-sincronização quando a data inicial do Gantt muda
+  useEffect(() => {
+    if (!ganttStart) return;
+    if (lastSyncedGanttStartRef.current === ganttStart) return;
+    lastSyncedGanttStartRef.current = ganttStart;
+    const result = syncMeasurementDatesWithGantt(projectRef.current, { force: false });
+    if (result.changed) {
+      onProjectChange(result.project);
+      if (activeId === 'live' && result.project.measurementDraft) {
+        setStartDate(result.project.measurementDraft.startDate);
+        setEndDate(result.project.measurementDraft.endDate);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ganttStart]);
+
   // ───────── EXPORT XLSX / PDF (extraído para useMeasurementExports) ─────────
   const { exportXLSX, handlePrint } = useMeasurementExports({
     project,
