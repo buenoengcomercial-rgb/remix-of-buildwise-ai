@@ -20,7 +20,7 @@ export interface MeasurementItemRowProps {
   updateTaskField?: (taskId: string, patch: Record<string, unknown>) => void;
   patchSnapshotItem?: (taskId: string, patch: Record<string, unknown>, fieldLabel: string) => void;
   setManualPeriodQuantity?: (taskId: string, v: number) => void;
-  G_BG: { id: string; contract: string; period: string; accum: string; balance: string };
+  G_BG: { id: string; contract: string; period: string; forecast?: string; accum: string; balance: string };
   BORDER_L: string;
 }
 
