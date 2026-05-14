@@ -13,8 +13,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, ArrowLeft, UserPlus, Trash2, ShieldOff, ShieldCheck } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Loader2, ArrowLeft, UserPlus, Trash2, ShieldOff, ShieldCheck, KeyRound, Mail } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const ROLE_OPTIONS: OrgRole[] = ['owner', 'admin', 'engineer', 'field_user', 'viewer'];
 
@@ -31,6 +33,12 @@ export default function TeamManagement() {
   const [createMode, setCreateMode] = useState(false);
   const [createName, setCreateName] = useState('');
   const [createPassword, setCreatePassword] = useState('');
+
+  const [pwdOpen, setPwdOpen] = useState(false);
+  const [pwdNew, setPwdNew] = useState('');
+  const [pwdConfirm, setPwdConfirm] = useState('');
+  const [pwdSubmitting, setPwdSubmitting] = useState(false);
+  const [resetSubmittingId, setResetSubmittingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth', { replace: true });
@@ -119,6 +127,40 @@ export default function TeamManagement() {
       void reload();
     } catch { toast.error('Erro ao remover'); }
   };
+
+  const handleChangeMyPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pwdNew.length < 8) { toast.error('A senha deve ter pelo menos 8 caracteres'); return; }
+    if (pwdNew !== pwdConfirm) { toast.error('As senhas não coincidem'); return; }
+    setPwdSubmitting(true);
+    const { error } = await supabase.auth.updateUser({ password: pwdNew });
+    setPwdSubmitting(false);
+    if (error) {
+      const msg = (error.message || '').toLowerCase();
+      if (msg.includes('pwned') || msg.includes('compromis') || msg.includes('weak')) {
+        toast.error('Essa senha apareceu em vazamentos. Escolha uma senha diferente.');
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
+    toast.success('Senha alterada com sucesso.');
+    setPwdOpen(false);
+    setPwdNew(''); setPwdConfirm('');
+  };
+
+  const handleSendReset = async (member: OrgMember) => {
+    if (!member.email) { toast.error('Usuário sem e-mail cadastrado'); return; }
+    if (!confirm(`Enviar e-mail de redefinição de senha para ${member.email}?`)) return;
+    setResetSubmittingId(member.id);
+    const { error } = await supabase.auth.resetPasswordForEmail(member.email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setResetSubmittingId(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success('E-mail de redefinição enviado.');
+  };
+
 
   if (authLoading || orgLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
@@ -275,6 +317,23 @@ export default function TeamManagement() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right space-x-1">
+                          {isMe ? (
+                            <Button size="sm" variant="outline" onClick={() => { setPwdNew(''); setPwdConfirm(''); setPwdOpen(true); }}>
+                              <KeyRound className="w-3.5 h-3.5 mr-1" /> Alterar minha senha
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleSendReset(m)}
+                              disabled={!m.email || resetSubmittingId === m.id}
+                            >
+                              {resetSubmittingId === m.id
+                                ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                                : <Mail className="w-3.5 h-3.5 mr-1" />}
+                              Enviar redefinição
+                            </Button>
+                          )}
                           {m.status === 'blocked' ? (
                             <Button size="sm" variant="outline" onClick={() => handleStatusChange(m.id, 'active')} disabled={isMe}>
                               <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Reativar
@@ -297,6 +356,31 @@ export default function TeamManagement() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={pwdOpen} onOpenChange={setPwdOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar minha senha</DialogTitle>
+            <DialogDescription>Defina uma nova senha forte (mínimo 8 caracteres).</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleChangeMyPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="pwd-new">Nova senha</Label>
+              <Input id="pwd-new" type="password" required minLength={8} value={pwdNew} onChange={e => setPwdNew(e.target.value)} autoComplete="new-password" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pwd-confirm">Confirmar nova senha</Label>
+              <Input id="pwd-confirm" type="password" required minLength={8} value={pwdConfirm} onChange={e => setPwdConfirm(e.target.value)} autoComplete="new-password" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPwdOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={pwdSubmitting}>
+                {pwdSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar nova senha'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
