@@ -89,6 +89,13 @@ export function useMeasurementRows({
     return map;
   }, [measurements, isSnapshotMode]);
 
+  // Mapa rápido taskId → Task (para previsão usar dados atuais do Gantt mesmo em snapshot)
+  const taskById = useMemo<Map<string, Task>>(() => {
+    const m = new Map<string, Task>();
+    project.phases.forEach(p => p.tasks.forEach(t => m.set(t.id, t)));
+    return m;
+  }, [project.phases]);
+
   // ───────── Cálculo das linhas ─────────
   const rows: Row[] = useMemo(() => {
     if (isSnapshotMode && activeMeasurement) {
@@ -106,6 +113,17 @@ export function useMeasurementRows({
           unitPriceNoBDI: snapNoBDI,
           bdiPercent: implicitBdi,
         });
+        const sourceTask = taskById.get(it.taskId);
+        const fc = sourceTask
+          ? computeTaskForecast({
+              task: sourceTask,
+              periodStart: effStart,
+              periodEnd: effEnd,
+              qtyContracted: it.qtyContracted,
+              unitPriceWithBDI: calc.unitPriceWithBDI,
+              unitPriceNoBDI: calc.unitPriceNoBDI,
+            })
+          : { qtyForecast: 0, valueForecast: 0, valueForecastNoBDI: 0, plannedDaily: 0, plannedDaysInPeriod: 0 };
         return {
           item: it.item,
           phaseId: it.phaseId,
@@ -134,6 +152,10 @@ export function useMeasurementRows({
           valuePeriod: calc.totalPeriod,
           valueAccum: calc.totalAccumulated,
           valueBalance: calc.totalBalance,
+          qtyForecast: fc.qtyForecast,
+          valueForecast: fc.valueForecast,
+          valueForecastNoBDI: fc.valueForecastNoBDI,
+          diffForecastVsReal: trunc2(calc.totalPeriod - fc.valueForecast),
           hasNoLogsInPeriod: qtyPeriod === 0,
           hasNoLogsAtAll: false,
           notes: it.notes,
