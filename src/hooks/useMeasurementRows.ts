@@ -342,6 +342,7 @@ export function useMeasurementRows({
         unitPriceWithBDI: calc.unitPriceWithBDI,
         unitPriceNoBDI: calc.unitPriceNoBDI,
         trabalhaSabado,
+        unit,
       });
 
       return {
