@@ -6,6 +6,7 @@ import {
   money2,
   calculateMeasurementLine,
 } from '@/lib/measurementCalculations';
+import { computeTaskForecast } from '@/lib/measurementForecast';
 import type { Row, GroupNode } from '@/components/measurement/types';
 import { isLockedStatus } from '@/components/measurement/types';
 import {
