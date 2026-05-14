@@ -340,6 +340,7 @@ export function useMeasurementRows({
         qtyContracted,
         unitPriceWithBDI: calc.unitPriceWithBDI,
         unitPriceNoBDI: calc.unitPriceNoBDI,
+        trabalhaSabado,
       });
 
       return {
