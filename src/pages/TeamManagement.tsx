@@ -356,6 +356,31 @@ export default function TeamManagement() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={pwdOpen} onOpenChange={setPwdOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar minha senha</DialogTitle>
+            <DialogDescription>Defina uma nova senha forte (mínimo 8 caracteres).</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleChangeMyPassword} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="pwd-new">Nova senha</Label>
+              <Input id="pwd-new" type="password" required minLength={8} value={pwdNew} onChange={e => setPwdNew(e.target.value)} autoComplete="new-password" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pwd-confirm">Confirmar nova senha</Label>
+              <Input id="pwd-confirm" type="password" required minLength={8} value={pwdConfirm} onChange={e => setPwdConfirm(e.target.value)} autoComplete="new-password" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPwdOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={pwdSubmitting}>
+                {pwdSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar nova senha'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
