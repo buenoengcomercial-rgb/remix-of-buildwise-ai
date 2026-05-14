@@ -8,6 +8,7 @@ import type {
 } from '@/types/project';
 import { summarizeDailyReportsForPeriod } from '@/lib/dailyReportSummary';
 import { loadCompanyLogoForPdf } from '@/lib/companyBranding';
+import { resolvePhotoUrl } from '@/lib/photoUrl';
 import {
   GENERAL_TASK_VALUE,
   WEATHER_OPTIONS,
@@ -585,7 +586,7 @@ export function useDailyReportPdf(args: UseDailyReportPdfArgs) {
               const imgAreaH = imgBoxH;
 
               let drew = false;
-              const srcUrl = ph.publicUrl || ph.dataUrl || null;
+              const srcUrl = await resolvePhotoUrl(ph);
               if (srcUrl) {
                 const oriented = await loadOrientedImage(srcUrl, ph.mimeType);
                 if (oriented) {
