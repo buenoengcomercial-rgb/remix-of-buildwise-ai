@@ -386,6 +386,7 @@ export default function Measurement({ project, onProjectChange, undoButton, onOp
         onConfirmDelete={() => setConfirmDelete(true)}
         setStatus={setStatus}
         validationHasBlocking={validationSummary.hasBlocking}
+        onSendToReview={() => setConfirmSendToReview(true)}
       />
 
       {/* Painel de validação (somente em modo "live") */}
