@@ -1,89 +1,105 @@
+## Objetivo
 
+Adicionar um bloco "PREVISÃO" na aba Medição (e info correspondente na EAP/Tarefas e exportações), calculado a partir das datas planejadas do Gantt e da produtividade prevista. Não altera a medição real, que continua vindo apenas dos `dailyLogs`.
 
-## Plano: hierarquia de colapso, estilo de níveis e indicadores de produção no Gantt
+## Arquitetura proposta
 
-### Arquivo afetado
-- `src/components/GanttChart.tsx`
+### 1. Novo módulo `src/lib/measurementForecast.ts`
 
-### 1. Colapso hierárquico de capítulos (linhas 27, 104, 131)
-- Renomear o `displayPhases` atual para `allPhases` e criar um novo `displayPhases` que filtra subcapítulos cujo pai está colapsado:
-  ```ts
-  const allPhases = useMemo(() => flattenPhasesByChapter(project), [project]);
-  const displayPhases = useMemo(
-    () => allPhases.filter(p => !p.parentId || !collapsedPhases.has(p.parentId)),
-    [allPhases, collapsedPhases]
-  );
-  ```
-- Atualizar `togglePhase` para colapsar/expandir junto todos os subcapítulos filhos (usando `allPhases`):
-  ```ts
-  const togglePhase = (id: string) => {
-    setCollapsedPhases(prev => {
-      const n = new Set(prev);
-      const isCollapsing = !n.has(id);
-      const children = allPhases.filter(p => p.parentId === id).map(p => p.id);
-      if (isCollapsing) { n.add(id); children.forEach(c => n.add(c)); }
-      else { n.delete(id); children.forEach(c => n.delete(c)); }
-      return n;
-    });
-  };
-  ```
+Função pura, isolada e testável:
 
-### 2. Diferenciação visual capítulo × subcapítulo (linhas 870–880)
-Reforçar o contraste entre níveis no header da fase:
-- Capítulo principal: `bg-muted/70`, texto `text-[11px] font-bold`.
-- Subcapítulo: `bg-muted/30 pl-6`, texto `text-[10px] font-semibold text-foreground/80`, indentação maior (`paddingLeft: 24`).
-
-### 3. Nova coluna "Prod./Dia" na sidebar (linha 656)
-- Atualizar `sidebarCols` para 11 colunas inserindo a nova coluna **entre `% Concl.` e `Dep`**:
-  ```
-  '24px 1fr 88px 88px 44px 22px 60px 60px 52px 48px 56px'
-  ```
-  *(ajustar `sidebarWidth` em ~+60px para `~646`)*
-- Adicionar no cabeçalho (após `% Concl.`, antes de `Dep`):
-  ```tsx
-  <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider text-center"
-        title="Produção diária planejada vs realizada">Prod/Dia</span>
-  ```
-- Adicionar a célula na linha de cada tarefa (após o bloco de `% Concluído`, antes de `Dep`), exibindo:
-  - Linha 1: `plannedDaily = task.quantity / task.duration` em cinza.
-  - Linha 2: média real dos `dailyLogs` com `actualQuantity > 0`, em verde se ≥ planejado, vermelho se abaixo.
-  - Mostra `—` quando não há `quantity`.
-
-### 4. Badge de previsão de atraso na coluna "% Concl." (linhas 1130–1152)
-Criar helper `calcForecastDelay(task)`:
 ```ts
-const logs = (task.dailyLogs||[]).filter(l => (l.actualQuantity ?? 0) > 0);
-const executed = logs.reduce((s,l)=>s+l.actualQuantity,0);
-const remaining = (task.quantity||0) - executed;
-const avgDaily = logs.length ? executed/logs.length : 0;
-const daysNeeded = avgDaily>0 ? Math.ceil(remaining/avgDaily) : null;
-return daysNeeded!=null ? daysNeeded - (task.duration - logs.length) : null;
-```
-Renderizar abaixo do `pct` um pequeno badge `+Xd` (vermelho) ou `-Xd` (verde) quando `delay !== 0`.
-
-### 5. Indicador de ritmo na barra do Gantt (linha 1523, dentro do `<div>` da barra)
-Adicionar uma faixa vertical de 4px no canto direito da barra quando houver apontamentos:
-```tsx
-{(() => {
-  const logs = (task.dailyLogs||[]).filter(l => (l.actualQuantity ?? 0) > 0);
-  if (!logs.length || !task.quantity || !task.duration) return null;
-  const planned = task.quantity / task.duration;
-  const real = logs.reduce((s,l)=>s+l.actualQuantity,0)/logs.length;
-  const onPace = real >= planned;
-  return (
-    <div className="absolute top-0 right-0 h-full"
-         style={{ width:4, background: onPace?'#166534':'#991b1b', opacity:0.85, borderRadius:'0 6px 6px 0' }}
-         title={onPace?'Ritmo no prazo':`Ritmo: ${((real/planned)*100).toFixed(0)}% do planejado`} />
-  );
-})()}
+computeTaskForecast(task, periodStart, periodEnd, calendar?) => {
+  plannedDailyProduction: number;
+  plannedDaysInPeriod: number;
+  qtyForecast: number;          // truncado em 2 casas, não excede qtyContracted
+  subtotalForecastNoBDI: number;
+  subtotalForecast: number;     // qty * unitPriceWithBDI, trunc2
+}
 ```
 
-### 6. Verificação
-- Colapsar capítulo principal → subcapítulos somem junto com suas tarefas.
-- Subcapítulos visualmente recuados e mais claros.
-- Coluna `Prod/Dia` aparece com valores planejado/real e cor por desempenho.
-- Tarefas com apontamento mostram badge `+Xd` na % concl. e faixa colorida no fim da barra.
+Regras:
+- Período planejado: `start = task.startDate`, `end = task.startDate + duration - 1`.
+- Calendário: tenta usar helper de dias úteis já existente; se não existir, fallback por dias corridos, isolado em função separada (`countWorkingDays`) para evolução futura.
+- `plannedDaily`: `task.baseline?.plannedDailyProduction` → senão `quantity / duration` → senão `0`.
+- `qtyForecast = min(plannedDaily * diasSobrepostos, qtyContracted)`.
+- Truncagem com `trunc2` já existente em `measurementCalculations`.
 
-### Resultado esperado
-Gantt mais hierárquico, com colapso correto, leitura visual clara dos níveis e novas métricas de produção diária e desvio de prazo diretamente na linha da tarefa.
+### 2. Estender `Row` em `src/components/measurement/types.ts`
 
+Campos novos (somente leitura):
+- `qtyForecast`
+- `valueForecastNoBDI`
+- `valueForecast`
+- `diffForecastVsReal` (= `valuePeriod - valueForecast`)
+
+E em `GroupTotals`: `forecast`, `forecastNoBDI`, `diffForecast`.
+
+### 3. `src/hooks/useMeasurementRows.ts`
+
+Em ambos os caminhos (snapshot e live), chamar `computeTaskForecast(task, effStart, effEnd)` e preencher os novos campos. Acumular nos totais por grupo e nos totais gerais.
+
+### 4. UI Medição
+
+#### `MeasurementTable.tsx`
+Adicionar grupo de cabeçalho "PREVISÃO" após "Medição Atual", com 3 colunas:
+- Quant. Prevista
+- Subtotal Previsto
+- Dif. Real x Previsto
+
+Tokens de cor (em `tailwind.config.ts` ou via classes existentes):
+- Header/fundo previsão: `bg-info/10` (lilás/azul claro já no design system, mesma família usada para "Contrato"; criar variante `bg-accent/10` se preferir distinguir).
+- Diferença positiva: `text-success`. Diferença negativa: `text-destructive`.
+
+`COLSPAN` passa de 15 para 18; ajustar `colgroup` e linha de TOTAL GERAL.
+
+#### `MeasurementItemRow.tsx`
+Renderizar 3 novas células (somente leitura, com formatação `fmtBRL`/`fmtNum`).
+
+#### `MeasurementGroupRow.tsx`
+Subtotais por grupo nas novas colunas.
+
+#### `MeasurementSummaryCards.tsx`
+3 novos cards no topo:
+- Previsto no período
+- Realizado no período
+- Diferença Real x Previsto (verde/vermelho)
+
+### 5. EAP / Tarefas (`TaskList.tsx`)
+
+Adicionar exibição inline e/ou coluna leve:
+- "Previsto: X un/dia" (a partir de `plannedDailyProduction` ou `quantity/duration`).
+- Quando houver período ativo no contexto (ex.: medição atual), mostrar "Previsto no período: Y un".
+
+Implementação mínima: badge/texto auxiliar abaixo do nome da tarefa. Sem mudança estrutural.
+
+### 6. Exportações
+
+#### `additiveReports.ts` não muda — escopo é apenas Medição.
+
+Localizar exportadores de Medição (provavelmente `useMeasurementExports.ts` + helpers em `lib/`). Adicionar 3 colunas no Excel e PDF da medição com os mesmos nomes da tela. Reusar a função `computeTaskForecast`.
+
+### 7. Testes
+
+Adicionar `src/lib/measurementForecast.test.ts`:
+- Tarefa totalmente dentro do período.
+- Tarefa parcialmente sobreposta.
+- Tarefa fora do período → 0.
+- `plannedDailyProduction` definido tem prioridade sobre `quantity/duration`.
+- Limite por `qtyContracted`.
+- Truncagem em 2 casas.
+
+## Não altera
+
+- Cálculo de `qtyPeriod`/`valuePeriod` reais.
+- `dailyLogs`, Diário de Obra, Aditivo.
+- Estrutura contratual da Task.
+- Geração de medição (snapshot continua salvando os mesmos campos atuais; previsão é derivada em runtime).
+
+## Critério de validação
+
+- Tarefa planejada dentro do período da medição → aparece `Quant. Prevista > 0`.
+- Sem `dailyLogs` → `Quant. Medição = 0`, `Quant. Prevista` pode ser > 0.
+- Com apontamento real → tela mostra ambos e a diferença.
+- Mexer em `startDate`/`duration` no Gantt recalcula a previsão automaticamente (próximo render da Medição).
+- Medição real só muda com lançamento em Tarefas/EAP/Diário.

@@ -6,6 +6,7 @@ import {
   money2,
   calculateMeasurementLine,
 } from '@/lib/measurementCalculations';
+import { computeTaskForecast } from '@/lib/measurementForecast';
 import type { Row, GroupNode } from '@/components/measurement/types';
 import { isLockedStatus } from '@/components/measurement/types';
 import {
@@ -88,6 +89,13 @@ export function useMeasurementRows({
     return map;
   }, [measurements, isSnapshotMode]);
 
+  // Mapa rápido taskId → Task (para previsão usar dados atuais do Gantt mesmo em snapshot)
+  const taskById = useMemo<Map<string, Task>>(() => {
+    const m = new Map<string, Task>();
+    project.phases.forEach(p => p.tasks.forEach(t => m.set(t.id, t)));
+    return m;
+  }, [project.phases]);
+
   // ───────── Cálculo das linhas ─────────
   const rows: Row[] = useMemo(() => {
     if (isSnapshotMode && activeMeasurement) {
@@ -105,6 +113,17 @@ export function useMeasurementRows({
           unitPriceNoBDI: snapNoBDI,
           bdiPercent: implicitBdi,
         });
+        const sourceTask = taskById.get(it.taskId);
+        const fc = sourceTask
+          ? computeTaskForecast({
+              task: sourceTask,
+              periodStart: effStart,
+              periodEnd: effEnd,
+              qtyContracted: it.qtyContracted,
+              unitPriceWithBDI: calc.unitPriceWithBDI,
+              unitPriceNoBDI: calc.unitPriceNoBDI,
+            })
+          : { qtyForecast: 0, valueForecast: 0, valueForecastNoBDI: 0, plannedDaily: 0, plannedDaysInPeriod: 0 };
         return {
           item: it.item,
           phaseId: it.phaseId,
@@ -133,6 +152,10 @@ export function useMeasurementRows({
           valuePeriod: calc.totalPeriod,
           valueAccum: calc.totalAccumulated,
           valueBalance: calc.totalBalance,
+          qtyForecast: fc.qtyForecast,
+          valueForecast: fc.valueForecast,
+          valueForecastNoBDI: fc.valueForecastNoBDI,
+          diffForecastVsReal: trunc2(calc.totalPeriod - fc.valueForecast),
           hasNoLogsInPeriod: qtyPeriod === 0,
           hasNoLogsAtAll: false,
           notes: it.notes,
@@ -305,6 +328,15 @@ export function useMeasurementRows({
         ? Math.max(0, money2(valueContractedNoBDI - calc.totalAccumulatedNoBDI))
         : calc.totalBalanceNoBDI;
 
+      const fc = computeTaskForecast({
+        task,
+        periodStart: effStart,
+        periodEnd: effEnd,
+        qtyContracted,
+        unitPriceWithBDI: calc.unitPriceWithBDI,
+        unitPriceNoBDI: calc.unitPriceNoBDI,
+      });
+
       return {
         item: itemNumber, phaseId: phase.id, phaseChain: chain, taskId: task.id,
         description: task.name, unit,
@@ -327,6 +359,10 @@ export function useMeasurementRows({
         valuePeriod: calc.totalPeriod,
         valueAccum: calc.totalAccumulated,
         valueBalance,
+        qtyForecast: fc.qtyForecast,
+        valueForecast: fc.valueForecast,
+        valueForecastNoBDI: fc.valueForecastNoBDI,
+        diffForecastVsReal: trunc2(calc.totalPeriod - fc.valueForecast),
         hasNoLogsInPeriod: logsInfo.hasNoLogsInPeriod,
         hasNoLogsAtAll: logsInfo.hasNoLogsAtAll,
       };
@@ -378,6 +414,10 @@ export function useMeasurementRows({
           valuePeriod: 0,
           valueAccum: 0,
           valueBalance: valueContracted,
+          qtyForecast: 0,
+          valueForecast: 0,
+          valueForecastNoBDI: 0,
+          diffForecastVsReal: 0,
           hasNoLogsInPeriod: true,
           hasNoLogsAtAll: true,
         });
@@ -385,7 +425,7 @@ export function useMeasurementRows({
     }
 
     return [...eapRows, ...orphanRows];
-  }, [isSnapshotMode, activeMeasurement, orderedTasks, effStart, effEnd, effBdi, effBdiFactor, priorAccumByTask, hasSyntheticBudget, syntheticBudgetItems]);
+  }, [isSnapshotMode, activeMeasurement, orderedTasks, effStart, effEnd, effBdi, effBdiFactor, priorAccumByTask, hasSyntheticBudget, syntheticBudgetItems, taskById]);
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -438,6 +478,9 @@ export function useMeasurementRows({
         totals.balanceNoBDI += r.valueBalanceNoBDI;
         totals.qtyContracted += r.qtyContracted;
         totals.qtyAccum += r.qtyCurrentAccum;
+        totals.forecast += r.valueForecast;
+        totals.forecastNoBDI += r.valueForecastNoBDI;
+        totals.diffForecast += r.diffForecastVsReal;
       });
       childGroups.forEach(c => {
         totals.contracted += c.totals.contracted;
@@ -450,6 +493,9 @@ export function useMeasurementRows({
         totals.balanceNoBDI += c.totals.balanceNoBDI;
         totals.qtyContracted += c.totals.qtyContracted;
         totals.qtyAccum += c.totals.qtyAccum;
+        totals.forecast += c.totals.forecast;
+        totals.forecastNoBDI += c.totals.forecastNoBDI;
+        totals.diffForecast += c.totals.diffForecast;
       });
 
       return {
@@ -480,6 +526,9 @@ export function useMeasurementRows({
         orphanTotals.balanceNoBDI += r.valueBalanceNoBDI;
         orphanTotals.qtyContracted += r.qtyContracted;
         orphanTotals.qtyAccum += r.qtyCurrentAccum;
+        orphanTotals.forecast += r.valueForecast;
+        orphanTotals.forecastNoBDI += r.valueForecastNoBDI;
+        orphanTotals.diffForecast += r.diffForecastVsReal;
       });
       sorted.push({
         phaseId: '__synthetic_orphans__',
@@ -502,12 +551,16 @@ export function useMeasurementRows({
       t.contractedNoBDI += r.valueContractedNoBDI; t.periodNoBDI += r.valuePeriodNoBDI;
       t.accumNoBDI += r.valueAccumNoBDI; t.balanceNoBDI += r.valueBalanceNoBDI;
       t.qtyContracted += r.qtyContracted; t.qtyAccum += r.qtyCurrentAccum;
+      t.forecast += r.valueForecast; t.forecastNoBDI += r.valueForecastNoBDI;
+      t.diffForecast += r.diffForecastVsReal;
     });
     // Normaliza acumuladores em 2 casas (arredondamento seguro) p/ bater com Excel
     t.contracted = money2(t.contracted); t.period = money2(t.period);
     t.accum = money2(t.accum); t.balance = money2(t.balance);
     t.contractedNoBDI = money2(t.contractedNoBDI); t.periodNoBDI = money2(t.periodNoBDI);
     t.accumNoBDI = money2(t.accumNoBDI); t.balanceNoBDI = money2(t.balanceNoBDI);
+    t.forecast = money2(t.forecast); t.forecastNoBDI = money2(t.forecastNoBDI);
+    t.diffForecast = money2(t.diffForecast);
     const pctPeriod = t.contracted > 0 ? (t.period / t.contracted) * 100 : 0;
     const pctAccum = t.contracted > 0 ? (t.accum / t.contracted) * 100 : 0;
     const pctBalance = t.contracted > 0 ? (t.balance / t.contracted) * 100 : 0;

@@ -20,7 +20,7 @@ export interface MeasurementItemRowProps {
   updateTaskField?: (taskId: string, patch: Record<string, unknown>) => void;
   patchSnapshotItem?: (taskId: string, patch: Record<string, unknown>, fieldLabel: string) => void;
   setManualPeriodQuantity?: (taskId: string, v: number) => void;
-  G_BG: { id: string; contract: string; period: string; accum: string; balance: string };
+  G_BG: { id: string; contract: string; period: string; forecast?: string; accum: string; balance: string };
   BORDER_L: string;
 }
 
@@ -100,6 +100,21 @@ export default function MeasurementItemRow({
       </td>
       <td className={`px-2 py-1.5 text-right tabular-nums font-semibold text-foreground align-top ${G_BG.period}`}>
         {fmtBRL(r.valuePeriod)}
+      </td>
+
+      {/* Previsão (Gantt) — somente leitura, recalcula com mudanças no cronograma */}
+      <td className={`px-2 py-1.5 text-right tabular-nums text-foreground align-top ${BORDER_L} ${G_BG.forecast || 'bg-accent/20'}`}>
+        {fmtNum(r.qtyForecast || 0)}
+      </td>
+      <td className={`px-2 py-1.5 text-right tabular-nums text-foreground align-top ${G_BG.forecast || 'bg-accent/20'}`}>
+        {fmtBRL(r.valueForecast || 0)}
+      </td>
+      <td className={`px-2 py-1.5 text-right tabular-nums align-top ${G_BG.forecast || 'bg-accent/20'} ${
+        (r.diffForecastVsReal || 0) > 0 ? 'text-success font-semibold'
+        : (r.diffForecastVsReal || 0) < 0 ? 'text-destructive font-semibold'
+        : 'text-muted-foreground'
+      }`}>
+        {fmtBRL(r.diffForecastVsReal || 0)}
       </td>
 
       {/* Acumulado */}
