@@ -1,10 +1,10 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-  FileCheck2, Plus, Unlock, CheckCircle2, XCircle, Lock, Trash2,
+  FileCheck2, Plus, Unlock, CheckCircle2, XCircle, Lock, Trash2, Send,
 } from 'lucide-react';
 import type { SavedMeasurement } from '@/types/project';
-import { STATUS_LABEL, STATUS_CLASS } from '@/components/measurement/types';
+import { STATUS_LABEL, STATUS_CLASS, STATUS_DESCRIPTION } from '@/components/measurement/types';
 import { fmtDateBR } from '@/components/measurement/measurementFormat';
 
 interface MeasurementStatusBarProps {
