@@ -74,9 +74,17 @@ export interface GroupNode {
 export const STATUS_LABEL: Record<MeasurementStatus, string> = {
   draft: 'Rascunho',
   generated: 'Previsão',
-  in_review: 'Em análise fiscal',
+  in_review: 'Enviada p/ Fiscal',
   approved: 'Aprovada',
   rejected: 'Reprovada / Ajustar',
+};
+
+export const STATUS_DESCRIPTION: Record<MeasurementStatus, string> = {
+  draft: 'Rascunho',
+  generated: 'Atualiza com apontamentos e Gantt',
+  in_review: 'Snapshot enviado para fiscalização',
+  rejected: 'Liberar edição mediante justificativa',
+  approved: 'Medição aprovada e congelada',
 };
 
 export const STATUS_CLASS: Record<MeasurementStatus, string> = {
@@ -87,5 +95,6 @@ export const STATUS_CLASS: Record<MeasurementStatus, string> = {
   rejected: 'bg-destructive/15 text-destructive border-destructive/40',
 };
 
-export const isLockedStatus = (s: MeasurementStatus) =>
-  s === 'in_review' || s === 'approved';
+/** Status que mantêm o snapshot congelado (in_review/approved sempre; rejected enquanto edição não liberada). */
+export const isLockedStatus = (s: MeasurementStatus, editUnlocked?: boolean) =>
+  s === 'in_review' || s === 'approved' || (s === 'rejected' && !editUnlocked);
