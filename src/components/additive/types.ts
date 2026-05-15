@@ -20,7 +20,7 @@ export const STATUS_LABEL: Record<AdditiveStatus, string> = {
   em_analise: 'Em análise fiscal',
   reprovado: 'Reprovado',
   aprovado: 'Aprovado',
-  aditivo_contratado: 'Aditivo Contratado',
+  aditivo_contratado: 'Integrado ao projeto',
 };
 
 export const STATUS_BADGE: Record<AdditiveStatus, string> = {
