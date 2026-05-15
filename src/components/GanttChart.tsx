@@ -1175,7 +1175,10 @@ export default function GanttChart({ project, onProjectChange, undoButton }: Gan
                       const depth = Math.min(phaseDepth.get(phase.id) ?? 0, 3);
                       const headerBgClass = isMainChapter ? 'bg-muted/50' : 'bg-muted/30';
                       return (
-                    <div className={`border-b border-border ${headerBgClass} transition-colors duration-200 ease-out hover:bg-muted/70`}>
+                    <div
+                      className={`border-b border-border ${headerBgClass} transition-colors duration-200 ease-out hover:bg-muted/70 overflow-hidden`}
+                      style={{ height: ROW_HEIGHT + 20 }}
+                    >
                       <button
                         onClick={() => togglePhase(phase.id)}
                         className="w-full flex items-center gap-1.5 px-2 transition-colors duration-200 ease-out focus:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30 rounded-sm"
