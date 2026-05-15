@@ -81,6 +81,28 @@ export interface Task {
   // Baseline (linha de base fixa) e Current (cronograma variável)
   baseline?: TaskBaseline;
   current?: TaskCurrent;
+  // ----- Origem em Aditivo (quando criada por integração de aditivo contratado) -----
+  /** Aditivo de origem (quando a tarefa foi criada por integração de aditivo). */
+  originAdditiveId?: string;
+  originAdditiveName?: string;
+  originAdditiveVersion?: number;
+  /** Histórico de acréscimos/supressões aplicados a esta tarefa por aditivos integrados. */
+  additiveHistory?: TaskAdditiveHistoryEntry[];
+  /** True quando esta tarefa foi suprimida por aditivo (qty final = 0). Mantida visível. */
+  suppressedByAdditive?: boolean;
+}
+
+/** Entrada de histórico de aplicação de aditivo a uma tarefa existente. */
+export interface TaskAdditiveHistoryEntry {
+  additiveId: string;
+  additiveName: string;
+  version: number;
+  /** ISO timestamp da integração. */
+  at: string;
+  addedQuantity: number;
+  suppressedQuantity: number;
+  previousQuantity: number;
+  newQuantity: number;
 }
 
 export interface TaskBaseline {
