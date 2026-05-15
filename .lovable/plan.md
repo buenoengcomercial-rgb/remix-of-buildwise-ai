@@ -1,105 +1,114 @@
-## Objetivo
+# Integração do Aditivo Aprovado ao Projeto
 
-Adicionar um bloco "PREVISÃO" na aba Medição (e info correspondente na EAP/Tarefas e exportações), calculado a partir das datas planejadas do Gantt e da produtividade prevista. Não altera a medição real, que continua vindo apenas dos `dailyLogs`.
+## Princípio
 
-## Arquitetura proposta
+Enquanto o aditivo estiver em **rascunho**, **em análise** ou apenas **aprovado**, ele permanece **isolado** na aba Aditivo. Somente ao clicar em **"Integrar ao Projeto"** (status `aditivo_contratado` / `isContracted=true`) os efeitos são propagados para Tarefas, Cronograma, Medição e Diário de Obra.
 
-### 1. Novo módulo `src/lib/measurementForecast.ts`
+## Estado atual (relevante)
 
-Função pura, isolada e testável:
+- `Additive.status`: `rascunho | em_analise | aprovado | reprovado | aditivo_contratado` + flag `isContracted`.
+- `contractAdditive()` em `src/lib/additiveImport.ts` já existe e:
+  - cria tarefas dos **novos serviços** dentro do `phaseId` correto (id `add-{addId}-{compId}`);
+  - marca o aditivo como `aditivo_contratado`.
+- `getApprovedAdditiveBudgetItems()` hoje inclui itens com status **`aprovado`** — **fere a regra**: aprovado não pode mexer na Medição antes de integrar.
+- Acréscimo/supressão hoje gera apenas um `BudgetItem` separado (source `aditivo`); **não atualiza** a quantidade contratual da composição/tarefa original e não gera histórico estruturado.
 
-```ts
-computeTaskForecast(task, periodStart, periodEnd, calendar?) => {
-  plannedDailyProduction: number;
-  plannedDaysInPeriod: number;
-  qtyForecast: number;          // truncado em 2 casas, não excede qtyContracted
-  subtotalForecastNoBDI: number;
-  subtotalForecast: number;     // qty * unitPriceWithBDI, trunc2
-}
+## Mudanças
+
+### 1. Tipos (`src/types/project.ts`)
+
+- `Task`: adicionar campos opcionais
+  - `originAdditiveId?: string`, `originAdditiveName?: string`, `originAdditiveVersion?: number` (quando criada por aditivo)
+  - `additiveHistory?: Array<{ additiveId; additiveName; version; at; addedQuantity; suppressedQuantity; previousQuantity; newQuantity }>` (acréscimos/supressões aplicados a tarefas existentes)
+- `BudgetItem`: garantir `additiveId`, `originAdditiveName`, `additiveHistory` (similar) para itens contratuais sintéticos.
+- `AdditiveComposition`: novo `linkedTaskId?: string` (tarefa criada/atualizada pela integração) e `integratedAt?: string`.
+
+### 2. Regra de visibilidade (não-integrado fica isolado)
+
+Em `src/lib/additiveImport.ts` → `getApprovedAdditiveBudgetItems`:
+- Trocar o filtro para **somente** aditivos com `isContracted === true` (ou `status === 'aditivo_contratado'`).
+- Remover o ramo `status === 'aprovado'` que vaza para Medição/budget antes de integrar.
+
+Auditoria de outros consumidores (`src/lib/financialEngine.ts`, `useMeasurementRows`, `Dashboard`, `Measurement`, `DailyReport`, Gantt) para confirmar que tudo passa por `budgetItems` derivados, então essa única mudança neutraliza vazamentos. Caso encontre acesso direto a `project.additives` que considere `aprovado`, ajustar para exigir `isContracted`.
+
+### 3. `contractAdditive()` — integração completa e idempotente
+
+Reescrita do fluxo em `src/lib/additiveImport.ts`:
+
+```text
+para cada composition c do aditivo:
+  se c.isNewService:
+    se já existe task com id `add-{addId}-{c.id}` → pular (idempotência)
+    senão criar Task no phase c.phaseId com:
+      quantity = c.addedQuantity, unitPrice/unitPriceNoBDI calculados (atual),
+      originAdditiveId, originAdditiveName, originAdditiveVersion,
+      durationMode='manual', startDate sugerida = project.startDate, sem dependências
+    setar c.linkedTaskId = task.id
+  senão (composição existente):
+    localizar Task alvo via c.taskId (preferencial) ou itemNumber/code
+    se não achar → registrar issue 'info' e pular (não cria duplicado)
+    se já existe entry em task.additiveHistory com (additiveId, version) → pular (idempotência)
+    delta = (c.addedQuantity ?? 0) - (c.suppressedQuantity ?? 0)
+    previousQuantity = task.quantity
+    newQuantity = max(0, previousQuantity + delta)
+    push em task.additiveHistory: { additiveId, additiveName, version, at, addedQuantity, suppressedQuantity, previousQuantity, newQuantity }
+    task.quantity = newQuantity
+    se newQuantity === 0 → marcar task como suprimida (flag suppressed=true) mas NÃO remover
+
+aditivo.status = 'aditivo_contratado'
+aditivo.isContracted = true
+aditivo.contractedAt = now
+recalcular budgetItems source='aditivo' via getApprovedAdditiveBudgetItems (já filtrando isContracted)
 ```
 
-Regras:
-- Período planejado: `start = task.startDate`, `end = task.startDate + duration - 1`.
-- Calendário: tenta usar helper de dias úteis já existente; se não existir, fallback por dias corridos, isolado em função separada (`countWorkingDays`) para evolução futura.
-- `plannedDaily`: `task.baseline?.plannedDailyProduction` → senão `quantity / duration` → senão `0`.
-- `qtyForecast = min(plannedDaily * diasSobrepostos, qtyContracted)`.
-- Truncagem com `trunc2` já existente em `measurementCalculations`.
+A idempotência é garantida por (a) id determinístico de tarefa nova e (b) chave `(additiveId, version)` no histórico.
 
-### 2. Estender `Row` em `src/components/measurement/types.ts`
+### 4. Medição respeita novo saldo
 
-Campos novos (somente leitura):
-- `qtyForecast`
-- `valueForecastNoBDI`
-- `valueForecast`
-- `diffForecastVsReal` (= `valuePeriod - valueForecast`)
+- A Medição já lê `budgetItems` (source `original` + `aditivo`). Após integrar, a `quantity` da composição original muda via `additiveHistory` aplicado ao `BudgetItem` correspondente.
+  - Em `getApprovedAdditiveBudgetItems`, para `changeKind` acrescido/suprimido, gerar **um BudgetItem único de ajuste** (já existe), e adicionalmente expor utilitário `getEffectiveContractQuantity(itemNumber|taskId)` que soma original + somatório de aditivos integrados.
+- Em `src/lib/measurementValidation.ts` (ou local equivalente) acrescentar regra: medição acumulada não pode exceder `effectiveContractQuantity`. Se exceder por causa de supressão posterior, gerar `MeasurementValidationIssue` `level: 'error'` com texto "Medição acumulada (X) excede saldo contratual após Aditivo Y (Z)".
 
-E em `GroupTotals`: `forecast`, `forecastNoBDI`, `diffForecast`.
+### 5. Cronograma / Tarefas / Diário
 
-### 3. `src/hooks/useMeasurementRows.ts`
+- Como tarefas são criadas/atualizadas dentro de `project.phases`, automaticamente aparecem em `TaskList`, `GanttChart` e `DailyReport` (que iteram phases).
+- `TaskList` e `GanttChart`: exibir badge "Aditivo Nº X" quando `task.originAdditiveId` ou `task.additiveHistory?.length`. Tooltip com histórico (qtd original → qtd final).
+- `DailyReport` produção: nada muda (lista phases.tasks). Apenas adicionar badge de origem na linha.
 
-Em ambos os caminhos (snapshot e live), chamar `computeTaskForecast(task, effStart, effEnd)` e preencher os novos campos. Acumular nos totais por grupo e nos totais gerais.
+### 6. UI do Aditivo
 
-### 4. UI Medição
+`src/components/additive/AdditiveApprovalBanner.tsx` e `AdditiveHeader.tsx`:
+- Renomear ação de **"Marcar como Contratado"** para **"Integrar ao Projeto"**.
+- Antes de executar, abrir `AlertDialog` de confirmação com o texto:
+  > "Após integrar, este aditivo passará a compor o contrato da obra e será vinculado às abas Tarefas, Cronograma, Medição e Diário de Obra. Esta ação não pode ser desfeita."
+- Status badge ganha rótulo final **"Integrado ao projeto"** (mantém enum `aditivo_contratado` por compatibilidade).
+- Após integrado, a tela de edição do aditivo já fica `isLocked` (regra existente). Confirmar que todas as ações de edição respeitam.
 
-#### `MeasurementTable.tsx`
-Adicionar grupo de cabeçalho "PREVISÃO" após "Medição Atual", com 3 colunas:
-- Quant. Prevista
-- Subtotal Previsto
-- Dif. Real x Previsto
+### 7. Auditoria (`audit.ts`)
 
-Tokens de cor (em `tailwind.config.ts` ou via classes existentes):
-- Header/fundo previsão: `bg-info/10` (lilás/azul claro já no design system, mesma família usada para "Contrato"; criar variante `bg-accent/10` se preferir distinguir).
-- Diferença positiva: `text-success`. Diferença negativa: `text-destructive`.
+Em `handleContractAdditive` registrar log com:
+- contagem de novos serviços criados
+- composições existentes acrescidas/suprimidas
+- lista resumida de tarefas afetadas (id + delta)
 
-`COLSPAN` passa de 15 para 18; ajustar `colgroup` e linha de TOTAL GERAL.
+## Arquivos afetados
 
-#### `MeasurementItemRow.tsx`
-Renderizar 3 novas células (somente leitura, com formatação `fmtBRL`/`fmtNum`).
+- `src/types/project.ts` — novos campos opcionais em `Task`, `AdditiveComposition`.
+- `src/lib/additiveImport.ts` — reescrever `contractAdditive`, ajustar `getApprovedAdditiveBudgetItems`, adicionar `getEffectiveContractQuantity`.
+- `src/lib/measurementValidation.ts` — regra de saldo após supressão.
+- `src/hooks/useAdditiveActions.ts` — abrir confirmação, mensagens, métricas para o log.
+- `src/components/additive/AdditiveHeader.tsx` e `AdditiveApprovalBanner.tsx` — renomear botão, adicionar `AlertDialog`.
+- `src/components/additive/types.ts` — novo `STATUS_LABEL.aditivo_contratado = 'Integrado ao projeto'`.
+- `src/components/TaskList.tsx` e `src/components/GanttChart.tsx` — badge "Aditivo Nº X" e tooltip de histórico.
+- `src/components/DailyReport.tsx` (ou `dailyReport/ProductionTable.tsx`) — badge de origem.
 
-#### `MeasurementGroupRow.tsx`
-Subtotais por grupo nas novas colunas.
+## Critérios de aceite cobertos
 
-#### `MeasurementSummaryCards.tsx`
-3 novos cards no topo:
-- Previsto no período
-- Realizado no período
-- Diferença Real x Previsto (verde/vermelho)
-
-### 5. EAP / Tarefas (`TaskList.tsx`)
-
-Adicionar exibição inline e/ou coluna leve:
-- "Previsto: X un/dia" (a partir de `plannedDailyProduction` ou `quantity/duration`).
-- Quando houver período ativo no contexto (ex.: medição atual), mostrar "Previsto no período: Y un".
-
-Implementação mínima: badge/texto auxiliar abaixo do nome da tarefa. Sem mudança estrutural.
-
-### 6. Exportações
-
-#### `additiveReports.ts` não muda — escopo é apenas Medição.
-
-Localizar exportadores de Medição (provavelmente `useMeasurementExports.ts` + helpers em `lib/`). Adicionar 3 colunas no Excel e PDF da medição com os mesmos nomes da tela. Reusar a função `computeTaskForecast`.
-
-### 7. Testes
-
-Adicionar `src/lib/measurementForecast.test.ts`:
-- Tarefa totalmente dentro do período.
-- Tarefa parcialmente sobreposta.
-- Tarefa fora do período → 0.
-- `plannedDailyProduction` definido tem prioridade sobre `quantity/duration`.
-- Limite por `qtyContracted`.
-- Truncagem em 2 casas.
-
-## Não altera
-
-- Cálculo de `qtyPeriod`/`valuePeriod` reais.
-- `dailyLogs`, Diário de Obra, Aditivo.
-- Estrutura contratual da Task.
-- Geração de medição (snapshot continua salvando os mesmos campos atuais; previsão é derivada em runtime).
-
-## Critério de validação
-
-- Tarefa planejada dentro do período da medição → aparece `Quant. Prevista > 0`.
-- Sem `dailyLogs` → `Quant. Medição = 0`, `Quant. Prevista` pode ser > 0.
-- Com apontamento real → tela mostra ambos e a diferença.
-- Mexer em `startDate`/`duration` no Gantt recalcula a previsão automaticamente (próximo render da Medição).
-- Medição real só muda com lançamento em Tarefas/EAP/Diário.
+- Rascunho/Em análise/Aprovado: zero impacto fora da aba Aditivo (validado pelo filtro `isContracted` em `getApprovedAdditiveBudgetItems`).
+- Novo serviço integrado: aparece em Tarefas, Gantt, Medição e Diário com badge de origem.
+- Acréscimo: tarefa existente recebe nova `quantity`, sem duplicação, com `additiveHistory` preservado.
+- Supressão: tarefa existente reduzida (mantida visível mesmo com qty 0), Medição alerta se acumulado excede.
+- Idempotência: clicar duas vezes em "Integrar" não duplica (id determinístico + chave `additiveId+version`).
+- Aditivo integrado: edição bloqueada (regra `isAdditiveReplacementBlocked` já cobre).
+- Exportações continuam funcionando (não tocadas).
+- Typecheck/build executados pelo harness ao final.

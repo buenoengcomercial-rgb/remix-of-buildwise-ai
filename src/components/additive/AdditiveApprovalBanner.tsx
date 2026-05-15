@@ -33,10 +33,10 @@ export default function AdditiveApprovalBanner({ status, onSend, onOpenReview, o
           <div className="text-muted-foreground">Reprovado — ajuste e reenvie para análise.</div>
         )}
         {status === 'aprovado' && (
-          <div className="text-emerald-700">Aprovado — itens integrados ao projeto. Clique em "Marcar como Contratado" para liberar os novos serviços na EAP/Medição.</div>
+          <div className="text-emerald-700">Aprovado — pronto para integração. Clique em "Integrar ao Projeto" para vincular as composições às abas Tarefas, Cronograma, Medição e Diário de Obra.</div>
         )}
         {status === 'aditivo_contratado' && (
-          <div className="text-primary">Aditivo Contratado — novos serviços integrados à EAP, disponíveis na Medição, Cronograma e Diário.</div>
+          <div className="text-primary">Integrado ao projeto — composições vinculadas às abas Tarefas, Cronograma, Medição e Diário de Obra.</div>
         )}
       </div>
       <div className="flex items-center gap-1.5 flex-wrap">

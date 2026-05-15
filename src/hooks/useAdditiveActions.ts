@@ -607,7 +607,7 @@ export function useAdditiveActions({ project, onProjectChange, state }: Params) 
         },
       });
     });
-    toast.success('Aditivo aprovado e integrado à Medição');
+    toast.success('Aditivo aprovado — pronto para integração ao projeto.');
     setReviewDialogOpen(false);
     setApprovedBy('');
     setReviewNotes('');
@@ -785,7 +785,7 @@ export function useAdditiveActions({ project, onProjectChange, state }: Params) 
         },
       });
     });
-    toast.success('Aditivo contratado — novos serviços integrados ao projeto');
+    toast.success('Aditivo integrado ao projeto — composições vinculadas a Tarefas, Cronograma, Medição e Diário.');
   };
 
   // ----- Memória de cálculo -----

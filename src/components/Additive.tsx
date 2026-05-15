@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Upload } from 'lucide-react';
@@ -55,6 +55,7 @@ export default function Additive({ project, onProjectChange, undoButton }: Props
   } = state;
 
   const totals = useMemo(() => (active ? additiveTotals(active, project) : null), [active, project]);
+  const [contractConfirmOpen, setContractConfirmOpen] = useState(false);
 
   const openReview = (preset: 'approve' | 'reject') => {
     if (preset === 'approve') {
@@ -79,7 +80,7 @@ export default function Additive({ project, onProjectChange, undoButton }: Props
         onChangeGlobalDiscount={actions.handleChangeGlobalDiscount}
         onFileSelected={actions.handleFileSelected}
         onUseSynthetic={actions.handleUseSyntheticFromMeasurement}
-        onContract={actions.handleContractAdditive}
+        onContract={() => setContractConfirmOpen(true)}
         onExportExcel={actions.handleExportExcel}
         onExportSyntheticComplete={actions.handleExportSyntheticCompleteExcel}
         onExportNewServices={actions.handleExportNewServicesExcel}
@@ -231,6 +232,28 @@ export default function Additive({ project, onProjectChange, undoButton }: Props
               onClick={() => confirmDeleteId && actions.handleDeleteAdditive(confirmDeleteId)}
             >
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={contractConfirmOpen} onOpenChange={setContractConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Integrar Aditivo ao Projeto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Após integrar, este aditivo passará a compor o contrato da obra e será vinculado às abas
+              Tarefas, Cronograma, Medição e Diário de Obra. Novos serviços virarão tarefas reais e
+              quantidades acrescidas/suprimidas atualizarão as composições existentes. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={() => { setContractConfirmOpen(false); actions.handleContractAdditive(); }}
+            >
+              Integrar ao Projeto
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
