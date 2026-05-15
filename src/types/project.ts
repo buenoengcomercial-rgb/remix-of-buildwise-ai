@@ -99,10 +99,20 @@ export interface TaskAdditiveHistoryEntry {
   version: number;
   /** ISO timestamp da integração. */
   at: string;
+  /** Tipo da movimentação aplicada. */
+  kind?: 'novo' | 'acrescimo' | 'supressao';
   addedQuantity: number;
   suppressedQuantity: number;
   previousQuantity: number;
   newQuantity: number;
+  /** Valor unitário c/ BDI antes/depois (quando aplicável). */
+  previousUnitPriceWithBDI?: number;
+  newUnitPriceWithBDI?: number;
+  /** Total c/ BDI antes/depois (quando aplicável). */
+  previousTotalWithBDI?: number;
+  newTotalWithBDI?: number;
+  /** Usuário/responsável pela integração, quando disponível. */
+  user?: string;
 }
 
 export interface TaskBaseline {
