@@ -904,36 +904,31 @@ export function getApprovedAdditiveItems(project: Project): ApprovedAdditiveItem
 }
 
 /**
- * Converte composições de aditivos APROVADOS em BudgetItems prontos para a Medição.
- * - acrescido  → quantity = +addedQuantity (ou quantity)
- * - suprimido  → quantity = -suppressedQuantity (impacto negativo)
- * - sem_alteracao → ignorado
+ * Converte composições de aditivos INTEGRADOS (isContracted) em BudgetItems prontos para a Medição.
+ *
+ * Regra: enquanto o aditivo não estiver INTEGRADO ao projeto (rascunho / em análise / aprovado),
+ * NADA vaza para Medição/Tarefas/Cronograma/Diário. Somente após `contractAdditive` os efeitos aparecem.
+ *
+ * - Novos serviços (isNewService) → cria BudgetItem source='aditivo' (são tarefas novas na EAP).
+ * - Acrescido / suprimido em composição existente → NÃO cria BudgetItem separado: o ajuste
+ *   é aplicado direto na quantidade da Sintética/Tarefa em `contractAdditive`. Isso evita
+ *   duplicação e mantém um único item contratual por composição existente.
  */
 export function getApprovedAdditiveBudgetItems(project: Project): BudgetItem[] {
   const out: BudgetItem[] = [];
   for (const a of project.additives ?? []) {
-    if (a.status !== 'aprovado' && a.status !== 'aditivo_contratado' && !a.isContracted) continue;
+    if (!a.isContracted && a.status !== 'aditivo_contratado') continue;
     const bdi = a.bdiPercent ?? 0;
     const discount = a.globalDiscountPercent ?? 0;
     const fator = 1 + bdi / 100;
     for (const c of a.compositions) {
-      // Novos serviços só entram na Medição quando o aditivo foi contratado.
-      if (c.isNewService && !a.isContracted) continue;
-      const kind = c.changeKind ?? 'acrescido';
-      if (kind === 'sem_alteracao' && !c.isNewService) continue;
-      const qty = c.isNewService
-        ? (c.addedQuantity ?? c.quantity ?? 0)
-        : kind === 'suprimido'
-          ? -(c.suppressedQuantity ?? c.quantity ?? 0)
-          : (c.addedQuantity ?? c.quantity ?? 0);
+      // Apenas novos serviços viram BudgetItems próprios. Acréscimos/supressões
+      // em itens existentes são aplicados diretamente em `contractAdditive`.
+      if (!c.isNewService) continue;
+      const qty = c.addedQuantity ?? c.quantity ?? 0;
       if (!qty) continue;
-      // Para novos serviços, usa REFERÊNCIA da analítica (SINAPI) e aplica desconto global da licitação.
-      const baseUnitNoBDI = c.isNewService
-        ? money2(referenceUnitNoBDIForNewService(c) * (1 - discount / 100))
-        : (c.unitPriceNoBDI || 0);
-      const upWithBDI = c.isNewService
-        ? truncar2(baseUnitNoBDI * fator)
-        : (c.unitPriceWithBDI || truncar2(baseUnitNoBDI * fator));
+      const baseUnitNoBDI = money2(referenceUnitNoBDIForNewService(c) * (1 - discount / 100));
+      const upWithBDI = truncar2(baseUnitNoBDI * fator);
       out.push({
         id: `add-${a.id}-${c.id}`,
         item: c.item,
