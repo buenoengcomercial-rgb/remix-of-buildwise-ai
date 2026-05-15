@@ -237,6 +237,28 @@ export default function Additive({ project, onProjectChange, undoButton }: Props
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={contractConfirmOpen} onOpenChange={setContractConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Integrar Aditivo ao Projeto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Após integrar, este aditivo passará a compor o contrato da obra e será vinculado às abas
+              Tarefas, Cronograma, Medição e Diário de Obra. Novos serviços virarão tarefas reais e
+              quantidades acrescidas/suprimidas atualizarão as composições existentes. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={() => { setContractConfirmOpen(false); actions.handleContractAdditive(); }}
+            >
+              Integrar ao Projeto
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {active && (
         <AuditHistoryPanel
           open={historyOpen}
