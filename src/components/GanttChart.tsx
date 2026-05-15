@@ -1206,7 +1206,7 @@ export default function GanttChart({ project, onProjectChange, undoButton }: Gan
                         <span className="text-[9px] ml-auto text-muted-foreground">{phase.tasks.length}</span>
                       </button>
                       {/* Chapter dates row */}
-                      <div className="flex items-center gap-2 px-2 pb-1 text-[9px]">
+                      <div className="flex items-center gap-2 px-2 text-[9px] overflow-hidden" style={{ height: 20 }}>
                         <Popover>
                           <PopoverTrigger asChild>
                             <button className="text-muted-foreground hover:text-primary transition-colors">
