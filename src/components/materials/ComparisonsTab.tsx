@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import type { MaterialComparison } from '@/types/project';
 import * as MC from '@/lib/materialComparisons';
-import { Input } from '@/components/ui/input';
 import { Trophy, TrendingDown } from 'lucide-react';
+import { NumberInput, parseBR } from './numberInput';
 
 interface Props {
   comparison: MaterialComparison;
