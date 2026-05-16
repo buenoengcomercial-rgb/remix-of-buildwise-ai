@@ -384,6 +384,81 @@ export interface Project {
   syntheticImportedAt?: string;
   /** Trilha de auditoria (Aditivo, Medição, Diário etc.). */
   auditLogs?: AuditLog[];
+  /** Comparativos de preços de materiais (Lista de Material). Isolado das demais áreas. */
+  materialComparisons?: MaterialComparison[];
+  /** Histórico consolidado de preços de materiais (todas as cotações fechadas). */
+  materialPriceHistory?: PriceHistoryEntry[];
+}
+
+// =================== LISTA DE MATERIAL / COMPARATIVOS ===================
+
+export type MaterialComparisonStatus = 'rascunho' | 'em_cotacao' | 'fechado' | 'comprado';
+export type ComparisonItemStatus = 'pendente' | 'orcado' | 'comprado';
+
+export interface ComparisonSupplier {
+  id: string;
+  name: string;
+  contact?: string;
+  /** Prazo de entrega em dias. */
+  deliveryDays?: number;
+  /** Avaliação 0-5. */
+  rating?: number;
+  notes?: string;
+}
+
+export interface ComparisonItemPrice {
+  supplierId: string;
+  /** Preço unitário cotado. */
+  price: number;
+  /** Total (price * quantity); recalculado quando salvar. */
+  total: number;
+  /** Disponível para entrega? */
+  available?: boolean;
+  notes?: string;
+}
+
+export interface ComparisonItem {
+  id: string;
+  code?: string;
+  description: string;
+  unit: string;
+  quantity: number;
+  /** Preço de referência (orçamento/SINAPI/anterior). */
+  referencePrice?: number;
+  /** Fornecedor escolhido manualmente; quando ausente, usa-se o menor preço. */
+  chosenSupplierId?: string;
+  prices: ComparisonItemPrice[];
+  status?: ComparisonItemStatus;
+  /** Origem (composição, tarefa, aditivo, manual). */
+  sourceType?: 'manual' | 'task' | 'composition' | 'additive';
+  sourceId?: string;
+}
+
+export interface PriceHistoryEntry {
+  id: string;
+  itemCode?: string;
+  itemDescription: string;
+  unit: string;
+  supplierId?: string;
+  supplierName: string;
+  price: number;
+  /** ISO date. */
+  date: string;
+  comparisonId: string;
+  comparisonName: string;
+}
+
+export interface MaterialComparison {
+  id: string;
+  name: string;
+  status: MaterialComparisonStatus;
+  description?: string;
+  suppliers: ComparisonSupplier[];
+  items: ComparisonItem[];
+  /** ISO. */
+  createdAt: string;
+  updatedAt: string;
+  closedAt?: string;
 }
 
 /** Origem do item financeiro (Sintética importada ou Aditivo aprovado). */
@@ -633,4 +708,4 @@ export interface AuditLog {
 }
 
 export type ViewMode = 'days' | 'weeks' | 'months';
-export type AppView = 'dashboard' | 'gantt' | 'tasks' | 'measurement' | 'dailyReport' | 'additive';
+export type AppView = 'dashboard' | 'gantt' | 'tasks' | 'measurement' | 'dailyReport' | 'additive' | 'materials';
