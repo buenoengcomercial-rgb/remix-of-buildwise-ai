@@ -56,12 +56,10 @@ export default function ComparisonsTab({ comparison, onApply }: Props) {
                     const isBest = an.bestSupplierId === s.id;
                     return (
                       <td key={s.id} className={`p-1 text-right ${isBest ? 'bg-success/10' : ''}`}>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={price?.price ?? ''}
-                          onChange={e => {
-                            const val = e.target.value === '' ? 0 : Number(e.target.value);
+                        <NumberInput
+                          value={price?.price != null ? String(price.price) : ''}
+                          onChange={v => {
+                            const val = parseBR(v) ?? 0;
                             onApply(MC.setItemPrice(comparison, it.id, s.id, val));
                           }}
                           className={`h-7 text-xs text-right ${isBest ? 'border-success font-semibold text-success' : ''}`}
