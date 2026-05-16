@@ -17,6 +17,7 @@ const TaskList = lazy(() => import('@/components/TaskList'));
 const Measurement = lazy(() => import('@/components/Measurement'));
 const DailyReport = lazy(() => import('@/components/DailyReport'));
 const Additive = lazy(() => import('@/components/Additive'));
+const Materials = lazy(() => import('@/components/Materials'));
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganization } from '@/hooks/useOrganization';
 import { canCreateProject, canDeleteProject, canEditProject, ROLE_LABELS } from '@/lib/organizations';
@@ -64,7 +65,7 @@ export default function Index() {
     setSidebarOpen(false);
   }, []);
 
-  const undoStacksRef = useRef<UndoStacks>({ dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [] });
+  const undoStacksRef = useRef<UndoStacks>({ dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], materials: [] });
   const [undoVersion, setUndoVersion] = useState(0);
   const saveTimerRef = useRef<number | null>(null);
   const initialLoadRef = useRef(false);
@@ -195,6 +196,7 @@ export default function Index() {
   const measurementSetter = useMemo(() => makeViewSetter('measurement'), [makeViewSetter]);
   const dailyReportSetter = useMemo(() => makeViewSetter('dailyReport'), [makeViewSetter]);
   const additiveSetter = useMemo(() => makeViewSetter('additive'), [makeViewSetter]);
+  const materialsSetter = useMemo(() => makeViewSetter('materials'), [makeViewSetter]);
 
   const handleUndo = useCallback((view: AppView) => {
     const stack = undoStacksRef.current[view];
@@ -213,7 +215,7 @@ export default function Index() {
       const proj = await loadCloudProject(id);
       if (proj) {
         setRawProject(proj);
-        undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [] };
+        undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], materials: [] };
         setUndoVersion(v => v + 1);
       }
     } catch {
@@ -229,7 +231,7 @@ export default function Index() {
       const newProj = await createCloudProject(finalName, orgId);
       await refreshCloudList();
       setRawProject(newProj);
-      undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [] };
+      undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], materials: [] };
       setUndoVersion(v => v + 1);
       return newProj.id;
     } catch {
@@ -278,7 +280,7 @@ export default function Index() {
           const proj = await loadCloudProject(next.id);
           if (proj) {
             setRawProject(proj);
-            undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [] };
+            undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], materials: [] };
           }
         }
       }
@@ -349,6 +351,8 @@ export default function Index() {
         return <DailyReport project={project} onProjectChange={dailyReportSetter} undoButton={<UndoButton canUndo={canUndo('dailyReport')} onUndo={() => handleUndo('dailyReport')} />} initialDate={dailyReportInitialDate} initialMeasurementFilter={dailyReportInitialFilter} navKey={dailyReportNavKey} />;
       case 'additive':
         return <Additive project={project} onProjectChange={additiveSetter} undoButton={<UndoButton canUndo={canUndo('additive')} onUndo={() => handleUndo('additive')} />} />;
+      case 'materials':
+        return <Materials project={project} onProjectChange={materialsSetter} />;
     }
   };
 
