@@ -1,4 +1,4 @@
-import type { MeasurementStatus } from '@/types/project';
+import type { MeasurementStatus, TaskAdditiveHistoryEntry } from '@/types/project';
 
 // ───────────────────────── Tipos internos ─────────────────────────
 export interface Row {
