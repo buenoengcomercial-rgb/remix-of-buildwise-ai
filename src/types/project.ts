@@ -476,6 +476,33 @@ export interface MaterialComparison {
   closedAt?: string;
 }
 
+// =================== ESTOQUE / ALMOXARIFADO ===================
+
+export type StockMovementType = 'entrada' | 'saida' | 'ajuste';
+
+export interface StockMovement {
+  id: string;
+  /** ISO yyyy-mm-dd (ou ISO completo). */
+  date: string;
+  /** Chave estável do insumo (linkKeyOf). */
+  itemKey: string;
+  /** Snapshot descritivo para exibição mesmo se o insumo sumir. */
+  itemCode?: string;
+  itemDescription: string;
+  itemUnit: string;
+  type: StockMovementType;
+  /** Quantidade (positiva). Sinal definido pelo `type`. */
+  quantity: number;
+  /** Fornecedor global (id) — usado em entradas. */
+  supplierId?: string;
+  /** Tarefa/composição vinculada — usado em saídas. */
+  taskId?: string;
+  notes?: string;
+  /** Usuário responsável (livre). */
+  user?: string;
+  createdAt: string;
+}
+
 /** Origem do item financeiro (Sintética importada ou Aditivo aprovado). */
 export type BudgetItemSource = 'sintetica' | 'aditivo';
 
