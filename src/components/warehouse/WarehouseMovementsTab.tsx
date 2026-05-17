@@ -65,9 +65,13 @@ export default function WarehouseMovementsTab({ project, onProjectChange }: Prop
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Button size="sm" onClick={() => setOpen(o => !o)}><Plus className="w-3.5 h-3.5 mr-1" /> Nova movimentação</Button>
-        <span className="text-[11px] text-muted-foreground">Total: {wh.movements.length}</span>
+      <div className="flex items-center gap-2 bg-card border border-border rounded-md p-2">
+        <Button size="sm" onClick={() => setOpen(o => !o)}>
+          <Plus className="w-3.5 h-3.5 mr-1" /> Nova movimentação
+        </Button>
+        <div className="h-5 w-px bg-border mx-1" />
+        <span className="text-[11px] text-muted-foreground">{wh.movements.length} movimento(s)</span>
+        <span className="ml-auto text-[11px] text-muted-foreground">Use <kbd className="px-1 bg-muted rounded">Estornar</kbd> para reverter um lançamento.</span>
       </div>
 
       {open && (
@@ -163,7 +167,10 @@ export default function WarehouseMovementsTab({ project, onProjectChange }: Prop
                 );
               })}
               {wh.movements.length === 0 && (
-                <tr><td colSpan={8} className="p-6 text-center text-muted-foreground italic">Nenhuma movimentação registrada.</td></tr>
+                <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">
+                  <div className="text-xs">Nenhuma movimentação registrada.</div>
+                  <div className="text-[11px] mt-1">Clique em <strong>Nova movimentação</strong> para registrar a primeira entrada de material.</div>
+                </td></tr>
               )}
             </tbody>
           </table>

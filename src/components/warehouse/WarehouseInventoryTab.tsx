@@ -47,12 +47,13 @@ export default function WarehouseInventoryTab({ project, onProjectChange }: Prop
 
   return (
     <div className="space-y-3">
-      <div className="bg-card border border-border rounded-lg p-2 flex items-center gap-2">
-        <Input placeholder="Responsável pela contagem" className="h-8 text-xs max-w-xs" value={user} onChange={e => setUser(e.target.value)} />
+      <div className="bg-card border border-border rounded-md p-2 flex items-center gap-2 flex-wrap">
+        <label className="text-[11px] text-muted-foreground font-semibold whitespace-nowrap">Responsável:</label>
+        <Input placeholder="Nome do responsável pela contagem" className="h-8 text-xs max-w-xs" value={user} onChange={e => setUser(e.target.value)} />
         <Button size="sm" onClick={apply}><Save className="w-3.5 h-3.5 mr-1" /> Aplicar contagem como ajustes</Button>
-        <span className="text-[11px] text-muted-foreground">Deixe em branco os itens sem contagem.</span>
+        <span className="text-[11px] text-muted-foreground ml-auto">Itens em branco são ignorados.</span>
       </div>
-      <div className="bg-card border border-border rounded-lg overflow-hidden">
+      <div className="bg-card border border-border rounded-md overflow-hidden">
         <div className="max-h-[calc(100vh-320px)] overflow-auto">
           <table className="w-full text-xs">
             <thead className="bg-muted sticky top-0">

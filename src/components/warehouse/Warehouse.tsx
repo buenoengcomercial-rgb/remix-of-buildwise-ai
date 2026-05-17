@@ -3,6 +3,7 @@ import type { Project } from '@/types/project';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LayoutDashboard, Boxes, ArrowLeftRight, ClipboardList, HardHat, ListChecks, FileBarChart, Warehouse as WarehouseIcon } from 'lucide-react';
 import { ensureWarehouse, panelSummary } from '@/lib/warehouse';
+import { cn } from '@/lib/utils';
 import WarehousePanel from './WarehousePanel';
 import WarehouseStockTab from './WarehouseStockTab';
 import WarehouseMovementsTab from './WarehouseMovementsTab';
@@ -24,20 +25,38 @@ export default function Warehouse({ project, onProjectChange }: Props) {
   }, [ensured, project, onProjectChange]);
   const summary = useMemo(() => panelSummary(ensured), [ensured]);
 
+  const kpis = [
+    { label: 'Planejado', value: summary.totalPlanned },
+    { label: 'Comprado', value: summary.totalPurchased, tone: 'primary' as const },
+    { label: 'Recebido', value: summary.totalReceived, tone: 'ok' as const },
+    { label: 'Retirado', value: summary.totalWithdrawn },
+    { label: 'Saldo físico', value: summary.totalBalance, tone: 'primary' as const, strong: true },
+    { label: 'A comprar', value: summary.totalToPurchase, tone: 'warn' as const },
+  ];
+  const toneCls = (t?: 'primary' | 'ok' | 'warn') =>
+    t === 'primary' ? 'text-primary' : t === 'ok' ? 'text-success' : t === 'warn' ? 'text-warning' : 'text-foreground';
+
   return (
-    <div className="p-4 space-y-3">
+    <div className="p-4 space-y-4">
       <div className="flex items-center gap-3">
         <WarehouseIcon className="w-5 h-5 text-primary" />
         <h2 className="text-lg font-bold">Estoque / Almoxarifado</h2>
-        <span className="text-[11px] text-muted-foreground">
-          Saldo total: <strong className="text-foreground">{summary.totalBalance.toLocaleString('pt-BR')}</strong>
-          <span className="mx-1.5">·</span>
-          A comprar: <strong className="text-warning">{summary.totalToPurchase.toLocaleString('pt-BR')}</strong>
-          <span className="mx-1.5">·</span>
+        <span className="ml-auto text-[11px] text-muted-foreground">
           Abaixo do mínimo: <strong className="text-destructive">{summary.underMinCount}</strong>
           <span className="mx-1.5">·</span>
-          Termos abertos: <strong>{summary.openCustodyCount}</strong>
+          Termos abertos: <strong className="text-foreground">{summary.openCustodyCount}</strong>
         </span>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+        {kpis.map(k => (
+          <div key={k.label} className="bg-card border border-border rounded-md px-3 py-2">
+            <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">{k.label}</div>
+            <div className={cn('font-bold tabular-nums', k.strong ? 'text-xl' : 'text-base', toneCls(k.tone))}>
+              {k.value.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}
+            </div>
+          </div>
+        ))}
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="w-full">

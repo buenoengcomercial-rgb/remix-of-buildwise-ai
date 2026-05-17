@@ -54,45 +54,48 @@ export default function WarehouseEquipmentsTab({ project, onProjectChange }: Pro
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
       {/* Equipamentos */}
-      <div className="bg-card border border-border rounded-lg p-3 space-y-2">
-        <div className="text-xs font-semibold">Cadastro de equipamentos</div>
-        <div className="grid grid-cols-2 gap-2">
-          <Input placeholder="Nome / modelo" className="h-8 text-xs" value={eq.name} onChange={e => setEq({ ...eq, name: e.target.value })} />
-          <Input placeholder="Patrimônio" className="h-8 text-xs" value={eq.patrimony} onChange={e => setEq({ ...eq, patrimony: e.target.value })} />
-          <Input placeholder="Nº de série" className="h-8 text-xs" value={eq.serial} onChange={e => setEq({ ...eq, serial: e.target.value })} />
-          <Input placeholder="Categoria" className="h-8 text-xs" value={eq.category} onChange={e => setEq({ ...eq, category: e.target.value })} />
+      <div className="bg-card border border-border rounded-md overflow-hidden">
+        <div className="bg-muted/40 px-3 py-2 border-b border-border text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">Cadastro de equipamentos</div>
+        <div className="p-3 space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Input placeholder="Nome / modelo" className="h-8 text-xs" value={eq.name} onChange={e => setEq({ ...eq, name: e.target.value })} />
+            <Input placeholder="Patrimônio" className="h-8 text-xs" value={eq.patrimony} onChange={e => setEq({ ...eq, patrimony: e.target.value })} />
+            <Input placeholder="Nº de série" className="h-8 text-xs" value={eq.serial} onChange={e => setEq({ ...eq, serial: e.target.value })} />
+            <Input placeholder="Categoria" className="h-8 text-xs" value={eq.category} onChange={e => setEq({ ...eq, category: e.target.value })} />
+          </div>
+          <Button size="sm" className="h-8 w-full" onClick={submitEq}><Plus className="w-3.5 h-3.5 mr-1" /> Cadastrar equipamento</Button>
         </div>
-        <Button size="sm" className="h-8 w-full" onClick={submitEq}><Plus className="w-3.5 h-3.5 mr-1" /> Cadastrar equipamento</Button>
 
-        <table className="w-full text-xs mt-2">
+        <table className="w-full text-xs">
           <thead className="bg-muted">
-            <tr>
-              <th className="p-1 text-left">Equipamento</th>
-              <th className="p-1 text-left">Patrim.</th>
-              <th className="p-1 text-left">Série</th>
-              <th className="p-1 w-8"></th>
+            <tr className="text-muted-foreground">
+              <th className="p-2 text-left font-semibold">Equipamento</th>
+              <th className="p-2 text-left font-semibold w-24">Patrimônio</th>
+              <th className="p-2 text-left font-semibold w-24">Série</th>
+              <th className="p-2 w-8"></th>
             </tr>
           </thead>
           <tbody>
             {wh.equipments.map(e => (
-              <tr key={e.id} className="border-t border-border">
-                <td className="p-1">{e.name}</td>
-                <td className="p-1 font-mono text-[10px]">{e.patrimony ?? '—'}</td>
-                <td className="p-1 font-mono text-[10px]">{e.serial ?? '—'}</td>
-                <td className="p-1"><button className="text-destructive" onClick={() => onProjectChange(removeEquipment(project, e.id))}><Trash2 className="w-3 h-3" /></button></td>
+              <tr key={e.id} className="border-t border-border hover:bg-muted/30">
+                <td className="p-1.5">{e.name}</td>
+                <td className="p-1.5 font-mono text-[10px]">{e.patrimony ?? '—'}</td>
+                <td className="p-1.5 font-mono text-[10px]">{e.serial ?? '—'}</td>
+                <td className="p-1.5"><button className="text-destructive hover:opacity-70" onClick={() => onProjectChange(removeEquipment(project, e.id))}><Trash2 className="w-3 h-3" /></button></td>
               </tr>
             ))}
-            {wh.equipments.length === 0 && <tr><td colSpan={4} className="p-3 text-center text-muted-foreground italic">Nenhum equipamento.</td></tr>}
+            {wh.equipments.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground text-xs">Nenhum equipamento cadastrado.</td></tr>}
           </tbody>
         </table>
       </div>
 
       {/* Termos de Cautela */}
-      <div className="bg-card border border-border rounded-lg p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="text-xs font-semibold">Termos de cautela</div>
+      <div className="bg-card border border-border rounded-md overflow-hidden">
+        <div className="bg-muted/40 px-3 py-2 border-b border-border flex items-center justify-between">
+          <div className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">Termos de cautela</div>
           <Button size="sm" className="h-7 text-[11px]" onClick={() => setShowTerm(s => !s)}><Plus className="w-3 h-3 mr-1" /> Novo termo</Button>
         </div>
+        <div className="p-3 space-y-2">
 
         {showTerm && (
           <div className="border border-border rounded p-2 space-y-2 bg-muted/20">
@@ -171,6 +174,7 @@ export default function WarehouseEquipmentsTab({ project, onProjectChange }: Pro
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
