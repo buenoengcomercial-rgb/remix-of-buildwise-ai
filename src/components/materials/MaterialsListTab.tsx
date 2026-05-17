@@ -31,6 +31,7 @@ export default function MaterialsListTab({ project, comparison, onApply, onProje
     [project],
   );
   const needsAnalyticLink =
+    diagnostics.additiveAnalyticInputs === 0 &&
     diagnostics.baseCompositionsWithAnalytic === 0 &&
     diagnostics.baseAnalyticInputs === 0 &&
     diagnostics.syntheticCompositionsIgnored > 0;
@@ -175,6 +176,11 @@ export default function MaterialsListTab({ project, comparison, onApply, onProje
 
         {showSuggest && (
           <div className="border border-border rounded-lg max-h-80 overflow-auto mt-2">
+            <div className="px-3 py-2 bg-muted/40 border-b border-border text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+              <span><strong>{diagnostics.additiveCompositionsWithAnalytic}</strong> composições do Aditivo c/ analítico</span>
+              <span><strong>{diagnostics.additiveAnalyticInputs}</strong> insumos analíticos lidos do Aditivo</span>
+              <span><strong>{diagnostics.groupedInputs}</strong> insumos agrupados</span>
+            </div>
             {warnings.length > 0 && (
               <div className="px-3 py-2 bg-warning/10 border-b border-border text-[11px] text-warning-foreground flex items-start gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
@@ -196,7 +202,13 @@ export default function MaterialsListTab({ project, comparison, onApply, onProje
               </thead>
               <tbody>
                 {realSuggestions.length === 0 && (
-                  <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">{needsAnalyticLink ? 'Vincule primeiro a Analítica do contrato (botão acima) para listar os insumos.' : 'Nenhum insumo analítico encontrado. Importe/vincule a planilha Analítica do contrato ou integre um aditivo com analítica.'}</td></tr>
+                  <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">
+                    {diagnostics.additivesRead > 0
+                      ? 'Nenhum insumo analítico encontrado no Aditivo atual. Abra a aba Aditivo e confirme se as composições possuem analítico vinculado.'
+                      : needsAnalyticLink
+                        ? 'Vincule primeiro a Analítica do contrato (botão acima) ou importe um aditivo com analítica.'
+                        : 'Nenhum insumo analítico encontrado. Importe um aditivo com analítica ou vincule a planilha Analítica do contrato.'}
+                  </td></tr>
                 )}
                 {realSuggestions.map(s => (
                   <tr key={s.key} className="border-t border-border hover:bg-muted/30">
