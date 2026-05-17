@@ -130,29 +130,30 @@ export default function WarehouseRequisitionsTab({ project, onProjectChange }: P
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        <div className="lg:col-span-2 bg-card border border-border rounded-lg overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
+        <div className="lg:col-span-3 bg-card border border-border rounded-md overflow-hidden">
+          <div className="bg-muted/40 px-3 py-2 border-b border-border text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">Requisições</div>
           <table className="w-full text-xs">
             <thead className="bg-muted">
-              <tr>
-                <th className="p-2 text-left">Nº</th>
-                <th className="p-2 text-left">Data</th>
-                <th className="p-2 text-left">Solicitante</th>
-                <th className="p-2 text-left">Tarefa</th>
-                <th className="p-2 text-center">Itens</th>
-                <th className="p-2 text-left">Status</th>
+              <tr className="text-muted-foreground">
+                <th className="p-2 text-left font-semibold">Nº</th>
+                <th className="p-2 text-left font-semibold">Data</th>
+                <th className="p-2 text-left font-semibold">Solicitante</th>
+                <th className="p-2 text-left font-semibold">Tarefa</th>
+                <th className="p-2 text-center font-semibold w-14">Itens</th>
+                <th className="p-2 text-left font-semibold w-24">Status</th>
               </tr>
             </thead>
             <tbody>
               {wh.requisitions.slice().sort((a, b) => b.date.localeCompare(a.date)).map(r => (
                 <tr key={r.id} className={`border-t border-border cursor-pointer hover:bg-muted/30 ${activeId === r.id ? 'bg-primary/10' : ''}`} onClick={() => setActiveId(r.id)}>
                   <td className="p-1.5 font-mono text-[10px]">{r.number}</td>
-                  <td className="p-1.5">{r.date}</td>
+                  <td className="p-1.5 tabular-nums">{r.date}</td>
                   <td className="p-1.5">{r.requesterName ?? '—'}</td>
-                  <td className="p-1.5 text-[10px]">{r.taskName ?? '—'}</td>
-                  <td className="p-1.5 text-center">{r.items.length}</td>
+                  <td className="p-1.5 text-[10px] truncate max-w-[180px]" title={r.taskName}>{r.taskName ?? '—'}</td>
+                  <td className="p-1.5 text-center tabular-nums">{r.items.length}</td>
                   <td className="p-1.5">
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                       r.status === 'entregue' ? 'bg-success/10 text-success'
                       : r.status === 'cancelada' ? 'bg-muted text-muted-foreground'
                       : 'bg-warning/10 text-warning'}`}>{r.status}</span>
@@ -160,13 +161,18 @@ export default function WarehouseRequisitionsTab({ project, onProjectChange }: P
                 </tr>
               ))}
               {wh.requisitions.length === 0 && (
-                <tr><td colSpan={6} className="p-6 text-center text-muted-foreground italic">Nenhuma requisição.</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">
+                  <div className="text-xs">Nenhuma requisição registrada.</div>
+                  <div className="text-[11px] mt-1">Crie uma requisição para registrar a saída de material vinculada a uma tarefa.</div>
+                </td></tr>
               )}
             </tbody>
           </table>
         </div>
 
-        <div className="bg-card border border-border rounded-lg p-3">
+        <div className="lg:col-span-2 bg-card border border-border rounded-md overflow-hidden">
+          <div className="bg-muted/40 px-3 py-2 border-b border-border text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">Detalhes</div>
+          <div className="p-3">
           {active ? (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
