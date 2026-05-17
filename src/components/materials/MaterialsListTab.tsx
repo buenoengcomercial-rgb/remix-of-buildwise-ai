@@ -197,7 +197,13 @@ export default function MaterialsListTab({ project, comparison, onApply, onProje
               </thead>
               <tbody>
                 {realSuggestions.length === 0 && (
-                  <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">{needsAnalyticLink ? 'Vincule primeiro a Analítica do contrato (botão acima) para listar os insumos.' : 'Nenhum insumo analítico encontrado. Importe/vincule a planilha Analítica do contrato ou integre um aditivo com analítica.'}</td></tr>
+                  <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">
+                    {diagnostics.additivesRead > 0
+                      ? 'Nenhum insumo analítico encontrado no Aditivo atual. Abra a aba Aditivo e confirme se as composições possuem analítico vinculado.'
+                      : needsAnalyticLink
+                        ? 'Vincule primeiro a Analítica do contrato (botão acima) ou importe um aditivo com analítica.'
+                        : 'Nenhum insumo analítico encontrado. Importe um aditivo com analítica ou vincule a planilha Analítica do contrato.'}
+                  </td></tr>
                 )}
                 {realSuggestions.map(s => (
                   <tr key={s.key} className="border-t border-border hover:bg-muted/30">
