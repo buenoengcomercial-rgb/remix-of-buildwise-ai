@@ -1,19 +1,21 @@
 import type { Project } from '@/types/project';
-import { panelSummary, computeWarehouseRows } from '@/lib/warehouse';
+import { panelSummary, computeWarehouseRows, ensureWarehouse } from '@/lib/warehouse';
 import { useMemo } from 'react';
+import { AlertTriangle, PackagePlus, ClipboardList, FileWarning } from 'lucide-react';
 
 interface Props { project: Project; }
 
-const Card = ({ label, value, tone }: { label: string; value: string | number; tone?: 'ok' | 'warn' | 'danger' | 'primary' }) => {
+const StatCard = ({ label, value, tone, hint }: { label: string; value: string | number; tone?: 'ok' | 'warn' | 'danger' | 'primary'; hint?: string }) => {
   const toneClass =
     tone === 'ok' ? 'text-success' :
     tone === 'warn' ? 'text-warning' :
     tone === 'danger' ? 'text-destructive' :
     tone === 'primary' ? 'text-primary' : 'text-foreground';
   return (
-    <div className="bg-card border border-border rounded-lg p-3">
+    <div className="bg-card border border-border rounded-md p-3">
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">{label}</div>
-      <div className={`text-lg font-bold ${toneClass}`}>{typeof value === 'number' ? value.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : value}</div>
+      <div className={`text-lg font-bold tabular-nums ${toneClass}`}>{typeof value === 'number' ? value.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : value}</div>
+      {hint && <div className="text-[10px] text-muted-foreground mt-0.5">{hint}</div>}
     </div>
   );
 };
@@ -21,37 +23,66 @@ const Card = ({ label, value, tone }: { label: string; value: string | number; t
 export default function WarehousePanel({ project }: Props) {
   const s = useMemo(() => panelSummary(project), [project]);
   const rows = useMemo(() => computeWarehouseRows(project), [project]);
+  const wh = ensureWarehouse(project).warehouse!;
   const underMin = rows.filter(r => r.underMin).slice(0, 8);
+  const hasMovements = wh.movements.length > 0;
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-        <Card label="Planejado" value={s.totalPlanned} />
-        <Card label="Comprado" value={s.totalPurchased} tone="primary" />
-        <Card label="Recebido" value={s.totalReceived} tone="ok" />
-        <Card label="Retirado" value={s.totalWithdrawn} />
-        <Card label="Perdas" value={s.totalLosses} tone="danger" />
-        <Card label="Saldo em estoque" value={s.totalBalance} tone="primary" />
-        <Card label="Saldo a comprar" value={s.totalToPurchase} tone="warn" />
-        <Card label="Abaixo do mínimo" value={s.underMinCount} tone="danger" />
-        <Card label="Termos em aberto" value={s.openCustodyCount} />
-        <Card label="Termos vencidos" value={s.overdueCustodyCount} tone="danger" />
-        <Card label="Divergência > 10%" value={s.divergenceCount} tone="warn" />
-        <Card label="Total de insumos" value={rows.length} />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+        <StatCard label="Perdas" value={s.totalLosses} tone="danger" />
+        <StatCard label="Abaixo do mínimo" value={s.underMinCount} tone={s.underMinCount > 0 ? 'danger' : undefined} />
+        <StatCard label="Termos em aberto" value={s.openCustodyCount} />
+        <StatCard label="Termos vencidos" value={s.overdueCustodyCount} tone={s.overdueCustodyCount > 0 ? 'danger' : undefined} />
+        <StatCard label="Divergência > 10%" value={s.divergenceCount} tone={s.divergenceCount > 0 ? 'warn' : undefined} />
       </div>
 
-      <div className="bg-card border border-border rounded-lg p-3">
-        <div className="text-xs font-semibold mb-2">Materiais abaixo do estoque mínimo</div>
+      {!hasMovements && (
+        <div className="bg-card border border-border rounded-md p-4">
+          <div className="text-xs font-semibold mb-2 flex items-center gap-1.5"><ClipboardList className="w-3.5 h-3.5 text-primary" /> Próximas ações</div>
+          <div className="text-xs text-muted-foreground mb-3">Registre uma entrada de material para iniciar o controle de estoque.</div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="border border-dashed border-border rounded-md p-3 flex items-start gap-2">
+              <PackagePlus className="w-4 h-4 text-primary mt-0.5" />
+              <div>
+                <div className="text-xs font-medium">Registrar entrada</div>
+                <div className="text-[11px] text-muted-foreground">Vá em Movimentações → Nova movimentação.</div>
+              </div>
+            </div>
+            <div className="border border-dashed border-border rounded-md p-3 flex items-start gap-2">
+              <ClipboardList className="w-4 h-4 text-primary mt-0.5" />
+              <div>
+                <div className="text-xs font-medium">Criar requisição</div>
+                <div className="text-[11px] text-muted-foreground">Vincule a retirada a uma tarefa da EAP.</div>
+              </div>
+            </div>
+            <div className="border border-dashed border-border rounded-md p-3 flex items-start gap-2">
+              <FileWarning className="w-4 h-4 text-primary mt-0.5" />
+              <div>
+                <div className="text-xs font-medium">Definir mínimos</div>
+                <div className="text-[11px] text-muted-foreground">Configure estoque mínimo em Materiais.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-card border border-border rounded-md p-3">
+        <div className="text-xs font-semibold mb-2 flex items-center gap-1.5">
+          <AlertTriangle className="w-3.5 h-3.5 text-warning" /> Materiais abaixo do estoque mínimo
+        </div>
         {underMin.length === 0 ? (
-          <div className="text-xs text-muted-foreground italic">Nenhum item abaixo do mínimo.</div>
+          <div className="text-xs text-muted-foreground py-4 text-center border border-dashed border-border rounded-md">
+            Tudo certo. Nenhum item abaixo do mínimo configurado.
+          </div>
         ) : (
           <table className="w-full text-xs">
             <thead className="text-muted-foreground">
               <tr>
                 <th className="text-left p-1">Descrição</th>
-                <th className="text-center p-1">Un</th>
-                <th className="text-right p-1">Saldo</th>
-                <th className="text-right p-1">Mínimo</th>
+                <th className="text-center p-1 w-12">Un</th>
+                <th className="text-right p-1 w-20">Saldo</th>
+                <th className="text-right p-1 w-20">Mínimo</th>
               </tr>
             </thead>
             <tbody>
