@@ -216,7 +216,7 @@ export default function MaterialsListTab({ project, comparison, onApply, onProje
           <h3 className="text-sm font-semibold">Adicionar item</h3>
           <Button size="sm" variant="outline" onClick={() => setShowSuggest(s => !s)}>
             <Sparkles className="w-3.5 h-3.5 mr-1" />
-            {showSuggest ? 'Ocultar sugestões' : 'Importar do projeto'}
+            {showSuggest ? 'Ocultar disponíveis' : 'Mostrar disponíveis'}
           </Button>
         </div>
         <div className="grid grid-cols-12 gap-2">
