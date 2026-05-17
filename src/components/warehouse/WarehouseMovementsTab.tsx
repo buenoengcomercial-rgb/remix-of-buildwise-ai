@@ -65,9 +65,13 @@ export default function WarehouseMovementsTab({ project, onProjectChange }: Prop
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Button size="sm" onClick={() => setOpen(o => !o)}><Plus className="w-3.5 h-3.5 mr-1" /> Nova movimentação</Button>
-        <span className="text-[11px] text-muted-foreground">Total: {wh.movements.length}</span>
+      <div className="flex items-center gap-2 bg-card border border-border rounded-md p-2">
+        <Button size="sm" onClick={() => setOpen(o => !o)}>
+          <Plus className="w-3.5 h-3.5 mr-1" /> Nova movimentação
+        </Button>
+        <div className="h-5 w-px bg-border mx-1" />
+        <span className="text-[11px] text-muted-foreground">{wh.movements.length} movimento(s)</span>
+        <span className="ml-auto text-[11px] text-muted-foreground">Use <kbd className="px-1 bg-muted rounded">Estornar</kbd> para reverter um lançamento.</span>
       </div>
 
       {open && (
