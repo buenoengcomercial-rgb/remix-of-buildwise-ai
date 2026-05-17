@@ -105,7 +105,7 @@ export default function MaterialsListTab({ project, comparison, onApply }: Props
               </thead>
               <tbody>
                 {realSuggestions.length === 0 && (
-                  <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Sem insumos analíticos identificados nas tarefas ou em aditivos contratados.</td></tr>
+                  <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Nenhum insumo analítico encontrado. Importe/vincule a planilha Analítica do contrato ou integre um aditivo com analítica.</td></tr>
                 )}
                 {realSuggestions.map(s => (
                   <tr key={s.key} className="border-t border-border hover:bg-muted/30">
