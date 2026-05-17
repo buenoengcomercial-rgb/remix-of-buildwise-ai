@@ -480,7 +480,7 @@ export function suggestMaterialsWithDiagnostics(
         key: makeKey(undefined, m.name, m.unit),
         description: m.name,
         unit: m.unit,
-        quantity: m.quantity || 0,
+        quantity: trunc2(m.quantity || 0),
         referencePrice: refPrice,
         sourceType: 'task_material',
         sourceId: t.id,
