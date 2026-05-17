@@ -81,6 +81,18 @@ export default function Materials({ project, onProjectChange }: Props) {
         <Card label="Economia estimada" value={`R$ ${summary.totalEconomy.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} accent="text-success" />
       </div>
 
+      {/* Diagnostics */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground bg-muted/30 border border-border rounded-lg px-3 py-2">
+        <span><strong className="text-foreground">{diagnostics.baseCompositionsWithAnalytic}</strong> composições base c/ analítico</span>
+        <span><strong className="text-foreground">{diagnostics.baseAnalyticInputs}</strong> insumos base</span>
+        <span><strong className="text-foreground">{diagnostics.contractedAdditivesRead}</strong> aditivos contratados lidos</span>
+        <span><strong className="text-foreground">{diagnostics.taskMaterials}</strong> materiais de tarefa</span>
+        <span><strong className="text-foreground">{diagnostics.syntheticCompositionsIgnored}</strong> composições sintéticas ignoradas</span>
+        {diagnostics.baseCompositionsWithoutAnalytic > 0 && (
+          <span className="text-warning"><strong>{diagnostics.baseCompositionsWithoutAnalytic}</strong> composições base sem analítico</span>
+        )}
+      </div>
+
       {/* Comparison selector */}
       <div className="flex flex-wrap items-center gap-2 bg-card border border-border rounded-xl p-3">
         <span className="text-xs text-muted-foreground uppercase tracking-wide">Comparativo ativo:</span>
