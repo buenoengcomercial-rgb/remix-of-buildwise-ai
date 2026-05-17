@@ -161,6 +161,16 @@ export default function ImportSyntheticDialog({ open, onClose, project, onProjec
               </div>
             </div>
 
+            {analyticInfo && (
+              <div className={`rounded-lg border px-3 py-2 text-xs ${
+                analyticCompositions.length > 0
+                  ? 'border-success/30 bg-success/5 text-success'
+                  : 'border-warning/30 bg-warning/5 text-warning'
+              }`}>
+                {analyticInfo}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg border border-border bg-card p-3">
                 <p className="text-[10px] uppercase text-muted-foreground font-semibold">Total s/ BDI</p>
