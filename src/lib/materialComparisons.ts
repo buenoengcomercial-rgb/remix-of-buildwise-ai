@@ -9,6 +9,7 @@ import type {
   MaterialComparisonStatus,
 } from '@/types/project';
 import { getAllTasks } from '@/data/sampleProject';
+import { trunc2 } from '@/lib/financialEngine';
 
 const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 const nowISO = () => new Date().toISOString();
@@ -301,6 +302,10 @@ export function appendPriceHistoryFromComparison(project: Project, comp: Materia
 // (BudgetItem source='sintetica') NÃO devem aparecer como item de compra.
 
 export type MaterialSuggestionSource = 'analytic_input' | 'additive_input' | 'task_material';
+export type MaterialSuggestionDetail =
+  | 'contracted_item'
+  | 'additive_new_service'
+  | 'additive_existing_changed';
 
 export interface MaterialSuggestion {
   key: string;
@@ -311,6 +316,7 @@ export interface MaterialSuggestion {
   bank?: string;
   referencePrice?: number;
   sourceType: MaterialSuggestionSource;
+  sourceDetail?: MaterialSuggestionDetail;
   sourceId: string;
   /** Aviso opcional (ex.: composição sem analítico). */
   warning?: string;
@@ -357,10 +363,22 @@ export function suggestMaterialsWithDiagnostics(
   const upsert = (s: MaterialSuggestion) => {
     const cur = suggestions.get(s.key);
     if (cur) {
-      cur.quantity = +(cur.quantity + s.quantity).toFixed(4);
+      cur.quantity = trunc2(cur.quantity + s.quantity);
       if (!cur.referencePrice && s.referencePrice) cur.referencePrice = s.referencePrice;
+      // Se origens diferem dentro do mesmo insumo, manter o detalhe "alterado"
+      // como mais informativo do que "contratado".
+      if (s.sourceDetail && cur.sourceDetail && s.sourceDetail !== cur.sourceDetail) {
+        const ranking: Record<MaterialSuggestionDetail, number> = {
+          contracted_item: 0,
+          additive_existing_changed: 1,
+          additive_new_service: 2,
+        };
+        if (ranking[s.sourceDetail] > ranking[cur.sourceDetail]) cur.sourceDetail = s.sourceDetail;
+      } else if (s.sourceDetail && !cur.sourceDetail) {
+        cur.sourceDetail = s.sourceDetail;
+      }
     } else {
-      suggestions.set(s.key, { ...s });
+      suggestions.set(s.key, { ...s, quantity: trunc2(s.quantity) });
     }
   };
 
@@ -387,8 +405,16 @@ export function suggestMaterialsWithDiagnostics(
       const inputs = comp.inputs ?? [];
       if (compQty <= 0 || inputs.length === 0) continue;
       diag.additiveCompositionsWithAnalytic += 1;
+      const isNew = comp.isNewService === true;
+      const added = comp.addedQuantity ?? 0;
+      const suppressed = comp.suppressedQuantity ?? 0;
+      const detail: MaterialSuggestionDetail = isNew
+        ? 'additive_new_service'
+        : added > 0 || suppressed > 0
+          ? 'additive_existing_changed'
+          : 'contracted_item';
       for (const inp of inputs) {
-        const qty = +((inp.coefficient || 0) * compQty).toFixed(4);
+        const qty = trunc2((inp.coefficient || 0) * compQty);
         if (!qty) continue;
         diag.additiveAnalyticInputs += 1;
         upsert({
@@ -400,6 +426,7 @@ export function suggestMaterialsWithDiagnostics(
           bank: inp.bank || undefined,
           referencePrice: inp.unitPrice || undefined,
           sourceType: 'additive_input',
+          sourceDetail: detail,
           sourceId: inp.id,
         });
       }
@@ -417,7 +444,7 @@ export function suggestMaterialsWithDiagnostics(
     }
     diag.baseCompositionsWithAnalytic += 1;
     for (const inp of inputs) {
-      const qty = +((inp.coefficient || 0) * compQty).toFixed(4);
+      const qty = trunc2((inp.coefficient || 0) * compQty);
       if (!qty) continue;
       diag.baseAnalyticInputs += 1;
       upsert({
@@ -453,7 +480,7 @@ export function suggestMaterialsWithDiagnostics(
         key: makeKey(undefined, m.name, m.unit),
         description: m.name,
         unit: m.unit,
-        quantity: m.quantity || 0,
+        quantity: trunc2(m.quantity || 0),
         referencePrice: refPrice,
         sourceType: 'task_material',
         sourceId: t.id,
