@@ -5,13 +5,13 @@ import * as MC from '@/lib/materialComparisons';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, ListChecks, Boxes, Truck, History, ShoppingCart, Trash2, Lock, Link2 } from 'lucide-react';
+import { Plus, ListChecks, Boxes, Truck, History, ShoppingCart, Trash2, Lock, Warehouse } from 'lucide-react';
 import MaterialsListTab from './materials/MaterialsListTab';
-import LinkedItemsTab from './materials/LinkedItemsTab';
 import ComparisonsTab from './materials/ComparisonsTab';
 import SuppliersTab from './materials/SuppliersTab';
 import PriceHistoryTab from './materials/PriceHistoryTab';
 import PurchaseOrderTab from './materials/PurchaseOrderTab';
+import StockTab from './materials/StockTab';
 
 interface Props {
   project: Project;
