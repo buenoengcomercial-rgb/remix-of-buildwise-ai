@@ -438,6 +438,8 @@ export interface ComparisonItem {
   status?: ComparisonItemStatus;
   /** Origem (insumo analítico, material de tarefa, insumo de aditivo, manual). */
   sourceType?: 'manual' | 'task_material' | 'analytic_input' | 'additive_input';
+  /** Subtipo da origem quando vem do Aditivo. */
+  sourceDetail?: 'contracted_item' | 'additive_new_service' | 'additive_existing_changed';
   sourceId?: string;
 }
 
