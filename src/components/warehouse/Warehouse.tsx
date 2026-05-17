@@ -3,6 +3,7 @@ import type { Project } from '@/types/project';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LayoutDashboard, Boxes, ArrowLeftRight, ClipboardList, HardHat, ListChecks, FileBarChart, Warehouse as WarehouseIcon } from 'lucide-react';
 import { ensureWarehouse, panelSummary } from '@/lib/warehouse';
+import { cn } from '@/lib/utils';
 import WarehousePanel from './WarehousePanel';
 import WarehouseStockTab from './WarehouseStockTab';
 import WarehouseMovementsTab from './WarehouseMovementsTab';
