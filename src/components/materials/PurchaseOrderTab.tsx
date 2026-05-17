@@ -85,6 +85,36 @@ export default function PurchaseOrderTab({ project, comparison }: Props) {
           </div>
         );
       })}
+
+      {unresolvedDetails.length > 0 && (
+        <div className="bg-card border border-warning/40 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-warning/40 bg-warning/10 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-warning" />
+            <div className="text-sm font-semibold">Sem fornecedor vencedor</div>
+            <div className="text-xs text-muted-foreground ml-auto">{unresolvedDetails.length} item(s) sem cotação</div>
+          </div>
+          <table className="w-full text-xs">
+            <thead className="bg-muted">
+              <tr>
+                <th className="p-2 text-left">Código</th>
+                <th className="p-2 text-left">Descrição</th>
+                <th className="p-2">Un.</th>
+                <th className="p-2 text-right">Qtd.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {unresolvedDetails.map(it => (
+                <tr key={it.id} className="border-t border-border">
+                  <td className="p-2 font-mono text-[11px]">{it.code || '—'}</td>
+                  <td className="p-2">{it.description}</td>
+                  <td className="p-2 text-center">{it.unit}</td>
+                  <td className="p-2 text-right">{it.quantity.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
