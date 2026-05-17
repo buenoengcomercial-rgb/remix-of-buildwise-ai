@@ -102,8 +102,16 @@ export default function MaterialsListTab({ project, comparison, onApply, onProje
   }, [project, onProjectChange]);
 
   const suggestions = useMemo(() => MC.suggestMaterialsFromProject(project), [project]);
-  const realSuggestions = suggestions.filter(s => !s.warning);
   const warnings = suggestions.filter(s => s.warning);
+  const linkedKeys = useMemo(() => {
+    const set = new Set<string>();
+    (comparison.items ?? []).forEach(it => set.add(linkKey(it)));
+    return set;
+  }, [comparison.items]);
+  const realSuggestions = useMemo(
+    () => suggestions.filter(s => !s.warning && !linkedKeys.has(linkKey(s))),
+    [suggestions, linkedKeys],
+  );
 
   const filteredSuggestions = useMemo(() => {
     const q = search.trim().toLowerCase();
