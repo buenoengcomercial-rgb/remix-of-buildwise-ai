@@ -277,11 +277,13 @@ export default function MaterialsListTab({ project, comparison, onApply, onProje
                   {filteredSuggestions.length === 0 && (
                     <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">
                       {realSuggestions.length === 0
-                        ? (diagnostics.additivesRead > 0
-                            ? 'Nenhum insumo analítico encontrado no Aditivo atual.'
-                            : needsAnalyticLink
-                              ? 'Vincule primeiro a Analítica do contrato (botão acima).'
-                              : 'Nenhum insumo analítico encontrado.')
+                        ? (suggestions.filter(s => !s.warning).length > 0
+                            ? 'Todos os insumos disponíveis já foram vinculados a este comparativo.'
+                            : diagnostics.additivesRead > 0
+                              ? 'Nenhum insumo analítico encontrado no Aditivo atual.'
+                              : needsAnalyticLink
+                                ? 'Vincule primeiro a Analítica do contrato (botão acima).'
+                                : 'Nenhum insumo analítico encontrado.')
                         : 'Nenhum insumo bate com a busca.'}
                     </td></tr>
                   )}
