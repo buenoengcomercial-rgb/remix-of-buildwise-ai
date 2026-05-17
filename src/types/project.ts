@@ -908,4 +908,4 @@ export interface AuditLog {
 }
 
 export type ViewMode = 'days' | 'weeks' | 'months';
-export type AppView = 'dashboard' | 'gantt' | 'tasks' | 'measurement' | 'dailyReport' | 'additive' | 'materials';
+export type AppView = 'dashboard' | 'gantt' | 'tasks' | 'measurement' | 'dailyReport' | 'additive' | 'materials' | 'warehouse';
