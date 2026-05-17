@@ -143,8 +143,13 @@ export default function MaterialsListTab({ project, comparison, onApply, onProje
   };
 
   const importSelected = () => {
-    const picked = realSuggestions.filter(s => selectedKeys[s.key]);
-    if (picked.length === 0) return;
+    const picked = realSuggestions.filter(
+      s => selectedKeys[s.key] && !linkedKeys.has(linkKey(s)),
+    );
+    if (picked.length === 0) {
+      setSelectedKeys({});
+      return;
+    }
     const next = MC.addItemsBulk(
       comparison,
       picked.map(p => ({
@@ -161,7 +166,6 @@ export default function MaterialsListTab({ project, comparison, onApply, onProje
     );
     onApply(next);
     setSelectedKeys({});
-    setShowSuggest(false);
   };
 
   const selectedCount = Object.values(selectedKeys).filter(Boolean).length;
