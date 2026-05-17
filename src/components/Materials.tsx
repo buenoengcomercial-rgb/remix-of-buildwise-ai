@@ -33,6 +33,11 @@ export default function Materials({ project, onProjectChange }: Props) {
     };
   }, [ctl.comparisons]);
 
+  const diagnostics = useMemo(
+    () => MC.suggestMaterialsWithDiagnostics(project).diagnostics,
+    [project],
+  );
+
   return (
     <div className="p-6 space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
