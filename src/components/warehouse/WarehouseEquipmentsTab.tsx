@@ -90,11 +90,12 @@ export default function WarehouseEquipmentsTab({ project, onProjectChange }: Pro
       </div>
 
       {/* Termos de Cautela */}
-      <div className="bg-card border border-border rounded-lg p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="text-xs font-semibold">Termos de cautela</div>
+      <div className="bg-card border border-border rounded-md overflow-hidden">
+        <div className="bg-muted/40 px-3 py-2 border-b border-border flex items-center justify-between">
+          <div className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">Termos de cautela</div>
           <Button size="sm" className="h-7 text-[11px]" onClick={() => setShowTerm(s => !s)}><Plus className="w-3 h-3 mr-1" /> Novo termo</Button>
         </div>
+        <div className="p-3 space-y-2">
 
         {showTerm && (
           <div className="border border-border rounded p-2 space-y-2 bg-muted/20">
