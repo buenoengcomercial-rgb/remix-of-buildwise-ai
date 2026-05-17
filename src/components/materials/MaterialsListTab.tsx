@@ -176,6 +176,11 @@ export default function MaterialsListTab({ project, comparison, onApply, onProje
 
         {showSuggest && (
           <div className="border border-border rounded-lg max-h-80 overflow-auto mt-2">
+            <div className="px-3 py-2 bg-muted/40 border-b border-border text-[11px] text-muted-foreground flex flex-wrap gap-x-4 gap-y-1">
+              <span><strong>{diagnostics.additiveCompositionsWithAnalytic}</strong> composições do Aditivo c/ analítico</span>
+              <span><strong>{diagnostics.additiveAnalyticInputs}</strong> insumos analíticos lidos do Aditivo</span>
+              <span><strong>{diagnostics.groupedInputs}</strong> insumos agrupados</span>
+            </div>
             {warnings.length > 0 && (
               <div className="px-3 py-2 bg-warning/10 border-b border-border text-[11px] text-warning-foreground flex items-start gap-2">
                 <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
