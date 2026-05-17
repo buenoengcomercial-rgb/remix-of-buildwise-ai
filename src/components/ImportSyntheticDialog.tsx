@@ -33,6 +33,8 @@ export default function ImportSyntheticDialog({ open, onClose, project, onProjec
     setError('');
     setFileName('');
     setParsed(null);
+    setAnalyticCompositions([]);
+    setAnalyticInfo('');
   };
   const handleClose = () => { reset(); onClose(); };
 
@@ -49,6 +51,21 @@ export default function ImportSyntheticDialog({ open, onClose, project, onProjec
         return;
       }
       setParsed(result);
+
+      // Tenta extrair a Analítica do MESMO arquivo (aba Analítica).
+      // Falha silenciosa: se não houver, segue só com a Sintética.
+      try {
+        const an = await extractBaseAnalyticCompositions(buf);
+        setAnalyticCompositions(an.compositions);
+        setAnalyticInfo(
+          an.hasAnalyticSheet
+            ? `Analítica detectada: ${an.compositions.length} composições c/ insumos (${an.totalInputs} insumos).`
+            : 'Aba Analítica não encontrada — a Lista de Material ficará sem insumos do contrato.',
+        );
+      } catch (err: any) {
+        setAnalyticCompositions([]);
+        setAnalyticInfo(`Falha ao ler Analítica: ${err?.message ?? 'erro desconhecido'}.`);
+      }
     } catch (e: any) {
       setError(`Erro ao ler a Sintética: ${e?.message ?? 'formato não reconhecido'}`);
     }
@@ -69,6 +86,9 @@ export default function ImportSyntheticDialog({ open, onClose, project, onProjec
     onProjectChange({
       ...project,
       budgetItems: next,
+      // Substitui as composições analíticas do contrato/base quando o usuário
+      // reimporta a planilha. Mantém vazio se a aba Analítica não veio no arquivo.
+      analyticCompositions: analyticCompositions,
       syntheticBdiPercent: parsed.bdiPercent,
       syntheticImportedAt: new Date().toISOString(),
     });
