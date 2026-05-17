@@ -198,6 +198,7 @@ export default function Index() {
   const dailyReportSetter = useMemo(() => makeViewSetter('dailyReport'), [makeViewSetter]);
   const additiveSetter = useMemo(() => makeViewSetter('additive'), [makeViewSetter]);
   const materialsSetter = useMemo(() => makeViewSetter('materials'), [makeViewSetter]);
+  const warehouseSetter = useMemo(() => makeViewSetter('warehouse'), [makeViewSetter]);
 
   const handleUndo = useCallback((view: AppView) => {
     const stack = undoStacksRef.current[view];
@@ -354,6 +355,8 @@ export default function Index() {
         return <Additive project={project} onProjectChange={additiveSetter} undoButton={<UndoButton canUndo={canUndo('additive')} onUndo={() => handleUndo('additive')} />} />;
       case 'materials':
         return <Materials project={project} onProjectChange={materialsSetter} />;
+      case 'warehouse':
+        return <WarehouseView project={project} onProjectChange={warehouseSetter} />;
     }
   };
 
