@@ -1,13 +1,14 @@
-import type { MaterialComparison } from '@/types/project';
+import type { Project, MaterialComparison } from '@/types/project';
 import * as MC from '@/lib/materialComparisons';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Trash2, Lock } from 'lucide-react';
 import { formatBRL, formatQty } from './numberInput';
 
 interface Props {
+  project: Project;
   comparison: MaterialComparison;
   onApply: (next: MaterialComparison) => void;
+  onProjectChange: (next: Project) => void;
 }
 
 const DETAIL_LABEL: Record<string, string> = {
@@ -31,16 +32,20 @@ function originBadge(sourceType?: string, detail?: string) {
   return { label: 'Aditivo', cls: 'bg-muted text-muted-foreground border-border' };
 }
 
-export default function LinkedItemsTab({ comparison, onApply }: Props) {
+export default function LinkedItemsTab({ project, comparison, onApply, onProjectChange }: Props) {
+  const allComparisons = project.materialComparisons ?? [];
   if (comparison.items.length === 0) {
     return (
       <div className="bg-card border border-dashed border-border rounded-lg p-10 text-center text-sm text-muted-foreground">
-        Nenhum item vinculado. Vá em "Insumos do Projeto" para selecionar.
+        Nenhum item vinculado a "{comparison.name}". Vá em "Insumos do Projeto" para selecionar.
       </div>
     );
   }
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
+      <div className="px-2 py-1.5 border-b border-border bg-muted/30 text-[11px] text-muted-foreground">
+        <strong className="text-foreground">{comparison.items.length}</strong> vinculados ao comparativo "{comparison.name}"
+      </div>
       <div className="max-h-[calc(100vh-260px)] overflow-auto">
         <table className="w-full text-xs">
           <thead className="bg-muted sticky top-0 z-10">
@@ -74,12 +79,29 @@ export default function LinkedItemsTab({ comparison, onApply }: Props) {
                     </span>
                   </td>
                   <td className="p-2 w-44">
-                    <Input
-                      value={it.purchaseGroup ?? ''}
-                      onChange={e => onApply(MC.updateItem(comparison, it.id, { purchaseGroup: e.target.value }))}
-                      placeholder="ex.: PVC CONEXÕES"
-                      className="h-7 text-[11px]"
-                    />
+                    <select
+                      value={comparison.id}
+                      onChange={e => {
+                        const target = e.target.value || null;
+                        if (target === comparison.id) return;
+                        onProjectChange(MC.setSuggestionLink(project, {
+                          description: it.description,
+                          unit: it.unit,
+                          quantity: it.quantity,
+                          referencePrice: it.referencePrice,
+                          code: it.code,
+                          sourceType: it.sourceType,
+                          sourceDetail: it.sourceDetail,
+                          sourceId: it.sourceId,
+                        }, target));
+                      }}
+                      className="h-7 w-full text-[11px] border border-border rounded px-1.5 bg-background"
+                    >
+                      <option value="">— remover vínculo —</option>
+                      {allComparisons.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
                   </td>
                   <td className="p-2 text-center">
                     <select
