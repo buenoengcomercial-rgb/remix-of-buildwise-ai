@@ -167,7 +167,10 @@ export default function WarehouseMovementsTab({ project, onProjectChange }: Prop
                 );
               })}
               {wh.movements.length === 0 && (
-                <tr><td colSpan={8} className="p-6 text-center text-muted-foreground italic">Nenhuma movimentação registrada.</td></tr>
+                <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">
+                  <div className="text-xs">Nenhuma movimentação registrada.</div>
+                  <div className="text-[11px] mt-1">Clique em <strong>Nova movimentação</strong> para registrar a primeira entrada de material.</div>
+                </td></tr>
               )}
             </tbody>
           </table>
