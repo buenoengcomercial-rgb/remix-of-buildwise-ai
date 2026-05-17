@@ -174,6 +174,7 @@ export default function WarehouseEquipmentsTab({ project, onProjectChange }: Pro
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
