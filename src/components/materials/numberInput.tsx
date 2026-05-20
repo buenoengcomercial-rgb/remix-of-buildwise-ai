@@ -124,7 +124,7 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
             return;
           }
 
-          if (e.key === 'ArrowDown') {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault();
             const current = e.currentTarget;
             const supplierId = current.dataset.supplierId;
@@ -136,7 +136,8 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
                 ? allPriceInputs.filter(input => input.dataset.supplierId === supplierId)
                 : allPriceInputs;
               const currentIndex = sameSupplierInputs.indexOf(current);
-              const next = currentIndex >= 0 ? sameSupplierInputs[currentIndex + 1] : undefined;
+              const offset = e.key === 'ArrowDown' ? 1 : -1;
+              const next = currentIndex >= 0 ? sameSupplierInputs[currentIndex + offset] : undefined;
               next?.focus();
               next?.select();
             };
