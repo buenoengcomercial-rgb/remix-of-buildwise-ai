@@ -41,6 +41,8 @@ export default function ImportTasksDialog({ open, onClose, project, onProjectCha
   const [parsedTasks, setParsedTasks] = useState<ParsedTask[]>([]);
   const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [showAllIssues, setShowAllIssues] = useState(false);
+  const [confirmedWithWarnings, setConfirmedWithWarnings] = useState(false);
 
   function describeImportError(file: File, err: unknown) {
     const rawMessage = String((err as { message?: string } | null)?.message || '').trim();
@@ -144,7 +146,7 @@ export default function ImportTasksDialog({ open, onClose, project, onProjectCha
       setError(describeImportError(file, err));
     }
     setLoading(false);
-  }, [describeImportError]);
+  }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -243,9 +245,6 @@ export default function ImportTasksDialog({ open, onClose, project, onProjectCha
   };
 
   const confirmImport = format === 'structured' ? confirmStructuredImport : confirmFlatImport;
-
-  const [showAllIssues, setShowAllIssues] = useState(false);
-  const [confirmedWithWarnings, setConfirmedWithWarnings] = useState(false);
 
   // Count for UI
   const totalCount = format === 'structured'
