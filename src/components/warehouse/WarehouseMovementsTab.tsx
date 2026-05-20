@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Project, WarehouseMovementType, WarehouseAttachment } from '@/types/project';
 import { Button } from '@/components/ui/button';
+import { useConfirmDelete } from '@/components/ConfirmDeleteDialog';
 import { Input } from '@/components/ui/input';
 import { Plus, Undo2, Paperclip, X } from 'lucide-react';
 import { addMovement, reverseMovement, MOVEMENT_LABEL, ensureWarehouse, makeAttachment, movementSign, computeWarehouseRows } from '@/lib/warehouse';
@@ -12,6 +13,7 @@ const TYPES: WarehouseMovementType[] = ['entrada', 'devolucao', 'retirada', 'per
 
 export default function WarehouseMovementsTab({ project, onProjectChange }: Props) {
   const wh = ensureWarehouse(project).warehouse!;
+  const { confirm, dialog: confirmDialog } = useConfirmDelete();
   const rows = useMemo(() => computeWarehouseRows(project), [project]);
   const suppliers = useMemo(() => getProjectSuppliers(project), [project]);
   const [open, setOpen] = useState(false);
@@ -64,66 +66,67 @@ export default function WarehouseMovementsTab({ project, onProjectChange }: Prop
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2 bg-card border border-border rounded-md p-2">
-        <Button size="sm" onClick={() => setOpen(o => !o)}>
-          <Plus className="w-3.5 h-3.5 mr-1" /> Nova movimentação
-        </Button>
-        <div className="h-5 w-px bg-border mx-1" />
-        <span className="text-[11px] text-muted-foreground">{wh.movements.length} movimento(s)</span>
-        <span className="ml-auto text-[11px] text-muted-foreground">Use <kbd className="px-1 bg-muted rounded">Estornar</kbd> para reverter um lançamento.</span>
-      </div>
-
-      {open && (
-        <div className="bg-card border border-border rounded-lg p-3 space-y-2">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <select className="h-8 text-xs border border-border rounded px-2 bg-background" value={form.type} onChange={e => setForm({ ...form, type: e.target.value as WarehouseMovementType })}>
-              {TYPES.map(t => <option key={t} value={t}>{MOVEMENT_LABEL[t]}</option>)}
-            </select>
-            <Input type="date" className="h-8 text-xs" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
-            <select className="h-8 text-xs border border-border rounded px-2 bg-background col-span-2" value={form.itemKey} onChange={e => setForm({ ...form, itemKey: e.target.value })}>
-              <option value="">— selecione o insumo —</option>
-              {rows.map(r => <option key={r.key} value={r.key}>{r.description} ({r.unit})</option>)}
-            </select>
-            <Input placeholder={`Quantidade ${item ? `(${item.unit})` : ''}`} value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} className="h-8 text-xs" />
-            <Input placeholder="Valor unit. (R$)" value={form.unitPrice} onChange={e => setForm({ ...form, unitPrice: e.target.value })} className="h-8 text-xs" />
-            {form.type === 'entrada' && (
-              <>
-                <select className="h-8 text-xs border border-border rounded px-2 bg-background" value={form.supplierId} onChange={e => setForm({ ...form, supplierId: e.target.value })}>
-                  <option value="">— fornecedor —</option>
-                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-                <Input placeholder="Nota fiscal" value={form.invoiceNumber} onChange={e => setForm({ ...form, invoiceNumber: e.target.value })} className="h-8 text-xs" />
-              </>
-            )}
-            <Input placeholder="Responsável" value={form.responsible} onChange={e => setForm({ ...form, responsible: e.target.value })} className="h-8 text-xs" />
-            <Input placeholder="Usuário" value={form.user} onChange={e => setForm({ ...form, user: e.target.value })} className="h-8 text-xs" />
-            <Input placeholder="Observação" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="h-8 text-xs col-span-2" />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label className="inline-flex items-center gap-1 text-[11px] cursor-pointer border border-border rounded px-2 py-1 hover:bg-muted">
-              <Paperclip className="w-3 h-3" /> Anexar (NF, foto)
-              <input type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={handleFiles} />
-            </label>
-            {attachments.map(a => (
-              <span key={a.id} className="inline-flex items-center gap-1 text-[10px] bg-muted px-1.5 py-0.5 rounded">
-                {a.name}
-                <button onClick={() => setAttachments(prev => prev.filter(x => x.id !== a.id))}><X className="w-2.5 h-2.5" /></button>
-              </span>
-            ))}
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button size="sm" onClick={submit} disabled={!item || !form.quantity}>Registrar</Button>
-          </div>
+    <>
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 bg-card border border-border rounded-md p-2">
+          <Button size="sm" onClick={() => setOpen(o => !o)}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> Nova movimentação
+          </Button>
+          <div className="h-5 w-px bg-border mx-1" />
+          <span className="text-[11px] text-muted-foreground">{wh.movements.length} movimento(s)</span>
+          <span className="ml-auto text-[11px] text-muted-foreground">Use <kbd className="px-1 bg-muted rounded">Estornar</kbd> para reverter um lançamento.</span>
         </div>
-      )}
 
-      <div className="bg-card border border-border rounded-lg overflow-hidden">
-        <div className="max-h-[calc(100vh-360px)] overflow-auto">
-          <table className="w-full text-xs">
+        {open && (
+          <div className="bg-card border border-border rounded-lg p-3 space-y-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <select className="h-8 text-xs border border-border rounded px-2 bg-background" value={form.type} onChange={e => setForm({ ...form, type: e.target.value as WarehouseMovementType })}>
+                {TYPES.map(t => <option key={t} value={t}>{MOVEMENT_LABEL[t]}</option>)}
+              </select>
+              <Input type="date" className="h-8 text-xs" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
+              <select className="h-8 text-xs border border-border rounded px-2 bg-background col-span-2" value={form.itemKey} onChange={e => setForm({ ...form, itemKey: e.target.value })}>
+                <option value="">— selecione o insumo —</option>
+                {rows.map(r => <option key={r.key} value={r.key}>{r.description} ({r.unit})</option>)}
+              </select>
+              <Input placeholder={`Quantidade ${item ? `(${item.unit})` : ''}`} value={form.quantity} onChange={e => setForm({ ...form, quantity: e.target.value })} className="h-8 text-xs" />
+              <Input placeholder="Valor unit. (R$)" value={form.unitPrice} onChange={e => setForm({ ...form, unitPrice: e.target.value })} className="h-8 text-xs" />
+              {form.type === 'entrada' && (
+                <>
+                  <select className="h-8 text-xs border border-border rounded px-2 bg-background" value={form.supplierId} onChange={e => setForm({ ...form, supplierId: e.target.value })}>
+                    <option value="">— fornecedor —</option>
+                    {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                  <Input placeholder="Nota fiscal" value={form.invoiceNumber} onChange={e => setForm({ ...form, invoiceNumber: e.target.value })} className="h-8 text-xs" />
+                </>
+              )}
+              <Input placeholder="Responsável" value={form.responsible} onChange={e => setForm({ ...form, responsible: e.target.value })} className="h-8 text-xs" />
+              <Input placeholder="Usuário" value={form.user} onChange={e => setForm({ ...form, user: e.target.value })} className="h-8 text-xs" />
+              <Input placeholder="Observação" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="h-8 text-xs col-span-2" />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="inline-flex items-center gap-1 text-[11px] cursor-pointer border border-border rounded px-2 py-1 hover:bg-muted">
+                <Paperclip className="w-3 h-3" /> Anexar (NF, foto)
+                <input type="file" multiple accept="image/*,application/pdf" className="hidden" onChange={handleFiles} />
+              </label>
+              {attachments.map(a => (
+                <span key={a.id} className="inline-flex items-center gap-1 text-[10px] bg-muted px-1.5 py-0.5 rounded">
+                  {a.name}
+                  <button onClick={() => setAttachments(prev => prev.filter(x => x.id !== a.id))}><X className="w-2.5 h-2.5" /></button>
+                </span>
+              ))}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+              <Button size="sm" onClick={submit} disabled={!item || !form.quantity}>Registrar</Button>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="max-h-[calc(100vh-360px)] overflow-auto">
+            <table className="w-full text-xs">
             <thead className="bg-muted sticky top-0">
               <tr>
                 <th className="p-2 text-left w-20">Data</th>
@@ -158,7 +161,20 @@ export default function WarehouseMovementsTab({ project, onProjectChange }: Prop
                     <td className="p-1.5 text-center text-[10px]">{m.attachments?.length ?? 0}</td>
                     <td className="p-1.5 text-right">
                       {!reversed && m.type !== 'estorno' && (
-                        <button title="Estornar" className="text-warning" onClick={() => { if (confirm('Estornar este movimento?')) onProjectChange(reverseMovement(project, m.id)); }}>
+                        <button title="Estornar" className="text-warning" onClick={() => {
+                          confirm(
+                            {
+                              title: 'Estornar este movimento?',
+                              description: (
+                                <p>
+                                  Será criado um estorno para reverter este lançamento no almoxarifado.
+                                </p>
+                              ),
+                              confirmLabel: 'Estornar movimento',
+                            },
+                            () => onProjectChange(reverseMovement(project, m.id)),
+                          );
+                        }}>
                           <Undo2 className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -172,10 +188,12 @@ export default function WarehouseMovementsTab({ project, onProjectChange }: Prop
                   <div className="text-[11px] mt-1">Clique em <strong>Nova movimentação</strong> para registrar a primeira entrada de material.</div>
                 </td></tr>
               )}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-    </div>
+      {confirmDialog}
+    </>
   );
 }

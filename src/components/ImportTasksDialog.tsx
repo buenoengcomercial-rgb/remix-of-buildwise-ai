@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { useConfirmDelete } from '@/components/ConfirmDeleteDialog';
 import { Project, Phase } from '@/types/project';
 import { Upload, FileSpreadsheet, FileText, AlertTriangle, Check, X, Loader2, Wand2, ChevronDown, ChevronRight, Users, FolderOpen, Wrench, Info, Download, AlertCircle, ShieldAlert } from 'lucide-react';
 import { ParsedTask, ParsedChapter, ParsedComposition, ParseResult, parseExcel, parsePDF, parseStructuredExcel, detectExcelFormat, convertStructuredToProject, convertToProjectTasks, standardizeSinapi, ImportIssue } from '@/lib/importParser';
@@ -23,6 +24,7 @@ const PHASE_COLORS = [
 ];
 
 export default function ImportTasksDialog({ open, onClose, project, onProjectChange }: ImportTasksDialogProps) {
+  const { confirm, dialog: confirmDialog } = useConfirmDelete();
   const [step, setStep] = useState<Step>('upload');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -271,9 +273,22 @@ export default function ImportTasksDialog({ open, onClose, project, onProjectCha
   const handleConfirm = () => {
     if (blockedByErrors) return;
     if (needsExtraConfirm && !confirmedWithWarnings) {
-      const ok = window.confirm('Existem avisos na importação. Deseja importar mesmo assim?');
-      if (!ok) return;
-      setConfirmedWithWarnings(true);
+      confirm(
+        {
+          title: 'Importar mesmo com avisos?',
+          description: (
+            <p>
+              Existem avisos na importação. Você pode continuar mesmo assim e revisar os itens depois.
+            </p>
+          ),
+          confirmLabel: 'Importar mesmo assim',
+        },
+        () => {
+          setConfirmedWithWarnings(true);
+          confirmImport();
+        },
+      );
+      return;
     }
     confirmImport();
   };
@@ -287,8 +302,9 @@ export default function ImportTasksDialog({ open, onClose, project, onProjectCha
   };
 
   return (
-    <Dialog open={open} onOpenChange={v => !v && handleClose()}>
-      <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+    <>
+      <Dialog open={open} onOpenChange={v => !v && handleClose()}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-foreground">
             <Upload className="w-5 h-5 text-primary" />
@@ -571,8 +587,10 @@ export default function ImportTasksDialog({ open, onClose, project, onProjectCha
             <Button variant="ghost" size="sm" onClick={handleClose}>Cancelar</Button>
           )}
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      {confirmDialog}
+    </>
   );
 }
 

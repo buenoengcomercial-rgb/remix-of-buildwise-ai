@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { useConfirmDelete } from '@/components/ConfirmDeleteDialog';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader2, ArrowLeft, UserPlus, Trash2, ShieldOff, ShieldCheck, KeyRound, Mail } from 'lucide-react';
 import { toast } from 'sonner';
@@ -23,6 +24,7 @@ const ROLE_OPTIONS: OrgRole[] = ['owner', 'admin', 'engineer', 'field_user', 'vi
 export default function TeamManagement() {
   const { user, loading: authLoading } = useAuth();
   const { membership, loading: orgLoading } = useOrganization();
+  const { confirm, dialog: confirmDialog } = useConfirmDelete();
   const navigate = useNavigate();
 
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -120,12 +122,24 @@ export default function TeamManagement() {
   };
 
   const handleRemove = async (memberId: string) => {
-    if (!confirm('Remover este usuário da empresa?')) return;
-    try {
-      await removeMember(memberId);
-      toast.success('Usuário removido');
-      void reload();
-    } catch { toast.error('Erro ao remover'); }
+    confirm(
+      {
+        title: 'Remover este usuário da empresa?',
+        description: (
+          <p>
+            O acesso desta pessoa à empresa será removido.
+          </p>
+        ),
+        confirmLabel: 'Remover usuário',
+      },
+      async () => {
+        try {
+          await removeMember(memberId);
+          toast.success('Usuário removido');
+          void reload();
+        } catch { toast.error('Erro ao remover'); }
+      },
+    );
   };
 
   const handleChangeMyPassword = async (e: React.FormEvent) => {
@@ -151,14 +165,26 @@ export default function TeamManagement() {
 
   const handleSendReset = async (member: OrgMember) => {
     if (!member.email) { toast.error('Usuário sem e-mail cadastrado'); return; }
-    if (!confirm(`Enviar e-mail de redefinição de senha para ${member.email}?`)) return;
-    setResetSubmittingId(member.id);
-    const { error } = await supabase.auth.resetPasswordForEmail(member.email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    setResetSubmittingId(null);
-    if (error) { toast.error(error.message); return; }
-    toast.success('E-mail de redefinição enviado.');
+    confirm(
+      {
+        title: 'Enviar e-mail de redefinição de senha?',
+        description: (
+          <p>
+            O sistema enviará um e-mail para <strong>{member.email}</strong> com o link de redefinição.
+          </p>
+        ),
+        confirmLabel: 'Enviar e-mail',
+      },
+      async () => {
+        setResetSubmittingId(member.id);
+        const { error } = await supabase.auth.resetPasswordForEmail(member.email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        setResetSubmittingId(null);
+        if (error) { toast.error(error.message); return; }
+        toast.success('E-mail de redefinição enviado.');
+      },
+    );
   };
 
 
@@ -382,6 +408,7 @@ export default function TeamManagement() {
           </form>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </div>
   );
 }
