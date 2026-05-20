@@ -9,6 +9,18 @@ export interface CloudProjectMeta {
   updatedAt: string;
 }
 
+export interface CloudProjectRecord {
+  project: Project;
+  updatedAt: string;
+}
+
+export class CloudProjectConflictError extends Error {
+  constructor() {
+    super('Cloud project was modified elsewhere');
+    this.name = 'CloudProjectConflictError';
+  }
+}
+
 export async function listCloudProjects(): Promise<CloudProjectMeta[]> {
   const { data, error } = await supabase
     .from('projects')
@@ -24,27 +36,55 @@ export async function listCloudProjects(): Promise<CloudProjectMeta[]> {
 }
 
 export async function loadCloudProject(id: string): Promise<Project | null> {
+  const record = await loadCloudProjectRecord(id);
+  return record?.project ?? null;
+}
+
+export async function loadCloudProjectRecord(id: string): Promise<CloudProjectRecord | null> {
   const { data, error } = await supabase
     .from('projects')
-    .select('id, name, data_json')
+    .select('id, name, data_json, updated_at')
     .eq('id', id)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
   const proj = (data.data_json ?? {}) as unknown as Project;
-  return { ...proj, id: data.id, name: data.name };
+  return {
+    project: { ...proj, id: data.id, name: data.name },
+    updatedAt: data.updated_at,
+  };
 }
 
-export async function upsertCloudProject(project: Project, organizationId: string): Promise<void> {
-  const { error } = await supabase
+export async function upsertCloudProject(project: Project, organizationId: string, expectedUpdatedAt?: string): Promise<string> {
+  if (expectedUpdatedAt) {
+    const { data, error } = await supabase
+      .from('projects')
+      .update({
+        name: project.name,
+        data_json: project as unknown as import('@/integrations/supabase/types').Json,
+      })
+      .eq('id', project.id)
+      .eq('organization_id', organizationId)
+      .eq('updated_at', expectedUpdatedAt)
+      .select('updated_at')
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) throw new CloudProjectConflictError();
+    return data.updated_at;
+  }
+
+  const { data, error } = await supabase
     .from('projects')
     .upsert([{
       id: project.id,
       organization_id: organizationId,
       name: project.name,
       data_json: project as unknown as import('@/integrations/supabase/types').Json,
-    }], { onConflict: 'id' });
+    }], { onConflict: 'id' })
+    .select('updated_at')
+    .single();
   if (error) throw error;
+  return data.updated_at;
 }
 
 export async function createCloudProject(name: string, organizationId: string, base?: Partial<Project>): Promise<Project> {

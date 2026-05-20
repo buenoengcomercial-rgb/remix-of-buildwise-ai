@@ -42,6 +42,25 @@ export default function ImportTasksDialog({ open, onClose, project, onProjectCha
   const [selectedTasks, setSelectedTasks] = useState<Set<number>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
+  function describeImportError(file: File, err: unknown) {
+    const rawMessage = String((err as { message?: string } | null)?.message || '').trim();
+    const normalizedMessage = rawMessage.toLowerCase();
+
+    if (normalizedMessage.includes('password') || normalizedMessage.includes('encrypted')) {
+      return 'O arquivo parece estar protegido por senha ou criptografado. Salve uma cópia desbloqueada antes de importar.';
+    }
+
+    if (file.name.toLowerCase().endsWith('.pdf')) {
+      return rawMessage
+        ? `Não foi possível ler este PDF. ${rawMessage}`
+        : 'Não foi possível ler este PDF. Verifique se o arquivo não está corrompido e se o texto pode ser selecionado normalmente.';
+    }
+
+    return rawMessage
+      ? `Erro ao processar: ${rawMessage}`
+      : 'Não foi possível processar o arquivo selecionado.';
+  }
+
   const reset = () => {
     setStep('upload');
     setLoading(false);
@@ -55,19 +74,32 @@ export default function ImportTasksDialog({ open, onClose, project, onProjectCha
     setParsedTasks([]);
     setSelectedTasks(new Set());
     setExpandedGroups(new Set());
+    setShowAllIssues(false);
+    setConfirmedWithWarnings(false);
   };
 
   const handleClose = () => { reset(); onClose(); };
 
   const handleFile = useCallback(async (file: File) => {
+    setStep('upload');
     setLoading(true);
     setError('');
     setFileName(file.name);
+    setStructuredResult(null);
+    setSelectedComps(new Set());
+    setExpandedChapters(new Set());
+    setExpandedComps(new Set());
+    setParsedTasks([]);
+    setSelectedTasks(new Set());
+    setExpandedGroups(new Set());
+    setShowAllIssues(false);
+    setConfirmedWithWarnings(false);
 
     try {
       const buffer = await file.arrayBuffer();
+      const fileNameLower = file.name.toLowerCase();
 
-      if (file.name.endsWith('.pdf')) {
+      if (fileNameLower.endsWith('.pdf')) {
         setFormat('pdf');
         const tasks = await parsePDF(buffer);
         if (tasks.length === 0) { setError('Nenhuma composição encontrada no PDF.'); setLoading(false); return; }
@@ -108,11 +140,11 @@ export default function ImportTasksDialog({ open, onClose, project, onProjectCha
           setStep('preview');
         }
       }
-    } catch (err: any) {
-      setError(`Erro ao processar: ${err.message || 'formato não reconhecido'}`);
+    } catch (err) {
+      setError(describeImportError(file, err));
     }
     setLoading(false);
-  }, []);
+  }, [describeImportError]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

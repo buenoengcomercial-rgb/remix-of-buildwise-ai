@@ -25,7 +25,7 @@ import { canCreateProject, canDeleteProject, canEditProject, ROLE_LABELS } from 
 import { Button } from '@/components/ui/button';
 import {
   listCloudProjects,
-  loadCloudProject,
+  loadCloudProjectRecord,
   upsertCloudProject,
   createCloudProject,
   renameCloudProject,
@@ -33,6 +33,7 @@ import {
   deleteCloudProject,
   generateUniqueCloudName,
   getSampleSeed,
+  CloudProjectConflictError,
   CloudProjectMeta,
 } from '@/lib/cloudProjects';
 import type { ProjectMeta } from '@/lib/projectStorage';
@@ -52,6 +53,7 @@ export default function Index() {
   const [cloudList, setCloudList] = useState<CloudProjectMeta[]>([]);
   const [bootLoading, setBootLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [currentProjectUpdatedAt, setCurrentProjectUpdatedAt] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dailyReportInitialDate, setDailyReportInitialDate] = useState<string | undefined>(undefined);
@@ -72,6 +74,7 @@ export default function Index() {
   const initialLoadRef = useRef(false);
   const inFlightSaveRef = useRef<Promise<void> | null>(null);
   const skipNextAutoSaveRef = useRef(false);
+  const conflictDetectedRef = useRef(false);
 
   const orgId = membership?.organization.id;
   const role = membership?.role;
@@ -89,14 +92,18 @@ export default function Index() {
     return list;
   }, []);
 
-  const replaceProjectWithoutAutoSave = useCallback((projectToLoad: Project | null) => {
+  const replaceProjectWithoutAutoSave = useCallback((projectToLoad: Project | null, updatedAt: string | null = null) => {
     skipNextAutoSaveRef.current = true;
+    conflictDetectedRef.current = false;
+    setCurrentProjectUpdatedAt(updatedAt);
     setRawProject(projectToLoad);
   }, []);
 
   const persistProject = useCallback(async (projectToSave: Project, projectOrgId: string) => {
     const request = (async () => {
-      await upsertCloudProject(projectToSave, projectOrgId);
+      const updatedAt = await upsertCloudProject(projectToSave, projectOrgId, currentProjectUpdatedAt ?? undefined);
+      conflictDetectedRef.current = false;
+      setCurrentProjectUpdatedAt(updatedAt);
       setSaveStatus('saved');
       setCloudList(prev => {
         const idx = prev.findIndex(p => p.id === projectToSave.id);
@@ -104,7 +111,7 @@ export default function Index() {
           id: projectToSave.id,
           name: projectToSave.name,
           createdAt: idx >= 0 ? prev[idx].createdAt : new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          updatedAt,
         };
         if (idx >= 0) { const copy = [...prev]; copy[idx] = meta; return copy; }
         return [meta, ...prev];
@@ -117,10 +124,10 @@ export default function Index() {
     } finally {
       if (inFlightSaveRef.current === request) inFlightSaveRef.current = null;
     }
-  }, []);
+  }, [currentProjectUpdatedAt]);
 
   const flushPendingSave = useCallback(async () => {
-    if (!user || !orgId || !rawProject || !initialLoadRef.current || !editor) return;
+    if (!user || !orgId || !rawProject || !initialLoadRef.current || !editor) return true;
 
     if (saveTimerRef.current) {
       window.clearTimeout(saveTimerRef.current);
@@ -128,21 +135,30 @@ export default function Index() {
       setSaveStatus('saving');
       try {
         await persistProject(rawProject, orgId);
+        return true;
       } catch (e) {
         console.warn(e);
         setSaveStatus('error');
-        toast.error('Erro ao salvar na nuvem. Sua alteração ficou apenas neste navegador.');
+        if (e instanceof CloudProjectConflictError) {
+          conflictDetectedRef.current = true;
+          toast.error('Esta obra foi alterada em outro local. Reabra a obra antes de continuar salvando.');
+        } else {
+          toast.error('Erro ao salvar na nuvem. Sua alteração ficou apenas neste navegador.');
+        }
+        return false;
       }
-      return;
     }
 
     if (inFlightSaveRef.current) {
       try {
         await inFlightSaveRef.current;
+        return true;
       } catch {
-        // O aviso visual já é tratado no fluxo principal de salvamento.
+        return false;
       }
     }
+
+    return true;
   }, [user, orgId, rawProject, editor, persistProject]);
 
   useEffect(() => {
@@ -157,11 +173,11 @@ export default function Index() {
           const created = await createCloudProject(name, orgId, getSampleSeed());
           if (cancelled) return;
           list = await refreshCloudList();
-          replaceProjectWithoutAutoSave(created);
+          replaceProjectWithoutAutoSave(created, list.find(p => p.id === created.id)?.updatedAt ?? null);
         } else if (list.length > 0) {
-          const proj = await loadCloudProject(list[0].id);
+          const record = await loadCloudProjectRecord(list[0].id);
           if (cancelled) return;
-          if (proj) replaceProjectWithoutAutoSave(proj);
+          if (record) replaceProjectWithoutAutoSave(record.project, record.updatedAt);
         } else {
           replaceProjectWithoutAutoSave(null);
         }
@@ -180,6 +196,7 @@ export default function Index() {
   useEffect(() => {
     if (!user || !orgId || !rawProject || !initialLoadRef.current) return;
     if (!editor) return;
+    if (conflictDetectedRef.current) return;
     if (skipNextAutoSaveRef.current) {
       skipNextAutoSaveRef.current = false;
       setSaveStatus('saved');
@@ -194,7 +211,12 @@ export default function Index() {
       } catch (e) {
         console.warn(e);
         setSaveStatus('error');
-        toast.error('Erro ao salvar na nuvem. Sua alteração ficou apenas neste navegador.');
+        if (e instanceof CloudProjectConflictError) {
+          conflictDetectedRef.current = true;
+          toast.error('Esta obra foi alterada em outro local. Reabra a obra antes de continuar salvando.');
+        } else {
+          toast.error('Erro ao salvar na nuvem. Sua alteração ficou apenas neste navegador.');
+        }
       }
     }, SAVE_DEBOUNCE_MS);
     return () => {
@@ -277,10 +299,10 @@ export default function Index() {
 
   const handleSwitchProject = async (id: string) => {
     try {
-      await flushPendingSave();
-      const proj = await loadCloudProject(id);
-      if (proj) {
-        replaceProjectWithoutAutoSave(proj);
+      if (!(await flushPendingSave())) return;
+      const record = await loadCloudProjectRecord(id);
+      if (record) {
+        replaceProjectWithoutAutoSave(record.project, record.updatedAt);
         undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], materials: [], warehouse: [] };
         setUndoVersion(v => v + 1);
       }
@@ -293,11 +315,11 @@ export default function Index() {
     if (!orgId) return;
     if (!creator) { toast.error('Sem permissão para criar obras.'); return; }
     try {
-      await flushPendingSave();
+      if (!(await flushPendingSave())) return;
       const finalName = (name && name.trim()) || (await generateUniqueCloudName('Nova obra'));
       const newProj = await createCloudProject(finalName, orgId);
-      await refreshCloudList();
-      replaceProjectWithoutAutoSave(newProj);
+      const list = await refreshCloudList();
+      replaceProjectWithoutAutoSave(newProj, list.find(p => p.id === newProj.id)?.updatedAt ?? null);
       undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], materials: [], warehouse: [] };
       setUndoVersion(v => v + 1);
       return newProj.id;
@@ -309,10 +331,10 @@ export default function Index() {
   const handleRenameProject = async (id: string, newName: string) => {
     if (!orgId || !editor) { toast.error('Sem permissão para renomear.'); return; }
     try {
-      if (rawProject?.id === id) await flushPendingSave();
+      if (rawProject?.id === id && !(await flushPendingSave())) return;
       const updated = await renameCloudProject(id, newName, orgId);
-      if (updated && rawProject && id === rawProject.id) replaceProjectWithoutAutoSave(updated);
-      await refreshCloudList();
+      const list = await refreshCloudList();
+      if (updated && rawProject && id === rawProject.id) replaceProjectWithoutAutoSave(updated, list.find(p => p.id === id)?.updatedAt ?? currentProjectUpdatedAt);
       setUndoVersion(v => v + 1);
     } catch {
       toast.error('Erro ao renomear');
@@ -322,7 +344,7 @@ export default function Index() {
   const handleDuplicateProject = async (id: string) => {
     if (!orgId || !creator) { toast.error('Sem permissão para duplicar.'); return; }
     try {
-      if (rawProject?.id === id) await flushPendingSave();
+      if (rawProject?.id === id && !(await flushPendingSave())) return;
       const copy = await duplicateCloudProject(id, orgId);
       if (copy) {
         await refreshCloudList();
@@ -341,15 +363,15 @@ export default function Index() {
       return;
     }
     try {
-      if (rawProject?.id === id) await flushPendingSave();
+      if (rawProject?.id === id && !(await flushPendingSave())) return;
       await deleteCloudProject(id);
       const list = await refreshCloudList();
       if (rawProject && id === rawProject.id) {
         const next = list[0];
         if (next) {
-          const proj = await loadCloudProject(next.id);
-          if (proj) {
-            replaceProjectWithoutAutoSave(proj);
+          const record = await loadCloudProjectRecord(next.id);
+          if (record) {
+            replaceProjectWithoutAutoSave(record.project, record.updatedAt);
             undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], materials: [], warehouse: [] };
           }
         }
@@ -362,7 +384,7 @@ export default function Index() {
   };
 
   const handleLogout = async () => {
-    await flushPendingSave();
+    if (!(await flushPendingSave())) return;
     await signOut();
     navigate('/auth', { replace: true });
   };

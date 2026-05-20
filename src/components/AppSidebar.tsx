@@ -84,6 +84,7 @@ export default function AppSidebar({ currentView, onViewChange, projectName, col
   // Estado de import (preview/confirmação)
   const [pendingBackup, setPendingBackup] = useState<BackupFile | null>(null);
   const [pendingSummaries, setPendingSummaries] = useState<ProjectSummary[]>([]);
+  const cloudMode = !!projectsList;
 
   useEffect(() => {
     if (projectsList) setProjects(projectsList);
@@ -144,18 +145,32 @@ export default function AppSidebar({ currentView, onViewChange, projectName, col
 
   // ===== Backup / Import =====
   const handleExportProject = (id: string) => {
+    if (cloudMode) {
+      toast.error('O backup por esta tela ainda está disponível apenas para obras locais. No modo nuvem, esse atalho foi bloqueado para não exportar dados errados.');
+      return;
+    }
     const ok = exportProjectToFile(id);
     if (ok) toast.success('Backup da obra exportado');
     else toast.error('Não foi possível exportar a obra');
   };
 
   const handleExportAll = () => {
+    if (cloudMode) {
+      toast.error('A exportação geral por esta tela ainda está disponível apenas para obras locais. No modo nuvem, esse atalho foi bloqueado para evitar mistura de dados.');
+      return;
+    }
     const ok = exportAllProjectsToFile();
     if (ok) toast.success('Backup geral exportado');
     else toast.error('Nenhuma obra para exportar');
   };
 
-  const triggerImport = () => importInputRef.current?.click();
+  const triggerImport = () => {
+    if (cloudMode) {
+      toast.error('A importação de backup local foi bloqueada no modo nuvem para evitar misturar obras locais com obras da empresa.');
+      return;
+    }
+    importInputRef.current?.click();
+  };
 
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -185,6 +200,11 @@ export default function AppSidebar({ currentView, onViewChange, projectName, col
 
   const confirmImport = () => {
     if (!pendingBackup) return;
+    if (cloudMode) {
+      toast.error('A importação de backup local foi bloqueada no modo nuvem para evitar mistura de dados.');
+      cancelImport();
+      return;
+    }
     try {
       if (pendingBackup.kind === 'single') {
         const saved = importProject(pendingBackup.project, { activate: true });
@@ -289,11 +309,11 @@ export default function AppSidebar({ currentView, onViewChange, projectName, col
                   <Plus className="w-4 h-4 mr-2" /> Nova obra
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={triggerImport}>
-                  <Upload className="w-4 h-4 mr-2" /> Importar backup
+                  <Upload className="w-4 h-4 mr-2" /> {cloudMode ? 'Importar backup local' : 'Importar backup'}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleExportAll}>
-                  <FileDown className="w-4 h-4 mr-2" /> Exportar todas
+                  <FileDown className="w-4 h-4 mr-2" /> {cloudMode ? 'Exportar todas (local)' : 'Exportar todas'}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -360,7 +380,7 @@ export default function AppSidebar({ currentView, onViewChange, projectName, col
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleExportProject(p.id); }}
-                          title="Exportar obra"
+                          title={cloudMode ? 'Exportar obra (somente no modo local)' : 'Exportar obra'}
                           className={`p-1 rounded ${isActive ? 'hover:bg-primary-foreground/20' : 'hover:bg-[hsl(var(--sidebar-border))]'}`}
                         >
                           <Download className="w-3 h-3" />
