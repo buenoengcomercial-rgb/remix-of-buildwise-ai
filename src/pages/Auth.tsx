@@ -40,8 +40,8 @@ export default function Auth() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (signupPassword.length < 6) {
-      toast.error('A senha deve ter pelo menos 6 caracteres');
+    if (signupPassword.length < 8) {
+      toast.error('A senha deve ter pelo menos 8 caracteres');
       return;
     }
     setSubmitting(true);
@@ -126,7 +126,7 @@ export default function Auth() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-password">Senha</Label>
-                  <Input id="signup-password" type="password" required minLength={6} value={signupPassword} onChange={e => setSignupPassword(e.target.value)} autoComplete="new-password" />
+                  <Input id="signup-password" type="password" required minLength={8} value={signupPassword} onChange={e => setSignupPassword(e.target.value)} autoComplete="new-password" />
                 </div>
                 <Button type="submit" className="w-full" disabled={submitting}>
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar conta'}

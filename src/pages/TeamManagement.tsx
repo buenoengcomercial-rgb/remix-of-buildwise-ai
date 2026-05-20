@@ -246,7 +246,7 @@ export default function TeamManagement() {
                     id="create-password"
                     type="password"
                     required
-                    minLength={6}
+                    minLength={8}
                     value={createPassword}
                     onChange={e => setCreatePassword(e.target.value)}
                     placeholder="Mín. 6 caracteres"
