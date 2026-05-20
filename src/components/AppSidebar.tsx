@@ -114,7 +114,7 @@ export default function AppSidebar({ currentView, onViewChange, projectName, col
       return;
     }
     onRenameProject(editingId, name);
-    setProjects(listProjects().map(p => p.id === editingId ? { ...p, name } : p));
+    setProjects(prev => prev.map(p => p.id === editingId ? { ...p, name } : p));
     cancelEdit();
   };
 
