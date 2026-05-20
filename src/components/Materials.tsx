@@ -4,6 +4,7 @@ import { useMaterialComparisons } from '@/hooks/useMaterialComparisons';
 import * as MC from '@/lib/materialComparisons';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { useConfirmDelete } from '@/components/ConfirmDeleteDialog';
 import { Input } from '@/components/ui/input';
 import { Plus, ListChecks, Boxes, Truck, History, ShoppingCart, Trash2, Lock, Warehouse } from 'lucide-react';
 import MaterialsListTab from './materials/MaterialsListTab';
@@ -20,6 +21,7 @@ interface Props {
 
 export default function Materials({ project, onProjectChange }: Props) {
   const ctl = useMaterialComparisons(project, onProjectChange);
+  const { confirm, dialog: confirmDialog } = useConfirmDelete();
   const [newName, setNewName] = useState('');
   const [tab, setTab] = useState('insumos');
 
@@ -107,7 +109,18 @@ export default function Materials({ project, onProjectChange }: Props) {
               </Button>
             )}
             <Button size="sm" variant="ghost" className="h-7 text-[11px] text-destructive" onClick={() => {
-              if (confirm(`Excluir o comparativo "${ctl.active!.name}"?`)) ctl.remove(ctl.active!.id);
+              confirm(
+                {
+                  title: `Excluir comparativo "${ctl.active!.name}"?`,
+                  description: (
+                    <p>
+                      Esta ação removerá o comparativo atual e seus lançamentos vinculados nesta tela.
+                    </p>
+                  ),
+                  confirmLabel: 'Excluir comparativo',
+                },
+                () => ctl.remove(ctl.active!.id),
+              );
             }}>
               <Trash2 className="w-3 h-3 mr-1" /> Excluir
             </Button>
@@ -151,6 +164,7 @@ export default function Materials({ project, onProjectChange }: Props) {
           Crie um comparativo para começar.
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 }

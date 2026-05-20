@@ -4,6 +4,7 @@ import * as MC from '@/lib/materialComparisons';
 import { Trophy, TrendingDown, Plus, X, UserPlus } from 'lucide-react';
 import { CurrencyInput, formatQty, parseBR, NumberInput } from './numberInput';
 import { Button } from '@/components/ui/button';
+import { useConfirmDelete } from '@/components/ConfirmDeleteDialog';
 import { Input } from '@/components/ui/input';
 
 interface Props {
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export default function ComparisonsTab({ project, comparison, onApply, onProjectChange }: Props) {
+  const { confirm, dialog: confirmDialog } = useConfirmDelete();
   const globalSuppliers = useMemo(() => MC.getProjectSuppliers(project), [project]);
   const suppliers = useMemo(() => MC.getComparisonSuppliers(project, comparison), [project, comparison]);
   const totals = useMemo(() => MC.totalsBySupplier({ ...comparison, suppliers }), [comparison, suppliers]);
@@ -38,8 +40,18 @@ export default function ComparisonsTab({ project, comparison, onApply, onProject
   };
 
   const removeParticipant = (id: string, name: string) => {
-    if (!confirm(`Remover "${name}" deste comparativo? Os preços lançados por ele neste comparativo deixarão de aparecer.`)) return;
-    onApply(MC.removeSupplierFromComparison(comparison, id));
+    confirm(
+      {
+        title: `Remover "${name}" deste comparativo?`,
+        description: (
+          <p>
+            Os preços lançados por este fornecedor neste comparativo deixarão de aparecer.
+          </p>
+        ),
+        confirmLabel: 'Remover fornecedor',
+      },
+      () => onApply(MC.removeSupplierFromComparison(comparison, id)),
+    );
   };
 
   const createAndLink = () => {
@@ -233,6 +245,7 @@ export default function ComparisonsTab({ project, comparison, onApply, onProject
           </div>
         </>
       )}
+      {confirmDialog}
     </div>
   );
 }

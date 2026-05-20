@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Project } from '@/types/project';
 import * as MC from '@/lib/materialComparisons';
 import { Button } from '@/components/ui/button';
+import { useConfirmDelete } from '@/components/ConfirmDeleteDialog';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2, Star } from 'lucide-react';
 import { NumberInput, parseBR } from './numberInput';
@@ -13,6 +14,7 @@ interface Props {
 
 export default function SuppliersTab({ project, onProjectChange }: Props) {
   const suppliers = MC.getProjectSuppliers(project);
+  const { confirm, dialog: confirmDialog } = useConfirmDelete();
   const [form, setForm] = useState({ name: '', contact: '', deliveryDays: '', rating: '' });
 
   const add = () => {
@@ -86,9 +88,18 @@ export default function SuppliersTab({ project, onProjectChange }: Props) {
                       variant="ghost"
                       className="text-destructive h-7"
                       onClick={() => {
-                        if (confirm(`Remover o fornecedor "${s.name}"? Os preços lançados por ele em todos os comparativos serão removidos.`)) {
-                          onProjectChange(MC.removeProjectSupplier(project, s.id));
-                        }
+                        confirm(
+                          {
+                            title: `Remover o fornecedor "${s.name}"?`,
+                            description: (
+                              <p>
+                                Os preços lançados por ele em todos os comparativos serão removidos.
+                              </p>
+                            ),
+                            confirmLabel: 'Remover fornecedor',
+                          },
+                          () => onProjectChange(MC.removeProjectSupplier(project, s.id)),
+                        );
                       }}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -100,6 +111,7 @@ export default function SuppliersTab({ project, onProjectChange }: Props) {
           </table>
         )}
       </div>
+      {confirmDialog}
     </div>
   );
 }

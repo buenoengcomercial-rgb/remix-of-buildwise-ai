@@ -2,6 +2,7 @@ import type { DailyReport as DailyReportEntry, WeatherCondition, WorkCondition }
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useConfirmDelete } from '@/components/ConfirmDeleteDialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -14,99 +15,113 @@ interface DailyReportGeneralInfoProps {
 }
 
 export function DailyReportGeneralInfo({ currentReport, updateField, onClearDay }: DailyReportGeneralInfoProps) {
+  const { confirm, dialog: confirmDialog } = useConfirmDelete();
+
   const handleClearDay = () => {
-    if (window.confirm('Limpar completamente o diário deste dia, incluindo equipes, equipamentos e fotos?')) {
-      onClearDay();
-    }
+    confirm(
+      {
+        title: 'Limpar diário deste dia?',
+        description: (
+          <p>
+            Isso removerá equipes, equipamentos, observações e fotos vinculadas a este dia.
+          </p>
+        ),
+        confirmLabel: 'Limpar diário',
+      },
+      onClearDay,
+    );
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
-        <CardTitle className="text-sm">Informações do dia</CardTitle>
-        <Button size="sm" variant="ghost" onClick={handleClearDay} className="h-8 text-xs">
-          <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Limpar diário do dia
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs">Responsável pelo lançamento</Label>
-            <Input
-              value={currentReport.responsible || ''}
-              onChange={e => updateField('responsible', e.target.value)}
-              placeholder="Nome / função"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Clima</Label>
-            <Select
-              value={currentReport.weather || ''}
-              onValueChange={(v) => {
-                if (v === '__clear__') {
-                  updateField('weather', undefined);
-                  updateField('weatherOther', '');
-                } else {
-                  updateField('weather', v as WeatherCondition);
-                }
-              }}
-            >
-              <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__clear__">Sem seleção</SelectItem>
-                {WEATHER_OPTIONS.map(o => {
-                  const Icon = o.icon;
-                  return (
-                    <SelectItem key={o.value} value={o.value}>
-                      <span className="inline-flex items-center gap-2">
-                        <Icon className="w-3.5 h-3.5" /> {o.label}
-                      </span>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-            {currentReport.weather === 'outro' && (
+    <>
+      <Card>
+        <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
+          <CardTitle className="text-sm">Informações do dia</CardTitle>
+          <Button size="sm" variant="ghost" onClick={handleClearDay} className="h-8 text-xs">
+            <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Limpar diário do dia
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Responsável pelo lançamento</Label>
               <Input
-                className="mt-1"
-                placeholder="Descreva o clima"
-                value={currentReport.weatherOther || ''}
-                onChange={e => updateField('weatherOther', e.target.value)}
+                value={currentReport.responsible || ''}
+                onChange={e => updateField('responsible', e.target.value)}
+                placeholder="Nome / função"
               />
-            )}
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Clima</Label>
+              <Select
+                value={currentReport.weather || ''}
+                onValueChange={(v) => {
+                  if (v === '__clear__') {
+                    updateField('weather', undefined);
+                    updateField('weatherOther', '');
+                  } else {
+                    updateField('weather', v as WeatherCondition);
+                  }
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__clear__">Sem seleção</SelectItem>
+                  {WEATHER_OPTIONS.map(o => {
+                    const Icon = o.icon;
+                    return (
+                      <SelectItem key={o.value} value={o.value}>
+                        <span className="inline-flex items-center gap-2">
+                          <Icon className="w-3.5 h-3.5" /> {o.label}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              {currentReport.weather === 'outro' && (
+                <Input
+                  className="mt-1"
+                  placeholder="Descreva o clima"
+                  value={currentReport.weatherOther || ''}
+                  onChange={e => updateField('weatherOther', e.target.value)}
+                />
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Condição de trabalho</Label>
+              <Select
+                value={currentReport.workCondition || ''}
+                onValueChange={(v) => {
+                  if (v === '__clear__') {
+                    updateField('workCondition', undefined);
+                    updateField('workConditionOther', '');
+                  } else {
+                    updateField('workCondition', v as WorkCondition);
+                  }
+                }}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__clear__">Sem seleção</SelectItem>
+                  {WORK_OPTIONS.map(o => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {currentReport.workCondition === 'outro' && (
+                <Input
+                  className="mt-1"
+                  placeholder="Descreva a condição"
+                  value={currentReport.workConditionOther || ''}
+                  onChange={e => updateField('workConditionOther', e.target.value)}
+                />
+              )}
+            </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Condição de trabalho</Label>
-            <Select
-              value={currentReport.workCondition || ''}
-              onValueChange={(v) => {
-                if (v === '__clear__') {
-                  updateField('workCondition', undefined);
-                  updateField('workConditionOther', '');
-                } else {
-                  updateField('workCondition', v as WorkCondition);
-                }
-              }}
-            >
-              <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__clear__">Sem seleção</SelectItem>
-                {WORK_OPTIONS.map(o => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {currentReport.workCondition === 'outro' && (
-              <Input
-                className="mt-1"
-                placeholder="Descreva a condição"
-                value={currentReport.workConditionOther || ''}
-                onChange={e => updateField('workConditionOther', e.target.value)}
-              />
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      {confirmDialog}
+    </>
   );
 }
