@@ -322,8 +322,8 @@ export default function Index() {
           </div>
           <h1 className="text-xl font-semibold">Acesso pendente</h1>
           <p className="text-sm text-muted-foreground">
-            Sua conta foi criada com sucesso. Aguarde a liberação de acesso pela administração da empresa.
-            Um administrador precisa autorizar seu usuário antes que você possa visualizar as obras.
+            {'Sua conta foi criada com sucesso. Aguarde a libera\u00e7\u00e3o de acesso pela administra\u00e7\u00e3o da empresa. '}
+            {'Um administrador precisa autorizar seu usu\u00e1rio antes que voc\u00ea possa visualizar as obras.'}
           </p>
           <Button variant="outline" onClick={handleLogout}>Sair</Button>
         </div>
