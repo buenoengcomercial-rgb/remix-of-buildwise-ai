@@ -249,7 +249,7 @@ export default function TeamManagement() {
                     minLength={8}
                     value={createPassword}
                     onChange={e => setCreatePassword(e.target.value)}
-                    placeholder="Mín. 6 caracteres"
+                    placeholder="Min. 8 caracteres"
                     autoComplete="new-password"
                   />
                 </div>
