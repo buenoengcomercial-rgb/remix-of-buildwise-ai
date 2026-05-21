@@ -43,10 +43,10 @@ export default function MeasurementStatusBar({
   const nextNumber = (measurements[measurements.length - 1]?.number || 0) + 1;
 
   return (
-    <Card className="print:hidden">
-      <CardContent className="p-3">
+    <Card className="print:hidden border border-border bg-card shadow-sm">
+      <CardContent className="p-2.5">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mr-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mr-1">
             Medições
           </span>
 
@@ -54,7 +54,7 @@ export default function MeasurementStatusBar({
             <button
               key={m.id}
               onClick={() => setActiveId(m.id)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors flex items-center gap-1.5 ${
+              className={`px-2.5 py-1.5 rounded-md text-xs font-medium border transition-colors flex items-center gap-1.5 ${
                 activeId === m.id
                   ? 'bg-primary text-primary-foreground border-primary'
                   : 'bg-background hover:bg-muted/60 border-border'
@@ -73,7 +73,7 @@ export default function MeasurementStatusBar({
 
           <button
             onClick={newMeasurementDraft}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium border border-dashed transition-colors flex items-center gap-1.5 ${
+            className={`px-2.5 py-1.5 rounded-md text-xs font-medium border border-dashed transition-colors flex items-center gap-1.5 ${
               activeId === 'live'
                 ? 'bg-primary text-primary-foreground border-primary'
                 : 'bg-background hover:bg-muted/60 border-border text-muted-foreground'
