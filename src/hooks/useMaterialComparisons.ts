@@ -4,7 +4,7 @@ import * as MC from '@/lib/materialComparisons';
 
 const LS_ACTIVE_KEY = (projectId: string) => `materials:activeComparison:${projectId}`;
 
-export function useMaterialComparisons(project: Project, onProjectChange: (next: Project) => void) {
+export function useMaterialComparisons(project: Project, onProjectChange: (next: Project | ((prev: Project) => Project)) => void) {
   const comparisons = project.materialComparisons ?? [];
 
   const [activeId, setActiveId] = useState<string | null>(() => {
@@ -45,29 +45,30 @@ export function useMaterialComparisons(project: Project, onProjectChange: (next:
   );
 
   const apply = useCallback((next: MaterialComparison) => {
-    onProjectChange(MC.upsertComparison(project, next));
-  }, [project, onProjectChange]);
+    onProjectChange(prev => MC.upsertComparison(prev, next));
+  }, [onProjectChange]);
 
   const createNew = useCallback((name: string) => {
     const c = MC.createComparison(name);
-    onProjectChange(MC.upsertComparison(project, c));
+    onProjectChange(prev => MC.upsertComparison(prev, c));
     setActiveId(c.id);
     return c;
-  }, [project, onProjectChange]);
+  }, [onProjectChange]);
 
   const remove = useCallback((id: string) => {
-    onProjectChange(MC.deleteComparison(project, id));
+    onProjectChange(prev => MC.deleteComparison(prev, id));
     if (activeId === id) setActiveId(comparisons.find(c => c.id !== id)?.id ?? null);
-  }, [project, onProjectChange, activeId, comparisons]);
+  }, [onProjectChange, activeId, comparisons]);
 
   const close = useCallback((id: string) => {
-    const c = comparisons.find(x => x.id === id);
-    if (!c) return;
-    let next = MC.setComparisonStatus(c, 'fechado');
-    const updated = MC.upsertComparison(project, next);
-    const withHistory = MC.appendPriceHistoryFromComparison(updated, next);
-    onProjectChange(withHistory);
-  }, [project, onProjectChange, comparisons]);
+    onProjectChange(prev => {
+      const c = (prev.materialComparisons ?? []).find(x => x.id === id);
+      if (!c) return prev;
+      const next = MC.setComparisonStatus(c, 'fechado');
+      const updated = MC.upsertComparison(prev, next);
+      return MC.appendPriceHistoryFromComparison(updated, next);
+    });
+  }, [onProjectChange]);
 
   return {
     comparisons,

@@ -18,7 +18,7 @@ interface Props {
   project: Project;
   comparison: MaterialComparison;
   onApply: (next: MaterialComparison) => void;
-  onProjectChange: (next: Project) => void;
+  onProjectChange: (next: Project | ((prev: Project) => Project)) => void;
 }
 
 const DETAIL_LABEL: Record<string, string> = {
@@ -70,9 +70,6 @@ export default function MaterialsListTab({ project, comparison, onApply, onProje
   const [sortOrderKeys, setSortOrderKeys] = useState<string[] | null>(null);
   const [classDrafts, setClassDrafts] = useState<Record<string, MaterialCostClass>>({});
   const fileRef = useRef<HTMLInputElement>(null);
-  const latestProjectRef = useRef(project);
-  const pendingCostClassesRef = useRef<Record<string, MaterialCostClass>>({});
-  const classFlushTimerRef = useRef<number | null>(null);
   const [linkingAnalytic, setLinkingAnalytic] = useState(false);
   const [linkMsg, setLinkMsg] = useState<{ kind: 'ok' | 'err' | 'info'; text: string } | null>(null);
 
@@ -92,33 +89,19 @@ export default function MaterialsListTab({ project, comparison, onApply, onProje
   );
 
   useEffect(() => {
-    latestProjectRef.current = project;
-  }, [project]);
-
-  useEffect(() => {
-    setClassDrafts({});
-    pendingCostClassesRef.current = {};
-  }, [project.id]);
-
-  const flushCostClassChanges = useCallback(() => {
-    if (classFlushTimerRef.current) {
-      window.clearTimeout(classFlushTimerRef.current);
-      classFlushTimerRef.current = null;
-    }
-    const pending = pendingCostClassesRef.current;
-    if (Object.keys(pending).length === 0) return;
-    pendingCostClassesRef.current = {};
-    const base = latestProjectRef.current;
-    onProjectChange({
-      ...base,
-      materialCostClasses: {
-        ...(base.materialCostClasses ?? {}),
-        ...pending,
-      },
+    setClassDrafts(prev => {
+      const next: Record<string, MaterialCostClass> = {};
+      let changed = false;
+      for (const [key, value] of Object.entries(prev)) {
+        if (project.materialCostClasses?.[key] === value) {
+          changed = true;
+        } else {
+          next[key] = value;
+        }
+      }
+      return changed ? next : prev;
     });
-  }, [onProjectChange]);
-
-  useEffect(() => () => flushCostClassChanges(), [flushCostClassChanges]);
+  }, [project.materialCostClasses]);
 
   const diagnostics = useMemo(
     () => MC.suggestMaterialsWithDiagnostics(project).diagnostics,
@@ -230,7 +213,7 @@ export default function MaterialsListTab({ project, comparison, onApply, onProje
         compositions = only.compositions;
         info = only.message;
       }
-      onProjectChange({ ...project, analyticCompositions: compositions });
+      onProjectChange(prev => ({ ...prev, analyticCompositions: compositions }));
       setLinkMsg({ kind: 'ok', text: info });
     } catch (err: any) {
       setLinkMsg({ kind: 'err', text: `Falha ao ler Analítica: ${err?.message ?? 'erro desconhecido'}.` });
@@ -250,39 +233,36 @@ export default function MaterialsListTab({ project, comparison, onApply, onProje
   });
 
   const changeGroup = (s: MC.MaterialSuggestion, targetCompId: string | null) => {
-    flushCostClassChanges();
-    onProjectChange(MC.setSuggestionLink(project, suggestionToPayload(s), targetCompId));
+    onProjectChange(prev => MC.setSuggestionLink(prev, suggestionToPayload(s), targetCompId));
   };
 
   const changeCostClass = (s: MC.MaterialSuggestion, costClass: MaterialCostClass) => {
     const key = MC.linkKeyOf(s);
     setClassDrafts(prev => ({ ...prev, [key]: costClass }));
-    pendingCostClassesRef.current = {
-      ...pendingCostClassesRef.current,
-      [key]: costClass,
-    };
-    if (classFlushTimerRef.current) window.clearTimeout(classFlushTimerRef.current);
-    classFlushTimerRef.current = window.setTimeout(flushCostClassChanges, 900);
+    onProjectChange(prev => ({
+      ...prev,
+      materialCostClasses: {
+        ...(prev.materialCostClasses ?? {}),
+        [key]: costClass,
+      },
+    }));
   };
 
   const linkSelectedToActive = () => {
-    flushCostClassChanges();
     if (!comparison) {
       toast.error('Selecione ou crie um comparativo antes de vincular insumos.');
       return;
     }
     const picked = realSuggestions.filter(s => selectedKeys[s.key]);
     if (picked.length === 0) return;
-    let next = project;
-    for (const s of picked) {
-      next = MC.setSuggestionLink(next, suggestionToPayload(s), comparison.id);
-    }
-    onProjectChange(next);
+    onProjectChange(prev => picked.reduce(
+      (next, s) => MC.setSuggestionLink(next, suggestionToPayload(s), comparison.id),
+      prev,
+    ));
     setSelectedKeys({});
   };
 
   const addManual = () => {
-    flushCostClassChanges();
     if (!manual.description.trim()) return;
     const next = MC.addItem(comparison, {
       description: manual.description.trim(),

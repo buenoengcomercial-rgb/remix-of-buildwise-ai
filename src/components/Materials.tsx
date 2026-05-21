@@ -16,7 +16,7 @@ import StockTab from './materials/StockTab';
 
 interface Props {
   project: Project;
-  onProjectChange: (next: Project) => void;
+  onProjectChange: (next: Project | ((prev: Project) => Project)) => void;
 }
 
 export default function Materials({ project, onProjectChange }: Props) {
