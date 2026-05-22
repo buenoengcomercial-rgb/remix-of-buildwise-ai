@@ -16,6 +16,7 @@ const GanttChart = lazy(() => import('@/components/GanttChart'));
 const Measurement = lazy(() => import('@/components/Measurement'));
 const DailyProductionWorkspace = lazy(() => import('@/components/DailyProductionWorkspace'));
 const Additive = lazy(() => import('@/components/Additive'));
+const RealCost = lazy(() => import('@/components/RealCost'));
 const Materials = lazy(() => import('@/components/Materials'));
 const WarehouseView = lazy(() => import('@/components/warehouse/Warehouse'));
 import { useAuth } from '@/hooks/useAuth';
@@ -118,7 +119,7 @@ export default function Index() {
     setSidebarOpen(false);
   }, []);
 
-  const undoStacksRef = useRef<UndoStacks>({ dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], materials: [], warehouse: [] });
+  const undoStacksRef = useRef<UndoStacks>({ dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], realCost: [], materials: [], warehouse: [] });
   const [undoVersion, setUndoVersion] = useState(0);
   const saveTimerRef = useRef<number | null>(null);
   const initialLoadRef = useRef(false);
@@ -319,7 +320,7 @@ export default function Index() {
   // só roda quando o usuário está nas abas que dependem dele (Cronograma/Dashboard).
   // Nas demais abas (Tarefas/Medição/Diário) usa-se o pipeline leve, evitando trabalho
   // pesado a cada digitação. CPM continua rodando porque é barato e fornece `isCritical`.
-  const needsDependencySettle = currentView === 'gantt' || currentView === 'dashboard';
+  const needsDependencySettle = currentView === 'gantt' || currentView === 'dashboard' || currentView === 'realCost';
 
   const project = useMemo(() => {
     if (!deferredRawProject) return null;
@@ -383,7 +384,7 @@ export default function Index() {
       const record = await loadCloudProjectRecord(id);
       if (record) {
         replaceProjectWithoutAutoSave(record.project, record.updatedAt);
-        undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], materials: [], warehouse: [] };
+        undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], realCost: [], materials: [], warehouse: [] };
         setUndoVersion(v => v + 1);
       }
     } catch {
@@ -400,7 +401,7 @@ export default function Index() {
       const newProj = await createCloudProject(finalName, orgId);
       const list = await refreshCloudList();
       replaceProjectWithoutAutoSave(newProj, list.find(p => p.id === newProj.id)?.updatedAt ?? null);
-      undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], materials: [], warehouse: [] };
+      undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], realCost: [], materials: [], warehouse: [] };
       setUndoVersion(v => v + 1);
       return newProj.id;
     } catch {
@@ -452,7 +453,7 @@ export default function Index() {
           const record = await loadCloudProjectRecord(next.id);
           if (record) {
             replaceProjectWithoutAutoSave(record.project, record.updatedAt);
-            undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], materials: [], warehouse: [] };
+            undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], realCost: [], materials: [], warehouse: [] };
           }
         }
       }
@@ -548,6 +549,8 @@ export default function Index() {
         );
       case 'additive':
         return <Additive project={project} onProjectChange={additiveSetter} undoButton={<UndoButton canUndo={canUndo('additive')} onUndo={() => handleUndo('additive')} />} />;
+      case 'realCost':
+        return <RealCost project={project} />;
       case 'materials':
         return <Materials project={project} onProjectChange={materialsSetter} />;
       case 'warehouse':

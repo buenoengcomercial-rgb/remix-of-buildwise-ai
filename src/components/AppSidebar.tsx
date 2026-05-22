@@ -1,5 +1,5 @@
 import { AppView } from '@/types/project';
-import { LayoutDashboard, GanttChart, ListTodo, ClipboardList, HardHat, Sparkles, ChevronsLeft, ChevronsRight, FolderOpen, Plus, ChevronDown, ChevronRight, Pencil, Copy, Trash2, Check, X, MoreHorizontal, Download, Upload, FileDown, Building2, Users, NotebookPen, FilePlus2, Package, Warehouse } from 'lucide-react';
+import { LayoutDashboard, GanttChart, ListTodo, ClipboardList, HardHat, Sparkles, ChevronsLeft, ChevronsRight, FolderOpen, Plus, ChevronDown, ChevronRight, Pencil, Copy, Trash2, Check, X, MoreHorizontal, Download, Upload, FileDown, Building2, Users, NotebookPen, FilePlus2, CircleDollarSign, Package, Warehouse } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
@@ -68,6 +68,7 @@ const navItems: { view: AppView; label: string; icon: React.ElementType }[] = [
   { view: 'measurement', label: 'Medição', icon: ClipboardList },
   { view: 'dailyReport', label: 'Diário de Obra', icon: NotebookPen },
   { view: 'additive', label: 'Aditivo', icon: FilePlus2 },
+  { view: 'realCost', label: 'Custo real de obra', icon: CircleDollarSign },
   { view: 'materials', label: 'Lista de Material', icon: Package },
   { view: 'warehouse', label: 'Almoxarifado', icon: Warehouse },
 ];
