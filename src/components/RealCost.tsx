@@ -427,6 +427,20 @@ export default function RealCost({ project }: Props) {
 
   const visibleGroupIds = useMemo(() => collectGroupIds(filteredGroupTree), [filteredGroupTree]);
   const visibleTotals = useMemo(() => computeVisibleTotals([], filteredGroupTree), [filteredGroupTree]);
+  const hasActiveFilters = search.trim() !== '' || statusFilter !== 'all' || chapterFilter !== 'all';
+  const displayTotals = useMemo<RealCostGroupTotals>(() => {
+    if (hasActiveFilters) return visibleTotals;
+    const contractedValue = analysis.totals.contractedValue;
+    const grossProfit = roundMoney(contractedValue - visibleTotals.realCost);
+    const marginPct = contractedValue > 0 ? Math.round((grossProfit / contractedValue) * 10000) / 100 : 0;
+    return {
+      ...visibleTotals,
+      contractedValue,
+      grossProfit,
+      marginPct,
+      signal: analysis.totals.signal,
+    };
+  }, [analysis.totals, hasActiveFilters, visibleTotals]);
 
   const toggleCollapsed = (id: string) => {
     setCollapsed(prev => {
@@ -622,16 +636,16 @@ export default function RealCost({ project }: Props) {
                   <td colSpan={8} className="px-2 py-2 text-right uppercase tracking-wide">
                     Total geral ({visibleCompositionCount} composicao(oes))
                   </td>
-                  <td className="px-2 py-2 text-right tabular-nums">{fmtBRL(visibleTotals.contractedValue)}</td>
-                  <td className={`px-2 py-2 text-right tabular-nums ${BORDER_L}`}>{fmtBRL(visibleTotals.realCost)}</td>
-                  <td className={`px-2 py-2 text-right tabular-nums ${visibleTotals.grossProfit >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
-                    {fmtBRL(visibleTotals.grossProfit)}
+                  <td className="px-2 py-2 text-right tabular-nums">{fmtBRL(displayTotals.contractedValue)}</td>
+                  <td className={`px-2 py-2 text-right tabular-nums ${BORDER_L}`}>{fmtBRL(displayTotals.realCost)}</td>
+                  <td className={`px-2 py-2 text-right tabular-nums ${displayTotals.grossProfit >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                    {fmtBRL(displayTotals.grossProfit)}
                   </td>
-                  <td className={`px-2 py-2 text-right tabular-nums ${visibleTotals.marginPct >= 15 ? 'text-emerald-300' : visibleTotals.marginPct >= 5 ? 'text-amber-300' : 'text-rose-300'}`}>
-                    {fmtPct(visibleTotals.marginPct)}
+                  <td className={`px-2 py-2 text-right tabular-nums ${displayTotals.marginPct >= 15 ? 'text-emerald-300' : displayTotals.marginPct >= 5 ? 'text-amber-300' : 'text-rose-300'}`}>
+                    {fmtPct(displayTotals.marginPct)}
                   </td>
-                  <td className="px-2 py-2 text-center tabular-nums">{visibleTotals.pendingCompositionCount}</td>
-                  <td className="px-2 py-2 text-center"><SignalBadge signal={visibleTotals.signal} /></td>
+                  <td className="px-2 py-2 text-center tabular-nums">{displayTotals.pendingCompositionCount}</td>
+                  <td className="px-2 py-2 text-center"><SignalBadge signal={displayTotals.signal} /></td>
                 </tr>
               </tfoot>
             )}

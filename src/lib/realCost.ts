@@ -12,7 +12,7 @@ import type {
 } from '@/types/project';
 import { buildOrderedTasks } from '@/components/measurement/measurementFormat';
 import { getWorkEndDate } from '@/components/gantt/utils';
-import { computeAdditiveRow } from '@/lib/additiveImport';
+import { additiveTotals, computeAdditiveRow } from '@/lib/additiveImport';
 import { getChapterNumbering, getChapterTree, type ChapterNode } from '@/lib/chapters';
 import { money2, trunc2 } from '@/lib/financialEngine';
 
@@ -171,6 +171,25 @@ type CompositionSource = {
   phaseChain?: string;
   composition?: AdditiveComposition;
 };
+
+function additiveTimestamp(additive: Additive): number {
+  const value = additive.contractedAt || additive.approvedAt || additive.importedAt;
+  const time = value ? Date.parse(value) : NaN;
+  return Number.isFinite(time) ? time : 0;
+}
+
+function getOfficialRealCostContractedValue(project: Project): number | null {
+  const additives = project.additives ?? [];
+  if (additives.length === 0) return null;
+
+  const contracted = additives
+    .filter(additive => additive.isContracted || additive.status === 'aditivo_contratado')
+    .sort((a, b) => additiveTimestamp(b) - additiveTimestamp(a));
+  const referenceAdditive = contracted[0] ?? additives[0];
+  if (!referenceAdditive) return null;
+
+  return money2(additiveTotals(referenceAdditive, project).valorFinal);
+}
 
 const normalize = (value: string | undefined | null): string =>
   String(value ?? '')
@@ -863,7 +882,8 @@ export function buildRealCostAnalysis(project: Project, trabalhaSabado = false):
     incompleteCompositions: compositions.filter(row => row.signal === 'incomplete').length,
   };
 
-  const contractedValue = money2(compositions.reduce((sum, row) => sum + row.contractedValue, 0));
+  const reconstructedContractedValue = money2(compositions.reduce((sum, row) => sum + row.contractedValue, 0));
+  const contractedValue = getOfficialRealCostContractedValue(project) ?? reconstructedContractedValue;
   const realCost = money2(compositions.reduce((sum, row) => sum + row.realCost, 0));
   const grossProfit = money2(contractedValue - realCost);
   const marginPct = contractedValue > 0 ? trunc2((grossProfit / contractedValue) * 100) : 0;
