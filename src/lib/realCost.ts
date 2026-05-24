@@ -395,6 +395,48 @@ function buildTaskIndexes(project: Project) {
   return { ordered, byId, byCode, byDesc };
 }
 
+function buildContractPhaseIndex(project: Project) {
+  const numbering = getChapterNumbering(project);
+  const tree = getChapterTree(project);
+  const byNumber = new Map<string, { phaseId: string; chapter: string }>();
+  const byId = new Map<string, { phaseId: string; chapter: string }>();
+
+  const walk = (nodes: ChapterNode[], chain: string[]) => {
+    for (const node of nodes) {
+      const number = numbering.get(node.phase.id) || '';
+      const nextChain = [...chain, node.phase.name];
+      const info = { phaseId: node.phase.id, chapter: nextChain.join(' › ') };
+      byId.set(node.phase.id, info);
+      if (number) byNumber.set(number, info);
+      walk(node.children, nextChain);
+    }
+  };
+
+  walk(tree, []);
+  return { byNumber, byId };
+}
+
+function matchContractPhaseByItem(
+  item: string | undefined,
+  index: ReturnType<typeof buildContractPhaseIndex>,
+) {
+  const parts = (item ?? '')
+    .replace(',', '.')
+    .split('.')
+    .map(part => part.trim())
+    .filter(Boolean);
+
+  // A planilha publica normalmente tem composicoes um nivel abaixo do capitulo/subcapitulo.
+  // Por isso tentamos 3.1.1 -> 3.1, depois 3; nunca usamos a ordem executiva do Cronograma aqui.
+  for (let size = parts.length - 1; size >= 1; size--) {
+    const key = parts.slice(0, size).join('.');
+    const found = index.byNumber.get(key);
+    if (found) return found;
+  }
+
+  return undefined;
+}
+
 function matchTaskForSource(source: CompositionSource, taskIndexes: ReturnType<typeof buildTaskIndexes>) {
   if (source.taskId) {
     const direct = taskIndexes.byId.get(source.taskId);
@@ -482,7 +524,9 @@ function buildCompositionSources(project: Project): CompositionSource[] {
       sourceName: budget.source === 'aditivo' ? 'Aditivo integrado na medicao' : 'Contrato',
       sourceStatus: budget.source === 'aditivo' ? 'Integrado ao projeto' : undefined,
       sourceDetail: budget.source === 'aditivo' ? 'Servico integrado' : 'Contrato original',
-      taskId: budget.taskId,
+      taskId: budget.taskId || composition?.linkedTaskId || composition?.taskId,
+      phaseId: composition?.phaseId,
+      phaseChain: composition?.phaseChain,
       composition,
     });
   }
@@ -597,12 +641,16 @@ function buildInputRows(
 function buildCompositionRows(project: Project): RealCostCompositionRow[] {
   const priceIndex = buildPriceIndex(project);
   const taskIndexes = buildTaskIndexes(project);
+  const contractPhaseIndex = buildContractPhaseIndex(project);
   const sources = buildCompositionSources(project);
 
   return sources.map(source => {
     const matchedTask = matchTaskForSource(source, taskIndexes);
-    const phaseId = source.phaseId || matchedTask?.phaseId || '__unlinked__';
-    const chapter = source.phaseChain || matchedTask?.chapter || 'Sem vinculo com cronograma';
+    const sourcePhase = source.phaseId ? contractPhaseIndex.byId.get(source.phaseId) : undefined;
+    const itemPhase = matchContractPhaseByItem(source.item, contractPhaseIndex);
+    const contractPhase = sourcePhase || itemPhase;
+    const phaseId = contractPhase?.phaseId || matchedTask?.phaseId || '__unlinked__';
+    const chapter = source.phaseChain || contractPhase?.chapter || matchedTask?.chapter || 'Sem vinculo com cronograma';
     const inputs = buildInputRows(source, priceIndex);
     const realCost = money2(inputs.reduce((sum, input) => sum + input.realTotal, 0));
     const missingQuoteCount = inputs.filter(input => input.status === 'missing').length;
