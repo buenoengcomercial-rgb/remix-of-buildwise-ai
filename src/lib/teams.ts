@@ -8,6 +8,11 @@ export interface TeamDefinition {
   code: TeamCode;
   label: string;
   composition: string;
+  /** Composicao executiva usada pelo dimensionamento. Mantem `composition` como texto legado. */
+  members?: Array<{ operationalRoleId: string; quantity: number; dailyHours?: number }>;
+  dailyHours?: number;
+  active?: boolean;
+  calendar?: string;
   /** Cor clara (≈94% L) para o fundo da linha na sidebar/EAP */
   bgColor: string;
   /** Cor escura (≈18-22% L) para texto sobre o fundo claro */
@@ -43,20 +48,28 @@ export function deriveTeamColors(hue: number, saturation: number): Pick<TeamDefi
 /** Equipes padrão — códigos e cores preservados conforme o projeto original. */
 export const DEFAULT_TEAMS: TeamDefinition[] = [
   { code: 'alpha',   label: 'Alpha',   composition: 'Ajudante',
+    members: [{ operationalRoleId: 'ajudante-servente', quantity: 1 }],
     bgColor: 'hsl(270, 50%, 94%)', textColor: 'hsl(270, 50%, 22%)', borderColor: 'hsl(270, 50%, 50%)', barColor: 'hsl(270, 50%, 50%)' },
   { code: 'bravo',   label: 'Bravo',   composition: 'Equipe Engenharia',
+    members: [{ operationalRoleId: 'engenheiro', quantity: 1 }],
     bgColor: 'hsl(0, 0%, 95%)',    textColor: 'hsl(0, 0%, 18%)',    borderColor: 'hsl(0, 0%, 55%)',    barColor: 'hsl(0, 0%, 45%)' },
   { code: 'charlie', label: 'Charlie', composition: 'Eletricista + Ajudante',
+    members: [{ operationalRoleId: 'eletricista', quantity: 1 }, { operationalRoleId: 'auxiliar-eletricista', quantity: 1 }, { operationalRoleId: 'ajudante-servente', quantity: 1 }],
     bgColor: 'hsl(210, 65%, 94%)', textColor: 'hsl(210, 65%, 20%)', borderColor: 'hsl(210, 65%, 45%)', barColor: 'hsl(210, 65%, 45%)' },
   { code: 'delta',   label: 'Delta',   composition: 'Auxiliar + Ajudante',
+    members: [{ operationalRoleId: 'auxiliar-eletricista', quantity: 1 }, { operationalRoleId: 'ajudante-servente', quantity: 1 }],
     bgColor: 'hsl(152, 60%, 94%)', textColor: 'hsl(152, 60%, 18%)', borderColor: 'hsl(152, 60%, 42%)', barColor: 'hsl(152, 60%, 42%)' },
   { code: 'echo',    label: 'Echo',    composition: 'Encanador + Ajudante',
+    members: [{ operationalRoleId: 'encanador', quantity: 1 }, { operationalRoleId: 'ajudante-servente', quantity: 1 }],
     bgColor: 'hsl(0, 65%, 94%)',   textColor: 'hsl(0, 65%, 22%)',   borderColor: 'hsl(0, 65%, 45%)',   barColor: 'hsl(0, 65%, 45%)' },
   { code: 'foxtrot', label: 'Foxtrot', composition: 'Encanador + Ajudante',
+    members: [{ operationalRoleId: 'encanador', quantity: 1 }, { operationalRoleId: 'ajudante-servente', quantity: 1 }],
     bgColor: 'hsl(30, 80%, 93%)',  textColor: 'hsl(30, 80%, 22%)',  borderColor: 'hsl(30, 80%, 45%)',  barColor: 'hsl(30, 80%, 48%)' },
   { code: 'golf',    label: 'Golf',    composition: 'Equipe de Gesso',
+    members: [{ operationalRoleId: 'gesseiro-drywall', quantity: 1 }, { operationalRoleId: 'ajudante-servente', quantity: 1 }],
     bgColor: 'hsl(290, 50%, 94%)', textColor: 'hsl(290, 50%, 22%)', borderColor: 'hsl(290, 50%, 45%)', barColor: 'hsl(290, 50%, 45%)' },
   { code: 'hotel',   label: 'Hotel',   composition: 'Pedreiros',
+    members: [{ operationalRoleId: 'pedreiro', quantity: 1 }, { operationalRoleId: 'ajudante-servente', quantity: 1 }],
     bgColor: 'hsl(210, 70%, 94%)', textColor: 'hsl(210, 70%, 20%)', borderColor: 'hsl(210, 70%, 40%)', barColor: 'hsl(210, 70%, 45%)' },
 ];
 

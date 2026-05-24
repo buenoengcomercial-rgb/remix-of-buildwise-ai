@@ -4,6 +4,74 @@ export interface LaborComposition {
   rup: number; // hours per unit (h/un)
   workerCount: number;
   hourlyRate?: number;
+  /** Nome original do insumo de mão de obra vindo da composição analítica. */
+  originalRole?: string;
+  /** Cargo operacional normalizado usado apenas para planejamento executivo. */
+  operationalRoleId?: string;
+  /** Quando true, o insumo permanece no custo, mas não entra no histograma de equipe. */
+  dimensioningIgnored?: boolean;
+}
+
+export interface OperationalRole {
+  id: string;
+  name: string;
+  category: 'gestao' | 'tecnica' | 'operacional' | 'apoio';
+  defaultDailyHours: number;
+  hourlyCost?: number;
+  dailyCost?: number;
+  active: boolean;
+  notes?: string;
+}
+
+export type LaborNormalizationType =
+  | 'cargo_operacional'
+  | 'custo_acessorio'
+  | 'ignorar_no_dimensionamento'
+  | 'revisar_manualmente';
+
+export interface LaborNormalizationRule {
+  id: string;
+  originalName: string;
+  sourceBank?: string;
+  sourceCode?: string;
+  unit?: string;
+  originalClass?: MaterialCostClass;
+  parentComposition?: string;
+  operationalRoleId?: string;
+  normalizationType: LaborNormalizationType;
+  active: boolean;
+  note?: string;
+  automaticRuleApplied?: string;
+  manuallyReviewed?: boolean;
+  applyToSimilar?: boolean;
+  changedBy?: string;
+  changedAt?: string;
+  previousRule?: string;
+}
+
+export interface LaborAvailability {
+  id: string;
+  operationalRoleId: string;
+  quantity: number;
+  dailyHours: number;
+  hourlyCost?: number;
+  dailyCost?: number;
+  notes?: string;
+}
+
+export interface LaborDimensioningSettings {
+  defaultDailyHours: number;
+  workSaturday: boolean;
+  workSunday: boolean;
+  overloadTolerancePercent: number;
+  roundingMode: 'ceil';
+  mode: 'duration_by_team' | 'team_by_deadline';
+}
+
+export interface TeamMemberDefinition {
+  operationalRoleId: string;
+  quantity: number;
+  dailyHours?: number;
 }
 
 export type DependencyType = 'TI' | 'II' | 'TT' | 'IT';
@@ -373,6 +441,14 @@ export interface Project {
   totalBudget: number;
   /** Equipes do projeto. Quando undefined, usa-se DEFAULT_TEAMS. */
   teams?: TeamDefinition[];
+  /** Cargos executivos usados para dimensionamento de equipes. Nao altera insumos originais. */
+  operationalRoles?: OperationalRole[];
+  /** Regras/correcoes de normalizacao de mao de obra para cargos executivos. */
+  laborNormalizationRules?: LaborNormalizationRule[];
+  /** Disponibilidade geral de mao de obra cadastrada para a obra. */
+  laborAvailability?: LaborAvailability[];
+  /** Parametros de jornada e arredondamento do dimensionamento de equipes. */
+  laborDimensioningSettings?: LaborDimensioningSettings;
   /** Estado visual persistido da UI (ex.: capítulos minimizados na EAP). */
   uiState?: ProjectUiState;
   /** Dados contratuais usados no boletim de medição. */

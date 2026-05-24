@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { useConfirmDelete } from '@/components/ConfirmDeleteDialog';
 import { AdditiveBadge } from '@/components/shared/AdditiveBadge';
 import { sortTasksForSchedule, withScheduleOrderForMove } from '@/lib/taskOrdering';
+import { normalizeLaborRole } from '@/lib/laborDimensioning';
 
 /** Encurta o nome da tarefa para no máximo `maxWords` palavras, adicionando "…" no final. */
 function truncateWords(text: string, maxWords = 4): string {
@@ -1228,7 +1229,7 @@ export default function TaskList({ project, onProjectChange, undoButton }: TaskL
                                       Composição RUP — {task.quantity} {task.unit}
                                     </h4>
 
-                                    <div className="grid grid-cols-6 gap-2 text-[10px] font-semibold text-muted-foreground uppercase">
+                                    <div className="grid grid-cols-7 gap-2 text-[10px] font-semibold text-muted-foreground uppercase">
                                       <div>
                                         <button
                                           onClick={() => addLabor(phase.id, task.id)}
@@ -1238,6 +1239,7 @@ export default function TaskList({ project, onProjectChange, undoButton }: TaskL
                                           <Plus className="w-3 h-3" /> Profissional
                                         </button>
                                       </div>
+                                      <div className="text-center">Cargo normalizado</div>
                                       <div className="text-center">RUP (h/{task.unit})</div>
                                       <div className="text-center">Qtd. Trab.</div>
                                       <div className="text-center">Tempo total</div>
@@ -1250,7 +1252,7 @@ export default function TaskList({ project, onProjectChange, undoButton }: TaskL
                                       const effectiveH = totalH / comp.workerCount;
                                       const isBottleneck = comp.role === task.bottleneckRole;
                                       return (
-                                        <div key={comp.id} className={`grid grid-cols-6 gap-2 text-[11px] items-center py-1 ${isBottleneck ? 'text-warning font-semibold' : 'text-foreground'}`}>
+                                        <div key={comp.id} className={`grid grid-cols-7 gap-2 text-[11px] items-center py-1 ${isBottleneck ? 'text-warning font-semibold' : 'text-foreground'}`}>
                                           <div className="flex items-center gap-1">
                                             <Users className="w-3 h-3" />
                                             {isEditing ? (
@@ -1266,6 +1268,29 @@ export default function TaskList({ project, onProjectChange, undoButton }: TaskL
                                               </>
                                             )}
                                           </div>
+                                          {(() => {
+                                            const normalized = normalizeLaborRole(project, {
+                                              originalRole: comp.originalRole || comp.role,
+                                              parentComposition: task.name,
+                                              unit: task.unit,
+                                            });
+                                            const label = normalized.normalizationType === 'cargo_operacional'
+                                              ? normalized.roleName
+                                              : normalized.normalizationType === 'custo_acessorio'
+                                                ? 'Custo acessório'
+                                                : normalized.normalizationType === 'ignorar_no_dimensionamento'
+                                                  ? 'Ignorado'
+                                                  : 'Revisar';
+                                            return (
+                                              <div className={`text-center rounded px-1 py-0.5 ${
+                                                normalized.normalizationType === 'revisar_manualmente'
+                                                  ? 'bg-warning/10 text-warning'
+                                                  : 'bg-primary/10 text-primary'
+                                              }`}>
+                                                {label}
+                                              </div>
+                                            );
+                                          })()}
                                           <div className="text-center">
                                             {isEditing ? (
                                               <InlineInput
