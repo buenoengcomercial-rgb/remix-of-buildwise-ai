@@ -151,6 +151,8 @@ export interface LaborPeriodActivity {
   neededPeople: number;
 }
 
+export type LaborPeriodStatus = 'ok' | 'deficit' | 'surplus' | 'missing_availability';
+
 export interface LaborPeriodRolePlan {
   periodKey: string;
   periodLabel: string;
@@ -162,8 +164,9 @@ export interface LaborPeriodRolePlan {
   neededPeople: number;
   recommendedPeople: number;
   availablePeople: number;
+  availabilityConfigured: boolean;
   balancePeople: number;
-  status: 'ok' | 'deficit' | 'surplus';
+  status: LaborPeriodStatus;
   activities: LaborPeriodActivity[];
 }
 
@@ -185,6 +188,7 @@ export interface LaborTeamConflict {
 export interface LaborTaskConflictInfo {
   roleDeficits: string[];
   teamConflicts: string[];
+  missingAvailability: string[];
 }
 
 export interface LaborReprogrammingSuggestion {
@@ -195,17 +199,29 @@ export interface LaborReprogrammingSuggestion {
   impactNote: string;
 }
 
+export interface LaborDataIssue {
+  taskId: string;
+  taskName: string;
+  phaseId: string;
+  phaseName: string;
+  issue: 'sem_rup' | 'sem_quantidade' | 'revisar_normalizacao';
+  message: string;
+}
+
 export interface LaborPlanningAnalysis {
   granularity: LaborPlanningGranularity;
   rows: LaborPeriodRolePlan[];
   deficitRows: LaborPeriodRolePlan[];
   surplusRows: LaborPeriodRolePlan[];
+  missingAvailabilityRows: LaborPeriodRolePlan[];
+  dataIssues: LaborDataIssue[];
   teamConflicts: LaborTeamConflict[];
   taskConflictMap: Record<string, LaborTaskConflictInfo>;
   peakPeople: number;
   peakPeriod: string;
   totalDeficitPeriods: number;
   totalSurplusPeriods: number;
+  totalMissingAvailabilityPeriods: number;
   suggestions: LaborReprogrammingSuggestion[];
 }
 
@@ -548,10 +564,11 @@ function bumpTaskConflict(
   taskId: string,
   patch: Partial<LaborTaskConflictInfo>,
 ) {
-  const current = target[taskId] ?? { roleDeficits: [], teamConflicts: [] };
+  const current = target[taskId] ?? { roleDeficits: [], teamConflicts: [], missingAvailability: [] };
   target[taskId] = {
     roleDeficits: Array.from(new Set([...(current.roleDeficits ?? []), ...(patch.roleDeficits ?? [])])),
     teamConflicts: Array.from(new Set([...(current.teamConflicts ?? []), ...(patch.teamConflicts ?? [])])),
+    missingAvailability: Array.from(new Set([...(current.missingAvailability ?? []), ...(patch.missingAvailability ?? [])])),
   };
 }
 
@@ -562,10 +579,54 @@ export function buildLaborPlanningAnalysis(
   const roles = getOperationalRoles(project);
   const settings = getDimensioningSettings(project);
   const availability = getLaborAvailability(project);
+  const availabilityConfigured = new Set((project.laborAvailability ?? []).map(item => item.operationalRoleId));
   const teams = project.teams ?? DEFAULT_TEAMS;
   const taskLookup = taskMap(project);
-  const demandLines = buildLaborDemand(project)
+  const allDemandLines = buildLaborDemand(project);
+  const demandLines = allDemandLines
     .filter(line => line.normalizationType === 'cargo_operacional' && line.normalizedRoleId);
+
+  const dataIssues: LaborDataIssue[] = [];
+  project.phases.forEach(phase => {
+    phase.tasks.forEach(task => {
+      const qty = Number(task.quantity || 0);
+      const labor = task.laborCompositions ?? [];
+      if (qty <= 0) return;
+      if (!labor.length) {
+        dataIssues.push({
+          taskId: task.id,
+          taskName: task.name,
+          phaseId: phase.id,
+          phaseName: phase.name,
+          issue: 'sem_rup',
+          message: 'Sem composicao/RUP de mao de obra vinculada.',
+        });
+        return;
+      }
+      const taskLines = allDemandLines.filter(line => line.taskId === task.id);
+      if (taskLines.length === 0) {
+        dataIssues.push({
+          taskId: task.id,
+          taskName: task.name,
+          phaseId: phase.id,
+          phaseName: phase.name,
+          issue: 'sem_quantidade',
+          message: 'Composicao existe, mas quantidade ou RUP esta zerado.',
+        });
+        return;
+      }
+      if (!taskLines.some(line => line.normalizationType === 'cargo_operacional' && line.normalizedRoleId)) {
+        dataIssues.push({
+          taskId: task.id,
+          taskName: task.name,
+          phaseId: phase.id,
+          phaseName: phase.name,
+          issue: 'revisar_normalizacao',
+          message: 'Mao de obra ainda nao virou cargo operacional confiavel.',
+        });
+      }
+    });
+  });
 
   const periodRows = new Map<string, LaborPeriodRolePlan & { dayKeys: Set<string> }>();
   const taskDays = new Map<string, Set<string>>();
@@ -594,6 +655,7 @@ export function buildLaborPlanningAnalysis(
         neededPeople: 0,
         recommendedPeople: 0,
         availablePeople: 0,
+        availabilityConfigured: false,
         balancePeople: 0,
         status: 'ok' as const,
         activities: [],
@@ -651,9 +713,18 @@ export function buildLaborPlanningAnalysis(
     const avail = availability.find(item => item.operationalRoleId === row.roleId);
     const dailyHours = avail?.dailyHours || role?.defaultDailyHours || settings.defaultDailyHours || DEFAULT_DAILY_HOURS;
     const availablePeople = avail?.quantity ?? 0;
+    const configured = availabilityConfigured.has(row.roleId);
     const neededPeople = row.hours / (Math.max(1, row.dayKeys.size) * dailyHours);
     const recommendedPeople = row.hours > 0 ? Math.ceil(neededPeople) : 0;
     const balancePeople = availablePeople - recommendedPeople;
+    const status: LaborPeriodStatus =
+      row.hours > 0 && !configured
+        ? 'missing_availability'
+        : balancePeople < 0
+          ? 'deficit'
+          : balancePeople > 0 && recommendedPeople > 0
+            ? 'surplus'
+            : 'ok';
     return {
       periodKey: row.periodKey,
       periodLabel: row.periodLabel,
@@ -665,8 +736,9 @@ export function buildLaborPlanningAnalysis(
       neededPeople,
       recommendedPeople,
       availablePeople,
+      availabilityConfigured: configured,
       balancePeople,
-      status: balancePeople < 0 ? 'deficit' : balancePeople > 0 && recommendedPeople > 0 ? 'surplus' : 'ok',
+      status,
       activities: row.activities
         .sort((a, b) => b.hours - a.hours)
         .map(activity => ({ ...activity, neededPeople: Number(activity.neededPeople.toFixed(2)) })),
@@ -706,10 +778,15 @@ export function buildLaborPlanningAnalysis(
 
   const deficitRows = rows.filter(row => row.status === 'deficit');
   const surplusRows = rows.filter(row => row.status === 'surplus');
+  const missingAvailabilityRows = rows.filter(row => row.status === 'missing_availability');
   const taskConflictMap: Record<string, LaborTaskConflictInfo> = {};
   deficitRows.forEach(row => {
     const label = `${row.roleName}: faltam ${Math.abs(row.balancePeople)} em ${row.periodLabel}`;
     row.activities.forEach(activity => bumpTaskConflict(taskConflictMap, activity.taskId, { roleDeficits: [label] }));
+  });
+  missingAvailabilityRows.forEach(row => {
+    const label = `${row.roleName}: cadastre disponibilidade para ${row.periodLabel}`;
+    row.activities.forEach(activity => bumpTaskConflict(taskConflictMap, activity.taskId, { missingAvailability: [label] }));
   });
 
   const teamConflicts = Array.from(teamConflictsByPeriod.values())
@@ -717,6 +794,9 @@ export function buildLaborPlanningAnalysis(
   teamConflicts.forEach(conflict => {
     const label = `${conflict.teamName} em ${conflict.periodLabel}`;
     conflict.tasks.forEach(task => bumpTaskConflict(taskConflictMap, task.taskId, { teamConflicts: [label] }));
+  });
+  dataIssues.forEach(issue => {
+    bumpTaskConflict(taskConflictMap, issue.taskId, { missingAvailability: [issue.message] });
   });
 
   const peopleByPeriod = new Map<string, { label: string; people: number }>();
@@ -755,12 +835,15 @@ export function buildLaborPlanningAnalysis(
     rows,
     deficitRows,
     surplusRows,
+    missingAvailabilityRows,
+    dataIssues,
     teamConflicts,
     taskConflictMap,
     peakPeople,
     peakPeriod,
     totalDeficitPeriods: deficitRows.length,
     totalSurplusPeriods: surplusRows.length,
+    totalMissingAvailabilityPeriods: missingAvailabilityRows.length,
     suggestions,
   };
 }
