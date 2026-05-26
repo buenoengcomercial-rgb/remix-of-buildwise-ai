@@ -495,21 +495,46 @@ function buildCompositionSources(project: Project): CompositionSource[] {
   const additiveCompositions = additivePairs.map(pair => pair.composition);
   const additiveReplacementKeys = new Set<string>();
   const budgetRepresentationKeys = new Set<string>();
+  const additiveAdjustmentByKey = new Map<string, { additive: Additive; composition: AdditiveComposition }>();
   const usedCompositionIds = new Set<string>();
   const sources: CompositionSource[] = [];
 
+  const rememberAdditiveAdjustment = (key: string, pair: { additive: Additive; composition: AdditiveComposition }) => {
+    const current = additiveAdjustmentByKey.get(key);
+    if (!current || additiveTimestamp(pair.additive) >= additiveTimestamp(current.additive)) {
+      additiveAdjustmentByKey.set(key, pair);
+    }
+  };
+
   for (const pair of additivePairs) {
     if (!hasAdditiveReference(pair.composition)) continue;
-    replacementKeysForComposition(pair.composition).forEach(key => additiveReplacementKeys.add(key));
+    replacementKeysForComposition(pair.composition).forEach(key => {
+      additiveReplacementKeys.add(key);
+      rememberAdditiveAdjustment(key, pair);
+    });
   }
 
   for (const budget of project.budgetItems ?? []) {
     if (budget.source !== 'sintetica' && budget.source !== 'aditivo') continue;
-    replacementKeysForBudgetItem(budget).forEach(key => budgetRepresentationKeys.add(key));
+    const budgetKeys = replacementKeysForBudgetItem(budget);
+    budgetKeys.forEach(key => budgetRepresentationKeys.add(key));
+    const additiveAdjustment = budget.source === 'sintetica'
+      ? budgetKeys.map(key => additiveAdjustmentByKey.get(key)).find(Boolean)
+      : undefined;
 
-    const composition = matchCompositionForBudgetItem(budget, baseCompositions, additiveCompositions);
+    const composition = additiveAdjustment?.composition ?? matchCompositionForBudgetItem(budget, baseCompositions, additiveCompositions);
     if (composition) usedCompositionIds.add(composition.id);
-    const quantity = trunc2(budget.quantity);
+    const additiveRow = additiveAdjustment
+      ? computeAdditiveRow(
+          additiveAdjustment.composition,
+          additiveAdjustment.additive.bdiPercent ?? project.syntheticBdiPercent ?? project.contractInfo?.bdiPercent ?? 0,
+          additiveAdjustment.additive.globalDiscountPercent ?? 0,
+        )
+      : null;
+    // Ordem contratual/original e valores oficiais permanecem na Medicao/Aditivo.
+    // Quando o Aditivo ja ajustou um item existente, o Custo Real deve ler a quantidade final contratual,
+    // nao a quantidade base antiga do BudgetItem, para evitar divergencia entre abas.
+    const quantity = trunc2(additiveRow?.qtdFinal ?? budget.quantity);
     sources.push({
       id: `budget:${budget.id}`,
       item: budget.item,
@@ -518,19 +543,19 @@ function buildCompositionSources(project: Project): CompositionSource[] {
       description: budget.description,
       unit: budget.unit,
       quantity,
-      quantityContracted: quantity,
-      quantitySuppressed: 0,
-      quantityAdded: 0,
+      quantityContracted: additiveRow?.qtdContratada ?? quantity,
+      quantitySuppressed: additiveRow?.qtdSuprimida ?? 0,
+      quantityAdded: additiveRow?.qtdAcrescida ?? 0,
       quantityFinal: quantity,
-      unitPriceReference: trunc2(budget.unitPriceNoBDI),
-      unitPriceContracted: trunc2(budget.unitPriceWithBDI),
-      valueSuppressed: 0,
-      valueAdded: 0,
-      contractedValue: money2(budget.totalWithBDI),
+      unitPriceReference: additiveRow?.referenceUnitNoBDI ?? trunc2(budget.unitPriceNoBDI),
+      unitPriceContracted: additiveRow?.unitPriceWithBDI ?? trunc2(budget.unitPriceWithBDI),
+      valueSuppressed: additiveRow?.valorSuprimido ?? 0,
+      valueAdded: additiveRow?.valorAcrescido ?? 0,
+      contractedValue: money2(additiveRow?.valorFinal ?? budget.totalWithBDI),
       source: budget.source === 'aditivo' ? 'additive' : 'contract',
       sourceName: budget.source === 'aditivo' ? 'Aditivo integrado na medicao' : 'Contrato',
-      sourceStatus: budget.source === 'aditivo' ? 'Integrado ao projeto' : undefined,
-      sourceDetail: budget.source === 'aditivo' ? 'Servico integrado' : 'Contrato original',
+      sourceStatus: additiveAdjustment ? additiveStatusLabel(additiveAdjustment.additive) : budget.source === 'aditivo' ? 'Integrado ao projeto' : undefined,
+      sourceDetail: additiveAdjustment ? `Contrato ajustado por aditivo - ${additiveDetailLabel(additiveAdjustment.composition)}` : budget.source === 'aditivo' ? 'Servico integrado' : 'Contrato original',
       taskId: budget.taskId || composition?.linkedTaskId || composition?.taskId,
       phaseId: composition?.phaseId,
       phaseChain: composition?.phaseChain,
