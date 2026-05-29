@@ -331,9 +331,18 @@ export default function Measurement({ project, onProjectChange, undoButton, onOp
     const target = event.target as HTMLElement | null;
     if (!target) return;
     if (target.closest('[data-detail-cell="true"]')) return;
+    if (target.closest('[data-measurement-row="true"]')) return;
     if (target.closest('[data-detail-panel="true"]')) return;
     if (target.closest('[data-detail-footer="true"]')) return;
     setDetailSelection(null);
+  };
+
+  const toggleAnalyticDetail = (taskId: string) => {
+    setDetailSelection(prev =>
+      prev?.taskId === taskId && prev.mode === 'analytic'
+        ? null
+        : { taskId, mode: 'analytic' },
+    );
   };
 
   return (
@@ -527,6 +536,7 @@ export default function Measurement({ project, onProjectChange, undoButton, onOp
         setManualPeriodQuantity={setManualPeriodQuantity}
         selectedDetail={detailSelection}
         onSelectDetail={setDetailSelection}
+        onToggleAnalyticDetail={toggleAnalyticDetail}
         project={project}
         bdi={effBdi}
       />

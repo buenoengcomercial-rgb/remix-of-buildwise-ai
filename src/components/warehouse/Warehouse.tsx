@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Project } from '@/types/project';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LayoutDashboard, Boxes, ArrowLeftRight, ClipboardList, HardHat, ListChecks, FileBarChart, Warehouse as WarehouseIcon } from 'lucide-react';
-import { ensureWarehouse, panelSummary } from '@/lib/warehouse';
+import { LayoutDashboard, Boxes, ArrowLeftRight, ClipboardList, HardHat, ListChecks, FileBarChart, Warehouse as WarehouseIcon, RotateCcw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useConfirmDelete } from '@/components/ConfirmDeleteDialog';
+import { clearWarehouse, ensureWarehouse, panelSummary } from '@/lib/warehouse';
 import { cn } from '@/lib/utils';
 import WarehousePanel from './WarehousePanel';
 import WarehouseStockTab from './WarehouseStockTab';
@@ -19,6 +21,7 @@ interface Props {
 
 export default function Warehouse({ project, onProjectChange }: Props) {
   const [tab, setTab] = useState('painel');
+  const { confirm, dialog: confirmDialog } = useConfirmDelete();
   const ensured = useMemo(() => ensureWarehouse(project), [project]);
   useEffect(() => {
     if (ensured !== project) onProjectChange(ensured);
@@ -36,6 +39,27 @@ export default function Warehouse({ project, onProjectChange }: Props) {
   const toneCls = (t?: 'primary' | 'ok' | 'warn') =>
     t === 'primary' ? 'text-primary' : t === 'ok' ? 'text-success' : t === 'warn' ? 'text-warning' : 'text-foreground';
 
+  const handleClearWarehouse = () => {
+    confirm(
+      {
+        title: 'Limpar almoxarifado?',
+        description: (
+          <div className="space-y-2">
+            <p>
+              Esta ação remove entradas, retiradas, devoluções, itens avulsos, requisições, equipamentos,
+              termos de cautela, locais e configurações do almoxarifado.
+            </p>
+            <p className="font-medium">
+              Não remove Lista de Material, pedidos confirmados, Medição, Aditivo ou Custo Real.
+            </p>
+          </div>
+        ),
+        confirmLabel: 'Limpar almoxarifado',
+      },
+      () => onProjectChange(clearWarehouse(ensured)),
+    );
+  };
+
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center gap-3">
@@ -46,6 +70,10 @@ export default function Warehouse({ project, onProjectChange }: Props) {
           <span className="mx-1.5">·</span>
           Termos abertos: <strong className="text-foreground">{summary.openCustodyCount}</strong>
         </span>
+        <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={handleClearWarehouse}>
+          <RotateCcw className="w-3.5 h-3.5 mr-1" />
+          Limpar almoxarifado
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -92,6 +120,7 @@ export default function Warehouse({ project, onProjectChange }: Props) {
           <WarehouseReportsTab project={ensured} />
         </TabsContent>
       </Tabs>
+      {confirmDialog}
     </div>
   );
 }

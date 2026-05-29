@@ -18,6 +18,7 @@ interface MeasurementTableProps extends RowHandlers {
   isLocked: boolean;
   selectedDetail?: MeasurementDetailSelection | null;
   onSelectDetail?: (selection: MeasurementDetailSelection | null) => void;
+  onToggleAnalyticDetail?: (taskId: string) => void;
   project: Project;
   bdi: number;
 }

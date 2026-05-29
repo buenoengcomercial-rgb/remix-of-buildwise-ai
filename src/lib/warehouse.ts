@@ -28,6 +28,16 @@ export function emptyWarehouse(): WarehouseState {
   return { locations: [], items: [], movements: [], requisitions: [], equipments: [], custodyTerms: [] };
 }
 
+export function clearWarehouse(project: Project): Project {
+  return {
+    ...project,
+    // Limpa apenas o controle físico/operacional do almoxarifado.
+    // Pedidos confirmados continuam na Lista de Material para nova entrada.
+    warehouse: emptyWarehouse(),
+    stockMovements: [],
+  };
+}
+
 function normalizeWarehouse(state?: Partial<WarehouseState>): WarehouseState {
   return {
     locations: state?.locations ?? [],

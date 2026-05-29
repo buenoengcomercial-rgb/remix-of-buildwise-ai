@@ -26,6 +26,7 @@ export interface MeasurementItemRowProps {
   setManualPeriodQuantity?: (taskId: string, v: number) => void;
   selectedDetail?: MeasurementDetailSelection | null;
   onSelectDetail?: (selection: MeasurementDetailSelection | null) => void;
+  onToggleAnalyticDetail?: (taskId: string) => void;
   project?: Project;
   bdi?: number;
   detailColSpan?: number;
@@ -39,6 +40,7 @@ export default function MeasurementItemRow({
   isLocked,
   selectedDetail,
   onSelectDetail,
+  onToggleAnalyticDetail,
   project,
   bdi = 0,
   detailColSpan = 18,
@@ -50,7 +52,13 @@ export default function MeasurementItemRow({
   const isSelected = selectedDetail?.taskId === r.taskId;
   const selectQuantity = () => onSelectDetail?.({ taskId: r.taskId, mode: 'quantity' });
   const isAnalyticSelected = selectedDetail?.taskId === r.taskId && selectedDetail.mode === 'analytic';
-  const selectAnalytic = () => onSelectDetail?.(isAnalyticSelected ? null : { taskId: r.taskId, mode: 'analytic' });
+  const selectAnalytic = () => {
+    if (onToggleAnalyticDetail) {
+      onToggleAnalyticDetail(r.taskId);
+      return;
+    }
+    onSelectDetail?.(isAnalyticSelected ? null : { taskId: r.taskId, mode: 'analytic' });
+  };
   const selectClassification = (valueScope: MeasurementValueScope) => onSelectDetail?.({ taskId: r.taskId, mode: 'classification', valueScope });
   const handleRowClick = (event: MouseEvent<HTMLTableRowElement>) => {
     const target = event.target as HTMLElement | null;
@@ -62,6 +70,7 @@ export default function MeasurementItemRow({
   return (
     <Fragment>
     <tr
+      data-measurement-row="true"
       className={`cursor-pointer border-b border-border/60 hover:bg-muted/30 ${baseBg} ${isSelected ? 'ring-2 ring-primary/40 ring-inset' : ''}`}
       onClick={handleRowClick}
     >
