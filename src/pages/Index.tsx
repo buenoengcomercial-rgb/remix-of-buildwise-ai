@@ -14,6 +14,7 @@ import { flushPendingEditCommits } from '@/lib/pendingEditCommits';
 
 // Lazy load: cada aba só baixa seu bundle quando aberta pela primeira vez.
 const Dashboard = lazy(() => import('@/components/Dashboard'));
+const ProjectCheck = lazy(() => import('@/components/ProjectCheck'));
 const GanttChart = lazy(() => import('@/components/GanttChart'));
 const Measurement = lazy(() => import('@/components/Measurement'));
 const DailyProductionWorkspace = lazy(() => import('@/components/DailyProductionWorkspace'));
@@ -45,7 +46,7 @@ const SAVE_DEBOUNCE_MS = 4000;
 const UNSAVED_DRAFT_VERSION = 1;
 const UI_SESSION_VERSION = 1;
 const APP_UI_SESSION_KEY = 'obraplanner:ui-session';
-const APP_VIEWS: AppView[] = ['dashboard', 'gantt', 'tasks', 'measurement', 'dailyReport', 'additive', 'realCost', 'materials', 'warehouse'];
+const APP_VIEWS: AppView[] = ['dashboard', 'projectCheck', 'gantt', 'tasks', 'measurement', 'dailyReport', 'additive', 'realCost', 'materials', 'warehouse'];
 
 type UndoStacks = Record<AppView, Project[]>;
 
@@ -187,7 +188,7 @@ export default function Index() {
     setSidebarOpen(false);
   }, []);
 
-  const undoStacksRef = useRef<UndoStacks>({ dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], realCost: [], materials: [], warehouse: [] });
+  const undoStacksRef = useRef<UndoStacks>({ dashboard: [], projectCheck: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], realCost: [], materials: [], warehouse: [] });
   const [undoVersion, setUndoVersion] = useState(0);
   const rawProjectRef = useRef<Project | null>(null);
   const saveTimerRef = useRef<number | null>(null);
@@ -575,7 +576,7 @@ export default function Index() {
       const record = await loadCloudProjectRecord(id);
       if (record) {
         replaceProjectWithoutAutoSave(record.project, record.updatedAt);
-        undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], realCost: [], materials: [], warehouse: [] };
+        undoStacksRef.current = { dashboard: [], projectCheck: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], realCost: [], materials: [], warehouse: [] };
         setUndoVersion(v => v + 1);
       }
     } catch {
@@ -592,7 +593,7 @@ export default function Index() {
       const newProj = await createCloudProject(finalName, orgId);
       const list = await refreshCloudList();
       replaceProjectWithoutAutoSave(newProj, list.find(p => p.id === newProj.id)?.updatedAt ?? null);
-      undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], realCost: [], materials: [], warehouse: [] };
+      undoStacksRef.current = { dashboard: [], projectCheck: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], realCost: [], materials: [], warehouse: [] };
       setUndoVersion(v => v + 1);
       return newProj.id;
     } catch {
@@ -644,7 +645,7 @@ export default function Index() {
           const record = await loadCloudProjectRecord(next.id);
           if (record) {
             replaceProjectWithoutAutoSave(record.project, record.updatedAt);
-            undoStacksRef.current = { dashboard: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], realCost: [], materials: [], warehouse: [] };
+            undoStacksRef.current = { dashboard: [], projectCheck: [], gantt: [], tasks: [], measurement: [], dailyReport: [], additive: [], realCost: [], materials: [], warehouse: [] };
           }
         }
       }
@@ -706,6 +707,8 @@ export default function Index() {
     switch (currentView) {
       case 'dashboard':
         return <Dashboard project={project} undoButton={<UndoButton canUndo={canUndo('dashboard')} onUndo={() => handleUndo('dashboard')} />} />;
+      case 'projectCheck':
+        return <ProjectCheck project={project} onNavigate={(view) => setCurrentView(view)} />;
       case 'gantt':
         return <GanttChart project={project} onProjectChange={ganttSetter} undoButton={<UndoButton canUndo={canUndo('gantt')} onUndo={() => handleUndo('gantt')} size="xs" />} />;
       case 'tasks':

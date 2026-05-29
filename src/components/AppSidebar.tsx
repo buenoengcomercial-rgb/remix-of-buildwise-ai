@@ -1,5 +1,5 @@
 import { AppView } from '@/types/project';
-import { LayoutDashboard, GanttChart, ListTodo, ClipboardList, HardHat, Sparkles, ChevronsLeft, ChevronsRight, FolderOpen, Plus, ChevronDown, ChevronRight, Pencil, Copy, Trash2, Check, X, MoreHorizontal, Download, Upload, FileDown, Building2, Users, NotebookPen, FilePlus2, CircleDollarSign, Package, Warehouse } from 'lucide-react';
+import { LayoutDashboard, ShieldCheck, GanttChart, ListTodo, ClipboardList, HardHat, Sparkles, ChevronsLeft, ChevronsRight, FolderOpen, Plus, ChevronDown, ChevronRight, Pencil, Copy, Trash2, Check, X, MoreHorizontal, Download, Upload, FileDown, Building2, Users, NotebookPen, FilePlus2, CircleDollarSign, Package, Warehouse } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
@@ -63,6 +63,7 @@ interface AppSidebarProps {
 
 const navItems: { view: AppView; label: string; icon: React.ElementType }[] = [
   { view: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { view: 'projectCheck', label: 'Conferência da Obra', icon: ShieldCheck },
   { view: 'gantt', label: 'Cronograma', icon: GanttChart },
   { view: 'tasks', label: 'Tarefas (EAP)', icon: ListTodo },
   { view: 'measurement', label: 'Medição', icon: ClipboardList },
