@@ -913,7 +913,7 @@ export function buildLaborProjection(project: Project): LaborProjection {
       recommendedPeople,
       availablePeople,
       balancePeople,
-      status: hours <= 0 ? 'empty' : balancePeople < 0 ? 'deficit' : balancePeople > 0 ? 'surplus' : 'ok',
+      status: (hours <= 0 ? 'empty' : balancePeople < 0 ? 'deficit' : balancePeople > 0 ? 'surplus' : 'ok') as RoleDemandSummary['status'],
     };
   }).filter(row => row.hours > 0 || row.availablePeople > 0);
 
