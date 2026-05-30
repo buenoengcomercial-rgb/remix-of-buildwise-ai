@@ -209,6 +209,25 @@ export async function syncCollectionsToCloud(project: Project, userId?: string):
   ops.push(...diffAndSync('daily_reports', prev.dailyReports, next.dailyReports, projectId, userId, d => ({
     report_date: (d as DailyReport).date,
   })));
+  ops.push(...diffAndSync('measurements', prev.measurements, next.measurements, projectId, userId, m => {
+    const meas = m as SavedMeasurement;
+    return {
+      number: meas.number ?? null,
+      status: meas.status ?? null,
+      start_date: meas.startDate ?? null,
+      end_date: meas.endDate ?? null,
+      issue_date: meas.issueDate ?? null,
+    };
+  }));
+  ops.push(...diffAndSync('additives', prev.additives, next.additives, projectId, userId, a => {
+    const add = a as Additive;
+    return {
+      name: add.name ?? null,
+      status: add.status ?? null,
+      version: add.version ?? null,
+      imported_at: add.importedAt ?? null,
+    };
+  }));
   ops.push(...diffAndSyncTaskLogs(prev.taskLogs, next.taskLogs, projectId, userId));
 
   const results = await Promise.allSettled(ops);
