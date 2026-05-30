@@ -520,5 +520,44 @@ function shallowEqualJSON(a: unknown, b: unknown): boolean {
     return JSON.stringify(a) === JSON.stringify(b);
   } catch {
     return false;
+}
+
+function diffAndSyncEAP(
+  table: 'eap_chapters' | 'tasks',
+  prev: Map<string, ChapterRow | TaskRow>,
+  next: Map<string, ChapterRow | TaskRow>,
+  projectId: string,
+  userId?: string,
+): Promise<unknown>[] {
+  const ops: Promise<unknown>[] = [];
+  const upserts: Record<string, unknown>[] = [];
+  for (const [id, row] of next) {
+    const before = prev.get(id);
+    if (!before || !shallowEqualJSON(before, row)) {
+      const r = row as Record<string, unknown>;
+      upserts.push({
+        id,
+        project_id: projectId,
+        ...r,
+        ...(before ? {} : { created_by: userId ?? null }),
+      });
+    }
   }
+  if (upserts.length > 0) {
+    ops.push((async () => {
+      const r = await supabase.from(table).upsert(upserts as never, { onConflict: 'project_id,id' });
+      if (r.error) throw new Error(`${table} upsert: ${r.error.message}`);
+    })());
+  }
+  const toDelete: string[] = [];
+  for (const id of prev.keys()) if (!next.has(id)) toDelete.push(id);
+  if (toDelete.length > 0) {
+    ops.push((async () => {
+      const r = await supabase.from(table).delete().in('id', toDelete).eq('project_id', projectId);
+      if (r.error) throw new Error(`${table} delete: ${r.error.message}`);
+    })());
+  }
+  return ops;
+}
+
 }
