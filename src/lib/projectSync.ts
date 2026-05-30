@@ -36,6 +36,23 @@ type Json = import('@/integrations/supabase/types').Json;
 
 // ============== SNAPSHOT (para diff entre saves) ==============
 
+interface ChapterRow {
+  parent_id: string | null;
+  order_index: number;
+  name: string | null;
+  data: unknown;
+}
+interface TaskRow {
+  chapter_id: string;
+  parent_task_id: string | null;
+  order_index: number;
+  name: string | null;
+  start_date: string | null;
+  duration_days: number | null;
+  percent_complete: number | null;
+  data: unknown;
+}
+
 interface Snapshot {
   movements: Map<string, WarehouseMovement>;
   requisitions: Map<string, WarehouseRequisition>;
@@ -50,6 +67,8 @@ interface Snapshot {
   budgetItems: Map<string, BudgetItem>;
   materialComparisons: Map<string, MaterialComparison>;
   analyticCompositions: Map<string, AdditiveComposition>;
+  chapters: Map<string, ChapterRow>;
+  tasks: Map<string, TaskRow>;
 }
 
 const snapshots = new Map<string, Snapshot>();
@@ -69,6 +88,34 @@ function emptySnapshot(): Snapshot {
     budgetItems: new Map(),
     materialComparisons: new Map(),
     analyticCompositions: new Map(),
+    chapters: new Map(),
+    tasks: new Map(),
+  };
+}
+
+function phaseToChapterRow(phase: Phase, orderIndex: number): ChapterRow {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { tasks: _tasks, ...rest } = phase;
+  return {
+    parent_id: phase.parentId ?? null,
+    order_index: phase.order ?? orderIndex,
+    name: phase.name ?? null,
+    data: rest,
+  };
+}
+
+function taskToTaskRow(task: Task, chapterId: string, parentTaskId: string | null, orderIndex: number): TaskRow {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { children: _c, dailyLogs: _dl, ...rest } = task;
+  return {
+    chapter_id: chapterId,
+    parent_task_id: parentTaskId,
+    order_index: orderIndex,
+    name: task.name ?? null,
+    start_date: task.startDate || null,
+    duration_days: typeof task.duration === 'number' ? task.duration : null,
+    percent_complete: typeof task.percentComplete === 'number' ? task.percentComplete : null,
+    data: rest,
   };
 }
 
@@ -86,31 +133,25 @@ function buildSnapshot(project: Project): Snapshot {
   for (const b of project.budgetItems ?? []) snap.budgetItems.set(b.id, b);
   for (const c of project.materialComparisons ?? []) snap.materialComparisons.set(c.id, c);
   for (const a of project.analyticCompositions ?? []) snap.analyticCompositions.set(a.id, a);
-  walkTasks(project.phases ?? [], task => {
-    for (const log of task.dailyLogs ?? []) {
-      snap.taskLogs.set(log.id, { taskId: task.id, log });
-    }
+
+  const phases = project.phases ?? [];
+  phases.forEach((phase, idx) => {
+    snap.chapters.set(phase.id, phaseToChapterRow(phase, idx));
+    const walkTasksWithOrder = (tasks: Task[], parentTaskId: string | null) => {
+      tasks.forEach((t, tIdx) => {
+        snap.tasks.set(t.id, taskToTaskRow(t, phase.id, parentTaskId, tIdx));
+        for (const log of t.dailyLogs ?? []) {
+          snap.taskLogs.set(log.id, { taskId: t.id, log });
+        }
+        if (t.children?.length) walkTasksWithOrder(t.children, t.id);
+      });
+    };
+    walkTasksWithOrder(phase.tasks ?? [], null);
   });
+
   return snap;
 }
 
-function walkTasks(phases: Phase[], visit: (t: Task) => void) {
-  const stackTasks = (tasks: Task[]) => {
-    for (const t of tasks) {
-      visit(t);
-      if (t.children?.length) stackTasks(t.children);
-    }
-  };
-  for (const p of phases) stackTasks(p.tasks ?? []);
-}
-
-export function setCloudSnapshot(projectId: string, project: Project) {
-  snapshots.set(projectId, buildSnapshot(project));
-}
-
-export function clearCloudSnapshot(projectId: string) {
-  snapshots.delete(projectId);
-}
 
 // ============== LOAD: HYDRATE ==============
 
