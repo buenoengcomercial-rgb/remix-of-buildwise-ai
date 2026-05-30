@@ -36,6 +36,23 @@ type Json = import('@/integrations/supabase/types').Json;
 
 // ============== SNAPSHOT (para diff entre saves) ==============
 
+interface ChapterRow {
+  parent_id: string | null;
+  order_index: number;
+  name: string | null;
+  data: unknown;
+}
+interface TaskRow {
+  chapter_id: string;
+  parent_task_id: string | null;
+  order_index: number;
+  name: string | null;
+  start_date: string | null;
+  duration_days: number | null;
+  percent_complete: number | null;
+  data: unknown;
+}
+
 interface Snapshot {
   movements: Map<string, WarehouseMovement>;
   requisitions: Map<string, WarehouseRequisition>;
@@ -50,6 +67,8 @@ interface Snapshot {
   budgetItems: Map<string, BudgetItem>;
   materialComparisons: Map<string, MaterialComparison>;
   analyticCompositions: Map<string, AdditiveComposition>;
+  chapters: Map<string, ChapterRow>;
+  tasks: Map<string, TaskRow>;
 }
 
 const snapshots = new Map<string, Snapshot>();
@@ -69,6 +88,34 @@ function emptySnapshot(): Snapshot {
     budgetItems: new Map(),
     materialComparisons: new Map(),
     analyticCompositions: new Map(),
+    chapters: new Map(),
+    tasks: new Map(),
+  };
+}
+
+function phaseToChapterRow(phase: Phase, orderIndex: number): ChapterRow {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { tasks: _tasks, ...rest } = phase;
+  return {
+    parent_id: phase.parentId ?? null,
+    order_index: phase.order ?? orderIndex,
+    name: phase.name ?? null,
+    data: rest,
+  };
+}
+
+function taskToTaskRow(task: Task, chapterId: string, parentTaskId: string | null, orderIndex: number): TaskRow {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { children: _c, dailyLogs: _dl, ...rest } = task;
+  return {
+    chapter_id: chapterId,
+    parent_task_id: parentTaskId,
+    order_index: orderIndex,
+    name: task.name ?? null,
+    start_date: task.startDate || null,
+    duration_days: typeof task.duration === 'number' ? task.duration : null,
+    percent_complete: typeof task.percentComplete === 'number' ? task.percentComplete : null,
+    data: rest,
   };
 }
 
@@ -86,22 +133,23 @@ function buildSnapshot(project: Project): Snapshot {
   for (const b of project.budgetItems ?? []) snap.budgetItems.set(b.id, b);
   for (const c of project.materialComparisons ?? []) snap.materialComparisons.set(c.id, c);
   for (const a of project.analyticCompositions ?? []) snap.analyticCompositions.set(a.id, a);
-  walkTasks(project.phases ?? [], task => {
-    for (const log of task.dailyLogs ?? []) {
-      snap.taskLogs.set(log.id, { taskId: task.id, log });
-    }
-  });
-  return snap;
-}
 
-function walkTasks(phases: Phase[], visit: (t: Task) => void) {
-  const stackTasks = (tasks: Task[]) => {
-    for (const t of tasks) {
-      visit(t);
-      if (t.children?.length) stackTasks(t.children);
-    }
-  };
-  for (const p of phases) stackTasks(p.tasks ?? []);
+  const phases = project.phases ?? [];
+  phases.forEach((phase, idx) => {
+    snap.chapters.set(phase.id, phaseToChapterRow(phase, idx));
+    const walkTasksWithOrder = (tasks: Task[], parentTaskId: string | null) => {
+      tasks.forEach((t, tIdx) => {
+        snap.tasks.set(t.id, taskToTaskRow(t, phase.id, parentTaskId, tIdx));
+        for (const log of t.dailyLogs ?? []) {
+          snap.taskLogs.set(log.id, { taskId: t.id, log });
+        }
+        if (t.children?.length) walkTasksWithOrder(t.children, t.id);
+      });
+    };
+    walkTasksWithOrder(phase.tasks ?? [], null);
+  });
+
+  return snap;
 }
 
 export function setCloudSnapshot(projectId: string, project: Project) {
@@ -116,7 +164,7 @@ export function clearCloudSnapshot(projectId: string) {
 
 export async function hydrateProjectFromCloud(project: Project): Promise<Project> {
   const projectId = project.id;
-  const [movRes, reqRes, custRes, drRes, logsRes, measRes, addRes, audRes, stkRes, phRes, biRes, mcRes, acRes] = await Promise.all([
+  const [movRes, reqRes, custRes, drRes, logsRes, measRes, addRes, audRes, stkRes, phRes, biRes, mcRes, acRes, chRes, tkRes] = await Promise.all([
     supabase.from('warehouse_movements').select('id, data').eq('project_id', projectId),
     supabase.from('warehouse_requisitions').select('id, data').eq('project_id', projectId),
     supabase.from('warehouse_custody').select('id, data').eq('project_id', projectId),
@@ -130,6 +178,8 @@ export async function hydrateProjectFromCloud(project: Project): Promise<Project
     supabase.from('budget_items').select('id, data').eq('project_id', projectId),
     supabase.from('material_comparisons').select('id, data').eq('project_id', projectId),
     supabase.from('analytic_compositions').select('id, data').eq('project_id', projectId),
+    supabase.from('eap_chapters').select('id, parent_id, order_index, data').eq('project_id', projectId).order('order_index'),
+    supabase.from('tasks').select('id, chapter_id, parent_task_id, order_index, data').eq('project_id', projectId).order('order_index'),
   ]);
 
   // Falha silenciosa: mantém o que veio no data_json (legado / sem permissão).
@@ -173,14 +223,67 @@ export async function hydrateProjectFromCloud(project: Project): Promise<Project
   if (materialComparisons !== null && materialComparisons.length > 0) next.materialComparisons = materialComparisons;
   if (analyticCompositions !== null && analyticCompositions.length > 0) next.analyticCompositions = analyticCompositions;
 
-  if (taskLogs !== null && taskLogs.length > 0) {
-    const byTask = new Map<string, DailyProductionLog[]>();
+  // ===== Reconstrói phases[] a partir de eap_chapters + tasks =====
+  const chapterRows = chRes.error ? null : (chRes.data ?? []);
+  const taskRows = tkRes.error ? null : (tkRes.data ?? []);
+
+  const logsByTask = new Map<string, DailyProductionLog[]>();
+  if (taskLogs !== null) {
     for (const { taskId, log } of taskLogs) {
-      const arr = byTask.get(taskId) ?? [];
+      const arr = logsByTask.get(taskId) ?? [];
       arr.push(log);
-      byTask.set(taskId, arr);
+      logsByTask.set(taskId, arr);
     }
-    next.phases = (project.phases ?? []).map(p => mapPhaseTasks(p, byTask));
+  }
+
+  if (chapterRows !== null && chapterRows.length > 0) {
+    type TR = NonNullable<typeof taskRows>[number];
+    const childrenByParent = new Map<string, TR[]>();
+    const rootTasksByChapter = new Map<string, TR[]>();
+    for (const tr of (taskRows ?? []) as TR[]) {
+      if (tr.parent_task_id) {
+        const carr = childrenByParent.get(tr.parent_task_id) ?? [];
+        carr.push(tr);
+        childrenByParent.set(tr.parent_task_id, carr);
+      } else {
+        const rarr = rootTasksByChapter.get(tr.chapter_id) ?? [];
+        rarr.push(tr);
+        rootTasksByChapter.set(tr.chapter_id, rarr);
+      }
+    }
+
+    const buildTask = (row: TR): Task => {
+      const t = { ...(row.data as object) } as Task;
+      t.id = row.id;
+      const kids = (childrenByParent.get(row.id) ?? [])
+        .slice()
+        .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+        .map(c => buildTask(c));
+      if (kids.length > 0) t.children = kids;
+      else delete t.children;
+      const logs = logsByTask.get(row.id);
+      if (logs && logs.length > 0) t.dailyLogs = logs;
+      return t;
+    };
+
+    const phases: Phase[] = chapterRows
+      .slice()
+      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+      .map(ch => {
+        const base = { ...(ch.data as object) } as Phase;
+        base.id = ch.id;
+        if (ch.parent_id) base.parentId = ch.parent_id; else delete (base as Partial<Phase>).parentId;
+        base.order = ch.order_index;
+        const roots = (rootTasksByChapter.get(ch.id) ?? [])
+          .slice()
+          .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))
+          .map(r => buildTask(r));
+        base.tasks = roots;
+        return base;
+      });
+    next.phases = phases;
+  } else if (taskLogs !== null && taskLogs.length > 0) {
+    next.phases = (project.phases ?? []).map(p => mapPhaseTasks(p, logsByTask));
   }
 
   setCloudSnapshot(projectId, next);
@@ -196,6 +299,7 @@ function mapTask(task: Task, byTask: Map<string, DailyProductionLog[]>): Task {
   if (task.children?.length) next.children = task.children.map(c => mapTask(c, byTask));
   return next;
 }
+
 
 // ============== SAVE: STRIP + SYNC ==============
 
@@ -315,6 +419,9 @@ export async function syncCollectionsToCloud(project: Project, userId?: string):
     code: (a as AdditiveComposition).code ?? null,
   })));
   ops.push(...diffAndSyncTaskLogs(prev.taskLogs, next.taskLogs, projectId, userId));
+  ops.push(...diffAndSyncEAP('eap_chapters', prev.chapters, next.chapters, projectId, userId));
+  ops.push(...diffAndSyncEAP('tasks', prev.tasks, next.tasks, projectId, userId));
+
 
   const results = await Promise.allSettled(ops);
   const failed = results.filter(r => r.status === 'rejected');
@@ -415,3 +522,42 @@ function shallowEqualJSON(a: unknown, b: unknown): boolean {
     return false;
   }
 }
+
+function diffAndSyncEAP(
+  table: 'eap_chapters' | 'tasks',
+  prev: Map<string, ChapterRow | TaskRow>,
+  next: Map<string, ChapterRow | TaskRow>,
+  projectId: string,
+  userId?: string,
+): Promise<unknown>[] {
+  const ops: Promise<unknown>[] = [];
+  const upserts: Record<string, unknown>[] = [];
+  for (const [id, row] of next) {
+    const before = prev.get(id);
+    if (!before || !shallowEqualJSON(before, row)) {
+      const r = row as unknown as Record<string, unknown>;
+      upserts.push({
+        id,
+        project_id: projectId,
+        ...r,
+        ...(before ? {} : { created_by: userId ?? null }),
+      });
+    }
+  }
+  if (upserts.length > 0) {
+    ops.push((async () => {
+      const r = await supabase.from(table).upsert(upserts as never, { onConflict: 'project_id,id' });
+      if (r.error) throw new Error(`${table} upsert: ${r.error.message}`);
+    })());
+  }
+  const toDelete: string[] = [];
+  for (const id of prev.keys()) if (!next.has(id)) toDelete.push(id);
+  if (toDelete.length > 0) {
+    ops.push((async () => {
+      const r = await supabase.from(table).delete().in('id', toDelete).eq('project_id', projectId);
+      if (r.error) throw new Error(`${table} delete: ${r.error.message}`);
+    })());
+  }
+  return ops;
+}
+
