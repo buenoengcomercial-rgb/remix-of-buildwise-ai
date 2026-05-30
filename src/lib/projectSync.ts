@@ -270,16 +270,18 @@ function diffAndSyncTaskLogs(
     }
   }
   if (upserts.length > 0) {
-    ops.push(supabase.from('task_daily_logs').upsert(upserts, { onConflict: 'id' }).then(r => {
+    ops.push((async () => {
+      const r = await supabase.from('task_daily_logs').upsert(upserts as never, { onConflict: 'id' });
       if (r.error) throw new Error(`task_daily_logs upsert: ${r.error.message}`);
-    }));
+    })());
   }
   const toDelete: string[] = [];
   for (const id of prev.keys()) if (!next.has(id)) toDelete.push(id);
   if (toDelete.length > 0) {
-    ops.push(supabase.from('task_daily_logs').delete().in('id', toDelete).eq('project_id', projectId).then(r => {
+    ops.push((async () => {
+      const r = await supabase.from('task_daily_logs').delete().in('id', toDelete).eq('project_id', projectId);
       if (r.error) throw new Error(`task_daily_logs delete: ${r.error.message}`);
-    }));
+    })());
   }
   return ops;
 }
