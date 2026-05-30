@@ -24,6 +24,9 @@ import type {
   Phase,
   SavedMeasurement,
   Additive,
+  AuditLog,
+  StockMovement,
+  PriceHistoryEntry,
 } from '@/types/project';
 
 type Json = import('@/integrations/supabase/types').Json;
