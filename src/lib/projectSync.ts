@@ -22,6 +22,8 @@ import type {
   DailyProductionLog,
   Task,
   Phase,
+  SavedMeasurement,
+  Additive,
 } from '@/types/project';
 
 type Json = import('@/integrations/supabase/types').Json;
@@ -34,6 +36,8 @@ interface Snapshot {
   custody: Map<string, CustodyTerm>;
   dailyReports: Map<string, DailyReport>;
   taskLogs: Map<string, { taskId: string; log: DailyProductionLog }>;
+  measurements: Map<string, SavedMeasurement>;
+  additives: Map<string, Additive>;
 }
 
 const snapshots = new Map<string, Snapshot>();
@@ -45,6 +49,8 @@ function emptySnapshot(): Snapshot {
     custody: new Map(),
     dailyReports: new Map(),
     taskLogs: new Map(),
+    measurements: new Map(),
+    additives: new Map(),
   };
 }
 
@@ -54,6 +60,8 @@ function buildSnapshot(project: Project): Snapshot {
   for (const r of project.warehouse?.requisitions ?? []) snap.requisitions.set(r.id, r);
   for (const c of project.warehouse?.custodyTerms ?? []) snap.custody.set(c.id, c);
   for (const d of project.dailyReports ?? []) snap.dailyReports.set(d.id, d);
+  for (const m of project.measurements ?? []) snap.measurements.set(m.id, m);
+  for (const a of project.additives ?? []) snap.additives.set(a.id, a);
   walkTasks(project.phases ?? [], task => {
     for (const log of task.dailyLogs ?? []) {
       snap.taskLogs.set(log.id, { taskId: task.id, log });
@@ -84,12 +92,14 @@ export function clearCloudSnapshot(projectId: string) {
 
 export async function hydrateProjectFromCloud(project: Project): Promise<Project> {
   const projectId = project.id;
-  const [movRes, reqRes, custRes, drRes, logsRes] = await Promise.all([
+  const [movRes, reqRes, custRes, drRes, logsRes, measRes, addRes] = await Promise.all([
     supabase.from('warehouse_movements').select('id, data').eq('project_id', projectId),
     supabase.from('warehouse_requisitions').select('id, data').eq('project_id', projectId),
     supabase.from('warehouse_custody').select('id, data').eq('project_id', projectId),
     supabase.from('daily_reports').select('id, data').eq('project_id', projectId),
     supabase.from('task_daily_logs').select('id, task_id, data').eq('project_id', projectId),
+    supabase.from('measurements').select('id, data').eq('project_id', projectId),
+    supabase.from('additives').select('id, data').eq('project_id', projectId),
   ]);
 
   // Falha silenciosa: mantém o que veio no data_json (legado / sem permissão).
@@ -101,6 +111,8 @@ export async function hydrateProjectFromCloud(project: Project): Promise<Project
     taskId: r.task_id,
     log: r.data as unknown as DailyProductionLog,
   }));
+  const measurements = measRes.error ? null : (measRes.data ?? []).map(r => r.data as unknown as SavedMeasurement);
+  const additives = addRes.error ? null : (addRes.data ?? []).map(r => r.data as unknown as Additive);
 
   const next: Project = { ...project };
 
@@ -116,6 +128,8 @@ export async function hydrateProjectFromCloud(project: Project): Promise<Project
     };
   }
   if (dailyReports !== null) next.dailyReports = dailyReports;
+  if (measurements !== null && measurements.length > 0) next.measurements = measurements;
+  if (additives !== null && additives.length > 0) next.additives = additives;
 
   if (taskLogs !== null && taskLogs.length > 0) {
     const byTask = new Map<string, DailyProductionLog[]>();
@@ -158,6 +172,8 @@ export function stripNormalizedCollections(project: Project): Project {
     };
   }
   next.dailyReports = [];
+  next.measurements = [];
+  next.additives = [];
   if (project.phases?.length) {
     next.phases = project.phases.map(stripPhaseLogs);
   }
@@ -193,6 +209,25 @@ export async function syncCollectionsToCloud(project: Project, userId?: string):
   ops.push(...diffAndSync('daily_reports', prev.dailyReports, next.dailyReports, projectId, userId, d => ({
     report_date: (d as DailyReport).date,
   })));
+  ops.push(...diffAndSync('measurements', prev.measurements, next.measurements, projectId, userId, m => {
+    const meas = m as SavedMeasurement;
+    return {
+      number: meas.number ?? null,
+      status: meas.status ?? null,
+      start_date: meas.startDate ?? null,
+      end_date: meas.endDate ?? null,
+      issue_date: meas.issueDate ?? null,
+    };
+  }));
+  ops.push(...diffAndSync('additives', prev.additives, next.additives, projectId, userId, a => {
+    const add = a as Additive;
+    return {
+      name: add.name ?? null,
+      status: add.status ?? null,
+      version: add.version ?? null,
+      imported_at: add.importedAt ?? null,
+    };
+  }));
   ops.push(...diffAndSyncTaskLogs(prev.taskLogs, next.taskLogs, projectId, userId));
 
   const results = await Promise.allSettled(ops);
@@ -205,7 +240,7 @@ export async function syncCollectionsToCloud(project: Project, userId?: string):
 }
 
 function diffAndSync<T extends { id: string }>(
-  table: 'warehouse_movements' | 'warehouse_requisitions' | 'warehouse_custody' | 'daily_reports',
+  table: 'warehouse_movements' | 'warehouse_requisitions' | 'warehouse_custody' | 'daily_reports' | 'measurements' | 'additives',
   prev: Map<string, T>,
   next: Map<string, T>,
   projectId: string,
