@@ -116,7 +116,7 @@ export function clearCloudSnapshot(projectId: string) {
 
 export async function hydrateProjectFromCloud(project: Project): Promise<Project> {
   const projectId = project.id;
-  const [movRes, reqRes, custRes, drRes, logsRes, measRes, addRes, audRes, stkRes, phRes] = await Promise.all([
+  const [movRes, reqRes, custRes, drRes, logsRes, measRes, addRes, audRes, stkRes, phRes, biRes, mcRes, acRes] = await Promise.all([
     supabase.from('warehouse_movements').select('id, data').eq('project_id', projectId),
     supabase.from('warehouse_requisitions').select('id, data').eq('project_id', projectId),
     supabase.from('warehouse_custody').select('id, data').eq('project_id', projectId),
@@ -127,6 +127,9 @@ export async function hydrateProjectFromCloud(project: Project): Promise<Project
     supabase.from('audit_logs').select('id, data').eq('project_id', projectId),
     supabase.from('stock_movements').select('id, data').eq('project_id', projectId),
     supabase.from('material_price_history').select('id, data').eq('project_id', projectId),
+    supabase.from('budget_items').select('id, data').eq('project_id', projectId),
+    supabase.from('material_comparisons').select('id, data').eq('project_id', projectId),
+    supabase.from('analytic_compositions').select('id, data').eq('project_id', projectId),
   ]);
 
   // Falha silenciosa: mantém o que veio no data_json (legado / sem permissão).
@@ -143,6 +146,9 @@ export async function hydrateProjectFromCloud(project: Project): Promise<Project
   const auditLogs = audRes.error ? null : (audRes.data ?? []).map(r => r.data as unknown as AuditLog);
   const stockMovements = stkRes.error ? null : (stkRes.data ?? []).map(r => r.data as unknown as StockMovement);
   const priceHistory = phRes.error ? null : (phRes.data ?? []).map(r => r.data as unknown as PriceHistoryEntry);
+  const budgetItems = biRes.error ? null : (biRes.data ?? []).map(r => r.data as unknown as BudgetItem);
+  const materialComparisons = mcRes.error ? null : (mcRes.data ?? []).map(r => r.data as unknown as MaterialComparison);
+  const analyticCompositions = acRes.error ? null : (acRes.data ?? []).map(r => r.data as unknown as AdditiveComposition);
 
   const next: Project = { ...project };
 
@@ -163,6 +169,9 @@ export async function hydrateProjectFromCloud(project: Project): Promise<Project
   if (auditLogs !== null && auditLogs.length > 0) next.auditLogs = auditLogs;
   if (stockMovements !== null && stockMovements.length > 0) next.stockMovements = stockMovements;
   if (priceHistory !== null && priceHistory.length > 0) next.materialPriceHistory = priceHistory;
+  if (budgetItems !== null && budgetItems.length > 0) next.budgetItems = budgetItems;
+  if (materialComparisons !== null && materialComparisons.length > 0) next.materialComparisons = materialComparisons;
+  if (analyticCompositions !== null && analyticCompositions.length > 0) next.analyticCompositions = analyticCompositions;
 
   if (taskLogs !== null && taskLogs.length > 0) {
     const byTask = new Map<string, DailyProductionLog[]>();
