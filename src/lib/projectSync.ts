@@ -1,0 +1,296 @@
+/**
+ * Sincronização incremental das coleções de alto volume entre o objeto
+ * `Project` (UI) e as tabelas normalizadas no Supabase.
+ *
+ * A UI continua lendo/gravando `project.warehouse.movements`, `project.dailyReports`,
+ * `task.dailyLogs` etc. — esta camada intercepta load/save:
+ *
+ *  - hydrateProjectFromCloud(project): popula essas coleções a partir das tabelas.
+ *  - syncCollectionsToCloud(prev, next, projectId): faz upsert/delete por linha.
+ *  - stripNormalizedCollections(project): remove essas coleções antes do PATCH
+ *    em `projects.data_json`, mantendo o payload pequeno.
+ *
+ * Snapshot de "estado salvo" é mantido em memória por projectId para diff.
+ */
+import { supabase } from '@/integrations/supabase/client';
+import type {
+  Project,
+  WarehouseMovement,
+  WarehouseRequisition,
+  CustodyTerm,
+  DailyReport,
+  DailyProductionLog,
+  Task,
+  Phase,
+} from '@/types/project';
+
+type Json = import('@/integrations/supabase/types').Json;
+
+// ============== SNAPSHOT (para diff entre saves) ==============
+
+interface Snapshot {
+  movements: Map<string, WarehouseMovement>;
+  requisitions: Map<string, WarehouseRequisition>;
+  custody: Map<string, CustodyTerm>;
+  dailyReports: Map<string, DailyReport>;
+  taskLogs: Map<string, { taskId: string; log: DailyProductionLog }>;
+}
+
+const snapshots = new Map<string, Snapshot>();
+
+function emptySnapshot(): Snapshot {
+  return {
+    movements: new Map(),
+    requisitions: new Map(),
+    custody: new Map(),
+    dailyReports: new Map(),
+    taskLogs: new Map(),
+  };
+}
+
+function buildSnapshot(project: Project): Snapshot {
+  const snap = emptySnapshot();
+  for (const m of project.warehouse?.movements ?? []) snap.movements.set(m.id, m);
+  for (const r of project.warehouse?.requisitions ?? []) snap.requisitions.set(r.id, r);
+  for (const c of project.warehouse?.custodyTerms ?? []) snap.custody.set(c.id, c);
+  for (const d of project.dailyReports ?? []) snap.dailyReports.set(d.id, d);
+  walkTasks(project.phases ?? [], task => {
+    for (const log of task.dailyLogs ?? []) {
+      snap.taskLogs.set(log.id, { taskId: task.id, log });
+    }
+  });
+  return snap;
+}
+
+function walkTasks(phases: Phase[], visit: (t: Task) => void) {
+  const stackTasks = (tasks: Task[]) => {
+    for (const t of tasks) {
+      visit(t);
+      if (t.children?.length) stackTasks(t.children);
+    }
+  };
+  for (const p of phases) stackTasks(p.tasks ?? []);
+}
+
+export function setCloudSnapshot(projectId: string, project: Project) {
+  snapshots.set(projectId, buildSnapshot(project));
+}
+
+export function clearCloudSnapshot(projectId: string) {
+  snapshots.delete(projectId);
+}
+
+// ============== LOAD: HYDRATE ==============
+
+export async function hydrateProjectFromCloud(project: Project): Promise<Project> {
+  const projectId = project.id;
+  const [movRes, reqRes, custRes, drRes, logsRes] = await Promise.all([
+    supabase.from('warehouse_movements').select('id, data').eq('project_id', projectId),
+    supabase.from('warehouse_requisitions').select('id, data').eq('project_id', projectId),
+    supabase.from('warehouse_custody').select('id, data').eq('project_id', projectId),
+    supabase.from('daily_reports').select('id, data').eq('project_id', projectId),
+    supabase.from('task_daily_logs').select('id, task_id, data').eq('project_id', projectId),
+  ]);
+
+  // Falha silenciosa: mantém o que veio no data_json (legado / sem permissão).
+  const movements = movRes.error ? null : (movRes.data ?? []).map(r => r.data as unknown as WarehouseMovement);
+  const requisitions = reqRes.error ? null : (reqRes.data ?? []).map(r => r.data as unknown as WarehouseRequisition);
+  const custody = custRes.error ? null : (custRes.data ?? []).map(r => r.data as unknown as CustodyTerm);
+  const dailyReports = drRes.error ? null : (drRes.data ?? []).map(r => r.data as unknown as DailyReport);
+  const taskLogs = logsRes.error ? null : (logsRes.data ?? []).map(r => ({
+    taskId: r.task_id,
+    log: r.data as unknown as DailyProductionLog,
+  }));
+
+  const next: Project = { ...project };
+
+  if (movements !== null || requisitions !== null || custody !== null) {
+    const existing = project.warehouse ?? {
+      locations: [], items: [], movements: [], requisitions: [], equipments: [], custodyTerms: [],
+    };
+    next.warehouse = {
+      ...existing,
+      movements: movements ?? existing.movements,
+      requisitions: requisitions ?? existing.requisitions,
+      custodyTerms: custody ?? existing.custodyTerms,
+    };
+  }
+  if (dailyReports !== null) next.dailyReports = dailyReports;
+
+  if (taskLogs !== null && taskLogs.length > 0) {
+    const byTask = new Map<string, DailyProductionLog[]>();
+    for (const { taskId, log } of taskLogs) {
+      const arr = byTask.get(taskId) ?? [];
+      arr.push(log);
+      byTask.set(taskId, arr);
+    }
+    next.phases = (project.phases ?? []).map(p => mapPhaseTasks(p, byTask));
+  }
+
+  setCloudSnapshot(projectId, next);
+  return next;
+}
+
+function mapPhaseTasks(phase: Phase, byTask: Map<string, DailyProductionLog[]>): Phase {
+  return { ...phase, tasks: phase.tasks?.map(t => mapTask(t, byTask)) ?? [] };
+}
+function mapTask(task: Task, byTask: Map<string, DailyProductionLog[]>): Task {
+  const next: Task = { ...task };
+  if (byTask.has(task.id)) next.dailyLogs = byTask.get(task.id)!;
+  if (task.children?.length) next.children = task.children.map(c => mapTask(c, byTask));
+  return next;
+}
+
+// ============== SAVE: STRIP + SYNC ==============
+
+/**
+ * Retorna uma cópia do projeto SEM as coleções normalizadas, para reduzir o
+ * payload de `data_json`. As coleções continuam vivas em memória.
+ */
+export function stripNormalizedCollections(project: Project): Project {
+  const next: Project = { ...project };
+  if (project.warehouse) {
+    next.warehouse = {
+      ...project.warehouse,
+      movements: [],
+      requisitions: [],
+      custodyTerms: [],
+    };
+  }
+  next.dailyReports = [];
+  if (project.phases?.length) {
+    next.phases = project.phases.map(stripPhaseLogs);
+  }
+  return next;
+}
+function stripPhaseLogs(phase: Phase): Phase {
+  return { ...phase, tasks: phase.tasks?.map(stripTaskLogs) ?? [] };
+}
+function stripTaskLogs(task: Task): Task {
+  const next: Task = { ...task, dailyLogs: [] };
+  if (task.children?.length) next.children = task.children.map(stripTaskLogs);
+  return next;
+}
+
+/**
+ * Faz diff entre o snapshot salvo e o projeto atual, e aplica
+ * upsert/delete por linha nas tabelas normalizadas.
+ *
+ * Não bloqueia o save do projeto se a sincronização falhar (apenas loga).
+ */
+export async function syncCollectionsToCloud(project: Project, userId?: string): Promise<void> {
+  const projectId = project.id;
+  const prev = snapshots.get(projectId) ?? emptySnapshot();
+  const next = buildSnapshot(project);
+
+  const ops: Promise<unknown>[] = [];
+
+  ops.push(...diffAndSync('warehouse_movements', prev.movements, next.movements, projectId, userId, m => ({
+    occurred_at: (m as WarehouseMovement).date ?? null,
+  })));
+  ops.push(...diffAndSync('warehouse_requisitions', prev.requisitions, next.requisitions, projectId, userId));
+  ops.push(...diffAndSync('warehouse_custody', prev.custody, next.custody, projectId, userId));
+  ops.push(...diffAndSync('daily_reports', prev.dailyReports, next.dailyReports, projectId, userId, d => ({
+    report_date: (d as DailyReport).date,
+  })));
+  ops.push(...diffAndSyncTaskLogs(prev.taskLogs, next.taskLogs, projectId, userId));
+
+  const results = await Promise.allSettled(ops);
+  const failed = results.filter(r => r.status === 'rejected');
+  if (failed.length > 0) {
+    console.warn(`[projectSync] ${failed.length}/${results.length} ops falharam`, failed.slice(0, 3));
+  }
+
+  snapshots.set(projectId, next);
+}
+
+function diffAndSync<T extends { id: string }>(
+  table: 'warehouse_movements' | 'warehouse_requisitions' | 'warehouse_custody' | 'daily_reports',
+  prev: Map<string, T>,
+  next: Map<string, T>,
+  projectId: string,
+  userId?: string,
+  extraCols?: (item: T) => Record<string, unknown>,
+): Promise<unknown>[] {
+  const ops: Promise<unknown>[] = [];
+
+  // upserts (novos ou modificados)
+  const upserts: Record<string, unknown>[] = [];
+  for (const [id, item] of next) {
+    const before = prev.get(id);
+    if (!before || !shallowEqualJSON(before, item)) {
+      upserts.push({
+        id,
+        project_id: projectId,
+        data: item as unknown as Json,
+        ...(extraCols ? extraCols(item) : {}),
+        ...(before ? {} : { created_by: userId ?? null }),
+      });
+    }
+  }
+  if (upserts.length > 0) {
+    ops.push((async () => {
+      const r = await supabase.from(table).upsert(upserts as never, { onConflict: 'id' });
+      if (r.error) throw new Error(`${table} upsert: ${r.error.message}`);
+    })());
+  }
+
+  // deletes (presentes antes, ausentes agora)
+  const toDelete: string[] = [];
+  for (const id of prev.keys()) if (!next.has(id)) toDelete.push(id);
+  if (toDelete.length > 0) {
+    ops.push((async () => {
+      const r = await supabase.from(table).delete().in('id', toDelete).eq('project_id', projectId);
+      if (r.error) throw new Error(`${table} delete: ${r.error.message}`);
+    })());
+  }
+
+  return ops;
+}
+
+function diffAndSyncTaskLogs(
+  prev: Map<string, { taskId: string; log: DailyProductionLog }>,
+  next: Map<string, { taskId: string; log: DailyProductionLog }>,
+  projectId: string,
+  userId?: string,
+): Promise<unknown>[] {
+  const ops: Promise<unknown>[] = [];
+  const upserts: Record<string, unknown>[] = [];
+  for (const [id, { taskId, log }] of next) {
+    const before = prev.get(id);
+    if (!before || before.taskId !== taskId || !shallowEqualJSON(before.log, log)) {
+      upserts.push({
+        id,
+        project_id: projectId,
+        task_id: taskId,
+        log_date: log.date,
+        data: log as unknown as Json,
+        ...(before ? {} : { created_by: userId ?? null }),
+      });
+    }
+  }
+  if (upserts.length > 0) {
+    ops.push((async () => {
+      const r = await supabase.from('task_daily_logs').upsert(upserts as never, { onConflict: 'id' });
+      if (r.error) throw new Error(`task_daily_logs upsert: ${r.error.message}`);
+    })());
+  }
+  const toDelete: string[] = [];
+  for (const id of prev.keys()) if (!next.has(id)) toDelete.push(id);
+  if (toDelete.length > 0) {
+    ops.push((async () => {
+      const r = await supabase.from('task_daily_logs').delete().in('id', toDelete).eq('project_id', projectId);
+      if (r.error) throw new Error(`task_daily_logs delete: ${r.error.message}`);
+    })());
+  }
+  return ops;
+}
+
+function shallowEqualJSON(a: unknown, b: unknown): boolean {
+  // Comparação por serialização: itens são pequenos (KB) e mudam raramente.
+  try {
+    return JSON.stringify(a) === JSON.stringify(b);
+  } catch {
+    return false;
+  }
+}

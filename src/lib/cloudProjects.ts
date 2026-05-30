@@ -1,6 +1,12 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Project } from '@/types/project';
 import { sampleProject } from '@/data/sampleProject';
+import {
+  hydrateProjectFromCloud,
+  stripNormalizedCollections,
+  syncCollectionsToCloud,
+  clearCloudSnapshot,
+} from '@/lib/projectSync';
 
 export interface CloudProjectMeta {
   id: string;
@@ -49,21 +55,38 @@ export async function loadCloudProjectRecord(id: string): Promise<CloudProjectRe
   if (error) throw error;
   if (!data) return null;
   const proj = (data.data_json ?? {}) as unknown as Project;
+  const base: Project = { ...proj, id: data.id, name: data.name };
+  // Hidrata coleções normalizadas (almoxarifado, diários, apontamentos).
+  const hydrated = await hydrateProjectFromCloud(base);
   return {
-    project: { ...proj, id: data.id, name: data.name },
+    project: hydrated,
     updatedAt: data.updated_at,
   };
 }
 
+async function getCurrentUserId(): Promise<string | undefined> {
+  try {
+    const { data } = await supabase.auth.getUser();
+    return data.user?.id;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function upsertCloudProject(project: Project, organizationId: string, expectedUpdatedAt?: string): Promise<string> {
+  const userId = await getCurrentUserId();
+  // Sincroniza coleções normalizadas em paralelo e remove do payload do JSON.
+  await syncCollectionsToCloud(project, userId);
+  const slim = stripNormalizedCollections(project);
+
   if (expectedUpdatedAt) {
     const { data, error } = await supabase
       .from('projects')
       .update({
-        name: project.name,
-        data_json: project as unknown as import('@/integrations/supabase/types').Json,
+        name: slim.name,
+        data_json: slim as unknown as import('@/integrations/supabase/types').Json,
       })
-      .eq('id', project.id)
+      .eq('id', slim.id)
       .eq('organization_id', organizationId)
       .eq('updated_at', expectedUpdatedAt)
       .select('updated_at')
@@ -76,10 +99,10 @@ export async function upsertCloudProject(project: Project, organizationId: strin
   const { data, error } = await supabase
     .from('projects')
     .upsert([{
-      id: project.id,
+      id: slim.id,
       organization_id: organizationId,
-      name: project.name,
-      data_json: project as unknown as import('@/integrations/supabase/types').Json,
+      name: slim.name,
+      data_json: slim as unknown as import('@/integrations/supabase/types').Json,
     }], { onConflict: 'id' })
     .select('updated_at')
     .single();
@@ -138,6 +161,7 @@ export async function duplicateCloudProject(id: string, organizationId: string):
 export async function deleteCloudProject(id: string): Promise<void> {
   const { error } = await supabase.from('projects').delete().eq('id', id);
   if (error) throw error;
+  clearCloudSnapshot(id);
 }
 
 export async function generateUniqueCloudName(base = 'Nova obra'): Promise<string> {
