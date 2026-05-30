@@ -172,6 +172,8 @@ export function stripNormalizedCollections(project: Project): Project {
     };
   }
   next.dailyReports = [];
+  next.measurements = [];
+  next.additives = [];
   if (project.phases?.length) {
     next.phases = project.phases.map(stripPhaseLogs);
   }
