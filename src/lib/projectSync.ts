@@ -419,6 +419,9 @@ export async function syncCollectionsToCloud(project: Project, userId?: string):
     code: (a as AdditiveComposition).code ?? null,
   })));
   ops.push(...diffAndSyncTaskLogs(prev.taskLogs, next.taskLogs, projectId, userId));
+  ops.push(...diffAndSyncEAP('eap_chapters', prev.chapters, next.chapters, projectId, userId));
+  ops.push(...diffAndSyncEAP('tasks', prev.tasks, next.tasks, projectId, userId));
+
 
   const results = await Promise.allSettled(ops);
   const failed = results.filter(r => r.status === 'rejected');
