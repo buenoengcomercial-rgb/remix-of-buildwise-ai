@@ -5,7 +5,6 @@ import {
   hydrateProjectFromCloud,
   stripNormalizedCollections,
   syncCollectionsToCloud,
-  setCloudSnapshot,
   clearCloudSnapshot,
 } from '@/lib/projectSync';
 
